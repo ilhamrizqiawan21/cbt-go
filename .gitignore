@@ -1,0 +1,61 @@
+# Konfigurasi lokal dan kredensial/kunci sensitif
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+
+# Hasil build & artefak kompilasi Go
+bin/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+
+# Pengujian, coverage & profiling
+*.out
+*.prof
+coverage.html
+
+# Runtime data & file uploads
+backups/
+logs/
+*.log
+uploads/*
+!uploads/.gitignore
+tmp/
+*.tmp
+
+# Dump database (kecuali file migrasi)
+*.sql
+*.sql.gz
+!migrations/*.sql
+
+# Node.js (tools/loadtest)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Output pengujian UI
+tests/ui/out/
+
+# Editor & IDE
+.vscode/
+.idea/
+*.iml
+*.swp
+*.swo
+*~
+.history/
+
+# File sistem OS
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+ehthumbs.db

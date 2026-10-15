@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ujian CBT — {{.Siswa.Nama}}</title>
+    <link href="/css/style.css" rel="stylesheet">
+</head>
+<body data-device-type="{{.DeviceType}}">
+    <header class="exam-header">
+        <div class="exam-info">
+            <h2>{{.NamaUjian}}</h2>
+            <p>{{.NamaMapel}} | Siswa: {{.Siswa.Nama}} ({{.Siswa.NIS}})</p>
+        </div>
+    </header>
+    <main id="examContainer">
+        <div id="soalContainer">
+            <p>Memuat soal ujian...</p>
+        </div>
+    </main>
+    <script>
+        window.ujianId = {{.UjianID}};
+        window.siswaId = {{.Siswa.ID}};
+        window.siswaNama = "{{.Siswa.Nama}}";
+        window.deviceType = "{{.DeviceType}}";
+    </script>
+</body>
+</html>
