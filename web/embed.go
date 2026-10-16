@@ -16,7 +16,11 @@ import (
 //go:embed templates/* static/*
 var FS embed.FS
 
-var tmpl = template.Must(template.ParseFS(FS, "templates/*.gohtml"))
+var funcMap = template.FuncMap{
+	"add": func(a, b int) int { return a + b },
+}
+
+var tmpl = template.Must(template.New("").Funcs(funcMap).ParseFS(FS, "templates/*.gohtml"))
 
 // Render merender template HTML ke bytes.Buffer terlebih dahulu sebelum ditulis ke ResponseWriter,
 // untuk mencegah respons tertulis setengah jika terjadi error eksekusi template.

@@ -78,6 +78,7 @@ func run() error {
 	}
 	limiterNIS := ratelimit.New(ctx, 10, 15*time.Minute, 15*time.Minute)
 	limiterIP := ratelimit.New(ctx, rateLimitIP, 15*time.Minute, 15*time.Minute)
+	limiterAdmin := ratelimit.New(ctx, 10, 15*time.Minute, 15*time.Minute)
 
 	// Auto-finalize background job: periksa dan tutup sesi kadaluarsa setiap 30 detik (T1.7, D-009)
 	autoFinalizer := sesi.StartAutoFinalizeJob(ctx, pool, 30*time.Second, sesi.DefaultGraceDetik, logger)
@@ -90,13 +91,14 @@ func run() error {
 	srv := &http.Server{
 		Addr: net.JoinHostPort("", strconv.Itoa(cfg.Port)),
 		Handler: httpserver.New(httpserver.Deps{
-			DB:             pool,
-			Logger:         logger,
-			Config:         cfg,
-			SessionManager: sm,
-			RateLimiterNIS: limiterNIS,
-			RateLimiterIP:  limiterIP,
-			RealtimeHub:    wsHub,
+			DB:               pool,
+			Logger:           logger,
+			Config:           cfg,
+			SessionManager:   sm,
+			RateLimiterNIS:   limiterNIS,
+			RateLimiterIP:    limiterIP,
+			RateLimiterAdmin: limiterAdmin,
+			RealtimeHub:      wsHub,
 		}),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       30 * time.Second,

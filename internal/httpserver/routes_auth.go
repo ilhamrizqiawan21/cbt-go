@@ -30,9 +30,35 @@ func registerAuthRoutes(mux *http.ServeMux, d Deps) {
 
 	mux.Handle("POST /login-siswa", loginH)
 
+	// POST /login-admin dengan proteksi rate limit per IP+username
+	var loginAdminH http.Handler = auth.LoginAdminHandler(sqlDB, d.SessionManager, d.Logger)
+	if d.RateLimiterAdmin != nil {
+		loginAdminH = d.RateLimiterAdmin.Middleware(func(r *http.Request) string {
+			ip := ratelimit.ClientIP(r, d.Config.TrustProxy)
+			username := strings.TrimSpace(r.FormValue("username"))
+			return ip + ":" + username
+		}, "Terlalu banyak percobaan login admin. Silakan tunggu 15 menit.", "login-admin.gohtml")(loginAdminH)
+	}
+	mux.Handle("POST /login-admin", loginAdminH)
+
+	// POST /login-guru dengan proteksi rate limit per IP+username
+	var loginGuruH http.Handler = auth.LoginGuruHandler(sqlDB, d.SessionManager, d.Logger)
+	if d.RateLimiterAdmin != nil {
+		loginGuruH = d.RateLimiterAdmin.Middleware(func(r *http.Request) string {
+			ip := ratelimit.ClientIP(r, d.Config.TrustProxy)
+			username := strings.TrimSpace(r.FormValue("username"))
+			return ip + ":" + username
+		}, "Terlalu banyak percobaan login guru. Silakan tunggu 15 menit.", "login-guru.gohtml")(loginGuruH)
+	}
+	mux.Handle("POST /login-guru", loginGuruH)
+
 	// GET /ujian dilindungi RequireSiswa
 	mux.Handle("GET /ujian", auth.RequireSiswa(d.SessionManager)(auth.UjianHandler(sqlDB, d.SessionManager)))
 
-	// GET /logout
+	// Logout siswa, admin, dan guru
 	mux.Handle("GET /logout", auth.LogoutHandler(d.SessionManager))
+	mux.Handle("GET /logout-admin", auth.LogoutAdminHandler(d.SessionManager))
+	mux.Handle("GET /admin/logout", auth.LogoutAdminHandler(d.SessionManager))
+	mux.Handle("GET /logout-guru", auth.LogoutGuruHandler(d.SessionManager))
+	mux.Handle("GET /guru/logout", auth.LogoutGuruHandler(d.SessionManager))
 }

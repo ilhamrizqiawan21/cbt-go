@@ -181,7 +181,7 @@ Setiap item bertipe kode mengikuti siklus: **tes dulu (gagal) → implementasi �
 - `HitungStatusTurunan` (murni, tabel), `Snapshot(ctx, ujianID)` (gunakan JOIN/agregasi, **tanpa N+1**), `SiarkanUpdate` ke room admin — **dilewati total bila room kosong**.
 - `GET /admin/api/monitor/:ujianId` (hanya admin).
 - **Terima:** status online/offline/selesai/terkunci/belum_masuk benar di batas 45 dtk; snapshot 410–500 siswa tanpa N+1 (hitung jumlah query di tes); tidak ada query saat room kosong (tes dengan penghitung).
-- Status: `TODO`
+- Status: `DONE`
 
 ### T2.5 Aksi admin + audit — Owner: G — Dep: T2.4, T3.1
 - Sumber Node: `routes/admin.js:543-776`, `tests/aksi_admin_audit.test.js`, `tests/buka_kunci.test.js`.
@@ -203,47 +203,47 @@ Setiap item bertipe kode mengikuti siklus: **tes dulu (gagal) → implementasi �
 - Sumber Node: `routes/index.js:72-130`, `middleware/auth.js`.
 - `POST /login-admin`, `/login-guru`, logout; middleware `RequireAdmin`, `RequireGuru` (non-peran: halaman → redirect, `/…/api/*` → 403 JSON).
 - **Terima:** tes peran; rate limit per IP+username aktif.
-- Status: `TODO`
+- Status: `DONE`
 
 ### T3.2 CRUD guru, kelas, mapel, pengajaran — Owner: G — Dep: T3.1
 - Sumber Node: `routes/admin.js:14-110,243-260`. Hash bcrypt password guru. Hapus = kaskade FK (konfirmasi di UI).
 - **Terima:** tes tambah/ubah/hapus; duplikat (username/nama kelas) ditangani dengan pesan jelas, bukan 500.
-- Status: `TODO`
+- Status: `DONE`
 
 ### T3.3 CRUD siswa + import/template Excel — Owner: G — Dep: T3.2
 - Sumber Node: `routes/admin.js:297-435`, `utils/excelExport.js`. Dependensi baru: `github.com/xuri/excelize/v2`.
 - Template `.xlsx`; import: batas 2 MB (`MaxBytesReader`), hanya `.xlsx`, validasi tiap baris, laporan baris gagal, hash PIN bcrypt, tidak menyimpan file (proses dari memori/temp dihapus).
 - **Terima:** impor 3 baris sintetis berhasil; file bukan xlsx / terlalu besar ditolak; NIS duplikat dilaporkan.
-- Status: `TODO`
+- Status: `DONE`
 
 ### T3.4 CRUD ujian (+ token ujian) — Owner: G — Dep: T3.2
 - Sumber Node: `routes/admin.js:114-169`. Validasi: `tanggal_selesai > tanggal_mulai`, durasi > 0.
 - **Terima:** tes validasi & CRUD; `GET /admin/api/ujian-by-mapel/:mapelId`.
-- Status: `TODO`
+- Status: `DONE`
 
 ### T3.5 Soal (admin & guru) + otorisasi guru — Owner: G — Dep: T3.4
 - Sumber Node: `routes/admin.js:170-242`, `routes/guru.js:111-349`, `tests/guru_otorisasi_soal.test.js`.
 - Tambah/ubah/hapus/batch; default poin (PG 2, menjodohkan 2, essay 4); guru **hanya** soal/ujian dari pengajarannya (cek di server pada **setiap** operasi, termasuk `edit/:id`/`hapus/:id` → 403/404 untuk milik guru lain).
 - **Terima:** padanan `guru_otorisasi_soal` lulus; guru A tak bisa mengubah soal guru B (tes eksplisit untuk tiap endpoint).
-- Status: `TODO`
+- Status: `DONE`
 
 ### T3.6 Hasil, ekspor Excel, cetak — Owner: G — Dep: T3.4, T1.6
 - Sumber Node: `routes/admin.js:436-451,805-839`, `routes/guru.js:350-526`, `utils/excelExport.js`.
 - Hasil (admin semua; guru sesuai mapel), ekspor `.xlsx` (nilai PG, essay, akhir, status koreksi — FR-15), halaman cetak.
 - **Terima:** ekspor terbuka valid (baca balik dengan excelize di tes); otorisasi guru.
-- Status: `TODO`
+- Status: `DONE`
 
 ### T3.7 Penilaian essay oleh guru — Owner: G — Dep: T3.5, T1.6
 - Sumber Node: `routes/guru.js:742-1100`, `tests/penilaian_fase3.test.js`.
 - Form per soal (0..poin), simpan → `HitungUlangNilai`; ekspor template & impor Excel essay; validasi `0 ≤ skor ≤ poin`; hanya guru pengampu.
 - **Terima:** skor di luar rentang ditolak; setelah semua essay dinilai `status_koreksi` → `selesai` dan nilai akhir benar; impor Excel idempoten.
-- Status: `TODO`
+- Status: `DONE`
 
 ### T3.8 Log kecurangan + reset ujian — Owner: G — Dep: T3.1, T2.2
 - Sumber Node: `routes/admin.js:452-466,777-804`, `routes/guru.js:527-741`.
 - Halaman log (admin & guru) + ekspor; reset ujian (admin) **dengan konfirmasi eksplisit di UI** dan dicatat audit.
 - **Terima:** tes otorisasi; reset hanya menyentuh ujian/siswa yang dimaksud.
-- Status: `TODO`
+- Status: `DONE`
 
 ---
 ## Fase 4 — Pengerasan & deployment
@@ -538,8 +538,157 @@ Laporan eksekusi T2.2
   - First-class Functions & Callback Injection (`OnMonitorNotifyFunc` & `SetSiswaHandlers`): menyuntikkan fungsi handler event ke dalam `Hub` tanpa menciptakan circular dependency antar paket ([Go by Example: Closures](https://gobyexample.com/closures)).
   - Penanganan Nilai `NULL` SQL (`sql.NullString` & `COALESCE`): memindai kolom opsional `device_type` dari database menggunakan tipe pembungkus `sql.NullString` agar aman dari error `Scan` ketika bernilai `NULL` ([Go Doc: sql.NullString](https://pkg.go.dev/database/sql#NullString)).
   - Context Timeout Terisolasi saat Disconnect (`context.WithTimeout(context.Background(), 3*time.Second)`): menjalankan kueri pembaruan `last_seen` menggunakan context baru berbatas waktu ketika koneksi klien telah terputus (`c.ctx` sudah dibatalkan) ([Go Blog: Context](https://go.dev/blog/context)).
+Laporan eksekusi T2.4
+- Diubah: `internal/monitor/monitor.go`, `internal/monitor/handler.go`, `internal/monitor/monitor_test.go`, `internal/auth/middleware.go`, `internal/httpserver/server.go`, `docs/PORTING_MAP.md`, `docs/TODO.md`.
+- Verifikasi:
+  - `go test -v ./internal/monitor` → PASS semua skenario:
+    1. `TestHitungStatusTurunan`: fungsi murni teruji tabel untuk semua 9 kondisi (belum_masuk, selesai, terkunci, sedang_ujian dengan last_seen < 45s online, dan >= 45s offline).
+    2. `TestSiarkanUpdate_RoomKosongTidakQueryDB`: verifikasi optimasi wajib DESIGN §3.6; jika room admin kosong (`HasAdminListeners = false`), kueri DB tidak dieksekusi sama sekali (0 query / no panic dereference).
+    3. `TestSnapshot_500Siswa_TanpaNPlusOneQuery_QueryCounter`: simulasi 500 siswa terdaftar dengan agregasi jawaban dan status sesi membuktikan jumlah kueri ke DB tepat 2 kueri (konstan bebas N+1).
+    4. `TestEndpointGetMonitor_UnitMock`: endpoint `GET /admin/api/monitor/{ujianId}` mengembalikan 401 tanpa session, 403 untuk session siswa, 400 untuk ID ujian non-angka, dan 200 OK beserta payload snapshot lengkap untuk session admin.
+  - `make check` (gofmt + vet + test sekuensial) → hijau tanpa error.
+  - `make test-race` (`go test -p 1 -race ./...`) → hijau tanpa data race.
+- Konsep Go:
+  - Pure Function & Table-Driven Testing (`HitungStatusTurunan`): memisahkan logika penentuan status tampilan ke dalam fungsi murni tanpa I/O database dan mengujinya secara komprehensif menggunakan irisan struct anonim ([Go by Example: Testing](https://gobyexample.com/testing-and-benchmarking)).
+  - Consumer-Driven Interface (`Broadcaster`): mendefinisikan interface minimal (`HasAdminListeners` dan `BroadcastToAdminRoom`) di paket konsumen (`internal/monitor`) alih-alih mengikat langsung ke tipe konkret `*realtime.Hub` ([Go Wiki: CodeReviewComments - Interfaces](https://go.dev/wiki/CodeReviewComments#interfaces)).
+  - Mock SQL Driver (`database/sql/driver.Driver`): mengimplementasikan antarmuka driver database standar Go untuk menguji perilaku kueri SQL dan menghitung jumlah eksekusi kueri secara deterministik tanpa ketergantungan pada server database eksternal ([Go Doc: database/sql/driver](https://pkg.go.dev/database/sql/driver)).
+- Penyimpangan dari rencana: tidak ada.
+- Belum diverifikasi: tidak ada.
+
+Laporan eksekusi T3.1
+- Diubah: `internal/auth/middleware.go`, `internal/auth/admin_guru.go`, `internal/auth/admin_guru_test.go`, `internal/httpserver/server.go`, `internal/httpserver/routes_auth.go`, `cmd/server/main.go`, `docs/TODO.md`.
+- Verifikasi:
+  - `go test -v -run "TestGuardPeran|TestLoginAdmin|TestLoginGuru|TestLogoutAdminDanGuru|TestRateLimitLoginAdminGuru" ./internal/auth` → PASS semua 5 pengujian:
+    1. `TestGuardPeran`: middleware HTML (`RequireAdmin`, `RequireGuru`) mengalihkan ke halaman login bila sesi tidak cocok, sementara middleware API (`RequireAdminAPI`, `RequireGuruAPI`) mengembalikan 401 jika belum login dan 403 Forbidden bila peran tidak sesuai.
+    2. `TestLoginAdmin`: penolakan username tidak ada / password salah, pembaruan token sesi (`RenewToken`), penyimpanan sesi `adminId`, `username`, `peran: "admin"`, serta pengalihan ke `/admin/dashboard`.
+    3. `TestLoginGuru`: penolakan kredensial salah, penyimpanan sesi `guruId`, `username`, `namaGuru`, `nipGuru`, `peran: "guru"`, serta pengalihan ke `/guru/dashboard`.
+    4. `TestLogoutAdminDanGuru`: penghapusan sesi aktif dan pengalihan ke `/login-admin` dan `/login-guru`.
+    5. `TestRateLimitLoginAdminGuru`: pembatasan 10 percobaan per 15 menit per `IP:username`; request ke-11 diblokir dengan status HTTP 429 Too Many Requests, sementara username atau IP berbeda tetap lolos.
+  - `make check` (gofmt + vet + test sekuensial) → hijau tanpa error untuk seluruh paket modul `cbt-go`.
+  - `make test-race` (`go test -p 1 -race ./...`) → hijau tanpa data race.
+- Konsep Go:
+  - Session Fixation Mitigation via `RenewToken`: meregenerasi token cookie session saat status autentikasi berubah berhasil login menggunakan `sm.RenewToken(ctx)` untuk mencegah eksploitasi pembajakan sesi ([SCS Session Documentation](https://github.com/alexedwards/scs)).
+  - Middleware Chaining & Key Extractor: menerapkan pola pipeline HTTP handler bertingkat di mana middleware rate limiter membungkus handler inti dengan fungsi pengekstraksi kunci dinamis (`ip:username`) ([Go by Example: HTTP Servers](https://gobyexample.com/http-server)).
+  - Constant-time Dummy Hash Comparison: memanggil `bcrypt.CompareHashAndPassword` terhadap hash dummy ketika username tidak ditemukan di database untuk mencegah user enumeration melalui analisis selisih waktu respons (timing attack) ([Tour of Go: Methods and Interfaces](https://go.dev/tour/methods/1)).
+- Penyimpangan dari rencana: tidak ada.
+- Belum diverifikasi: tidak ada.
+
+Laporan eksekusi T3.2
+- Diubah: `internal/admin/master.go`, `internal/admin/handler.go`, `internal/admin/master_test.go`, `internal/admin/handler_test.go`, `internal/httpserver/server.go`, `docs/TODO.md`.
+- Verifikasi:
+  - `go test -v ./internal/admin` → PASS semua skenario:
+    1. `TestMasterData_Guru`, `TestMasterData_Kelas`, `TestMasterData_Mapel`, `TestMasterData_Pengajaran`: operasi CRUD lengkap, hashing bcrypt saat tambah/edit guru, pembacaan relasi pengajaran via SQL JOIN.
+    2. Penanganan duplikasi unik: duplikat `username` guru menghasilkan `ErrDuplicateUsername` dan respons 400 Bad Request ("username sudah digunakan"); duplikat `nama_kelas` menghasilkan `ErrDuplicateKelas` ("nama kelas sudah ada"); duplikat kombinasi pengajaran menghasilkan `ErrDuplicatePengajaran`.
+    3. `TestMasterData_ValidasiInput`: validasi ketat menolak input kosong dengan `ErrInvalidInput`.
+    4. `TestAdminHandlers_CRUD`: handler HTTP `POST /admin/guru/tambah`, `POST /admin/kelas/tambah`, dan `GET /admin/guru` terverifikasi merespons kode status yang benar (201 Created, 400 Bad Request untuk duplikat, dan 200 OK untuk daftar).
+  - `make check` (gofmt + vet + test sekuensial) → hijau tanpa error.
+  - `make test-race` (`go test -p 1 -race ./...`) → hijau tanpa data race.
+- Konsep Go:
+  - Error Wrapping & Database Vendor Error Inspection (`errors.As` dengan `*mysql.MySQLError`): memeriksa kode kesalahan MySQL (1062 ER_DUP_ENTRY) untuk menerjemahkan pelanggaran integritas kunci unik menjadi sentinel error domain yang ramah pengguna ([Go Blog: Working with Errors in Go 1.13](https://go.dev/blog/go1.13-errors)).
+  - Content Negotiation pada Handler HTTP (`wantsJSON` via header `Accept`): memungkinkan satu endpoint melayani form web standar (dengan redirect dan flash message) sekaligus klien API/fetch tanpa menduplikasi logika bisnis ([Go by Example: HTTP Servers](https://gobyexample.com/http-server)).
+  - Transactionless Safe Delete: mengandalkan constraint ON DELETE CASCADE pada level skema foreign key database untuk menjaga integritas relasional data saat entitas induk dihapus ([Go Database/SQL Tutorial](https://go.dev/doc/database/)).
+Laporan eksekusi T3.3
+- Diubah: `internal/excel/siswa.go`, `internal/excel/siswa_test.go`, `internal/admin/siswa.go`, `internal/admin/handler_siswa.go`, `internal/admin/siswa_test.go`, `internal/httpserver/server.go`, `web/templates/admin_siswa.gohtml`, `web/templates/admin_guru.gohtml`, `docs/TODO.md`.
+- Verifikasi:
+  - `go test -v ./internal/excel` → PASS: `TestBuatTemplateSiswa` memverifikasi struktur kolom berkas spreadsheet `.xlsx`; `TestBacaImportSiswa_ValidDanGagal` memverifikasi validasi input baris kosong/tidak lengkap.
+  - `go test -v ./internal/admin` → PASS seluruh skenario siswa dan impor:
+    1. `TestSiswaCRUD`: operasi CRUD siswa, pembacaan list terfilter kelas, dan penanganan duplikat NIS (`ErrDuplicateNIS`).
+    2. `TestSiswaTemplateHandler`: endpoint `GET /admin/siswa/template` menyajikan stream attachment `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet` dengan header kolom yang valid.
+    3. `TestSiswaImportHandler_Sukses3Baris`: 3 baris data siswa sintetis dari buffer spreadsheet berhasil diproses, di-hash dengan bcrypt, dan disimpan ke database.
+    4. `TestSiswaImportHandler_FormatBukanXlsx`: file non-`.xlsx` (seperti `.csv`) langsung ditolak dengan status HTTP 400 Bad Request.
+    5. `TestSiswaImportHandler_UkuranMelebihi2MB`: unggahan berukuran > 2 MB dibatasi oleh `http.MaxBytesReader` dan ditolak dengan status 400 Bad Request.
+    6. `TestSiswaImportHandler_DuplikatNIS`: baris dengan NIS yang sudah ada di database dilaporkan dalam daftar baris gagal secara rinci tanpa menggagalkan baris valid lainnya.
+    7. `TestSiswaHTTPRoutesIntegration`: guard sesi admin pada rute siswa dan alur tambah siswa.
+  - `make check` (gofmt + vet + test sekuensial) → hijau tanpa error.
+  - `make test-race` (`go test -p 1 -race ./...`) → hijau tanpa data race.
+- Konsep Go:
+  - Memory-Only Streaming & File Cleanup (`io.Reader` & `excelize.OpenReader`): membaca dan memvalidasi file Excel langsung dari stream HTTP multipart tanpa menulis berkas sementara ke disk penyimpanan ([Go by Example: Reading Files](https://gobyexample.com/reading-files)).
+  - Request Body Throttling (`http.MaxBytesReader`): melindungi server dari serangan Denial of Service berbasis exhaust memori dengan membatasi ukuran pembacaan request stream sebelum pemrosesan multipart ([Go Doc: http.MaxBytesReader](https://pkg.go.dev/net/http#MaxBytesReader)).
+  - Partial Batch Processing with Granular Failure Reporting: alih-alih menggagalkan seluruh transaksi saat salah satu baris Excel bermasalah, baris yang bermasalah dicatat nomor baris dan alasannya ke dalam slice `[]ImportError` sementara baris valid tetap disimpan ([Tour of Go: Slices](https://go.dev/tour/moretypes/7)).
+- Penyimpangan dari rencana: tidak ada.
+- Belum diverifikasi: tidak ada.
+
+Laporan eksekusi T3.4
+- Diubah: `internal/admin/ujian.go`, `internal/admin/handler_ujian.go`, `internal/admin/ujian_test.go`, `internal/httpserver/server.go`, `web/templates/admin_ujian.gohtml`, `docs/TODO.md`.
+- Verifikasi:
+  - `go test -v -run "TestUjianValidasiDanCRUD|TestUjianByMapelAPI|TestUjianHTTPHandlers_TambahDanValidasi" ./internal/admin` → PASS seluruh skenario:
+    1. `TestUjianValidasiDanCRUD`: validasi ketat menolak `tanggal_selesai <= tanggal_mulai` (`ErrInvalidWaktu`), `durasi <= 0` (`ErrInvalidDurasi`), dan `pengajaran_id <= 0` (`ErrInvalidPengajaran`). Operasi tambah, baca per ID, edit, list seluruh ujian, dan hapus kaskade sukses.
+    2. `TestUjianByMapelAPI`: endpoint `GET /admin/api/ujian-by-mapel/{mapelId}` menolak permintaan tanpa sesi admin dengan HTTP 401 Unauthorized, dan menyajikan array JSON ujian yang sesuai filter mata pelajaran ketika diautentikasi.
+    3. `TestUjianHTTPHandlers_TambahDanValidasi`: handler HTTP menolak form dengan tanggal terbalik (400 Bad Request) dan berhasil membuat ujian baru berstatus 201 Created saat valid.
+  - `make check` (gofmt + vet + test sekuensial) → hijau tanpa error.
+  - `make test-race` (`go test -p 1 -race ./...`) → hijau tanpa data race.
+- Konsep Go:
+  - Flexible Multi-layout Time Parsing (`ParseDateTime`): mem-parsing berbagai format masukan tanggal/waktu (HTML5 `datetime-local`, ISO/RFC3339, dan SQL datetime) secara anggun menggunakan iterasi slice layout standar Go ([Go by Example: Time Parsing](https://gobyexample.com/time-formatting-parsing)).
+  - Pointer for Nullable Columns (`*string` untuk `token_ujian`): menggunakan tipe pointer untuk membedakan secara eksplisit antara ketiadaan nilai (NULL di SQL) dan string kosong, menjaga kompatibilitas database tanpa tipe wrapper khusus ([Tour of Go: Pointers](https://go.dev/tour/moretypes/1)).
+  - Dual Content Ingestion (Form URLEncoded & JSON Body): handler mampu menerima data baik dari submit form tradisional browser maupun JSON payload dari klien API modern via pengecekan `Content-Type` ([Go by Example: JSON](https://gobyexample.com/json)).
+- Penyimpangan dari rencana: tidak ada.
+- Belum diverifikasi: tidak ada.
+
+Laporan eksekusi T3.5
+- Diubah: `internal/soal/kelola.go`, `internal/soal/kelola_test.go`, `internal/admin/handler_soal.go`, `internal/guru/handler_soal.go`, `internal/guru/guru_otorisasi_soal_test.go`, `internal/httpserver/server.go`, `web/templates/admin_soal.gohtml`, `web/templates/guru_soal.gohtml`, `docs/PORTING_MAP.md`, `docs/TODO.md`.
+- Verifikasi:
+  - `go test -v ./internal/soal` → PASS: `TestDefaultPoin` memverifikasi penentuan poin otomatis (PG = 2, Menjodohkan = 2, Essay = 4) jika poin input kosong/nol; `TestSoalCRUDDanBatch` memverifikasi validasi teks kosong (`ErrTeksSoalKosong`), tipe soal invalid (`ErrTipeSoalInvalid`), operasi CRUD, serta penambahan massal batch soal.
+  - `go test -v ./internal/guru` → PASS seluruh skenario otorisasi (`TestGuruOtorisasiSoal` & `TestAdminSoalAccess`):
+    1. Guru 1 berhasil melihat dan mengelola soal pada Ujian 10 yang diampunya.
+    2. Guru 2 (bukan pengampu Ujian 10) secara ketat diblokir dengan HTTP 403 Forbidden pada **setiap** endpoint: `GET /guru/api/soal/10`, `POST /guru/soal/tambah`, `GET /guru/soal/edit/101`, `POST /guru/soal/edit/101`, `POST /guru/soal/hapus/101`, dan `POST /guru/soal/batch-tambah`.
+    3. Guru 1 dapat mengedit dan menghapus soalnya sendiri (Soal 101) dengan respons 200 OK.
+    4. Admin memiliki akses global tanpa batasan guru untuk melihat dan membuat soal di semua ujian.
+  - `make check` (gofmt + vet + test sekuensial) → hijau tanpa error untuk seluruh paket modul `cbt-go`.
+  - `make test-race` (`go test -p 1 -race ./...`) → hijau tanpa data race.
+- Konsep Go:
+  - Strict Authorization Guard via Join Subquery (`CekOtorisasiUjianGuru` & `CekOtorisasiSoalGuru`): memverifikasi hak akses kepemilikan data langsung di lapisan relasional SQL sebelum memproses mutasi atau eksposisi data ([Go Database/SQL Tutorial](https://go.dev/doc/database/)).
+  - Business Rule Fallback Pattern (`DefaultPoin`): fungsi murni yang menetapkan nilai default aturan bisnis berdasarkan domain type tanpa mengandalkan trigger database, mempermudah pengujian unit tabel ([Go by Example: Functions](https://gobyexample.com/functions)).
+  - Transactional Batch Insertion: memproses sekumpulan data masukan dalam satu alur iteratif terpadu dengan penghentian dini (early return) bila terjadi galat validasi ([Go by Example: Errors](https://gobyexample.com/errors)).
+- Penyimpangan dari rencana: tidak ada.
+- Belum diverifikasi: tidak ada.
+
+Laporan eksekusi T3.6
+- Diubah: `internal/excel/hasil.go`, `internal/excel/hasil_test.go`, `internal/admin/hasil.go`, `internal/admin/handler_hasil.go`, `internal/admin/hasil_test.go`, `internal/guru/handler_hasil.go`, `internal/guru/guru_hasil_test.go`, `internal/httpserver/server.go`, `web/embed.go`, `web/templates/admin_hasil.gohtml`, `web/templates/admin_hasil_cetak.gohtml`, `web/templates/guru_hasil.gohtml`, `docs/TODO.md`.
+- Verifikasi:
+  - `go test -v ./internal/excel` → PASS: `TestBuatEksporHasilUjian` menghasilkan berkas spreadsheet `.xlsx` yang dibuka kembali menggunakan `excelize.OpenReader` untuk memeriksa keakuratan sel judul, header baris ke-5, dan nilai siswa.
+  - `go test -v ./internal/admin` → PASS: `TestAdminHasil_ListDanExport` menguji pembacaan hasil per ujian, ekspor attachment spreadsheet, dan render template cetak (`admin_hasil_cetak.gohtml`).
+  - `go test -v ./internal/guru` → PASS: `TestGuruHasil_OtorisasiDanEkspor` memverifikasi bahwa Guru 1 dapat mengakses dan mengekspor hasil ujian miliknya, sementara Guru 2 yang bukan pengampu ditolak dengan HTTP 403 Forbidden pada list dan ekspor.
+  - `make check` (gofmt + vet + test sekuensial) → hijau tanpa error.
+  - `make test-race` (`go test -p 1 -race ./...`) → hijau tanpa data race.
+- Konsep Go:
+  - In-Memory Spreadsheet Generation & Content-Disposition (`excelize.NewFile` & `bytes.Buffer`): menghasilkan laporan tabular Excel secara langsung di memori dan menyajikannya sebagai stream unduhan biner dengan header `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet` ([Go by Example: Writing Files](https://gobyexample.com/writing-files)).
+  - Template Custom Functions (`template.FuncMap`): menyematkan fungsi pembantu template seperti `"add"` ke dalam instans `html/template.Template` untuk manipulasi tampilan seperti penomoran baris ([Go Doc: html/template FuncMap](https://pkg.go.dev/html/template#FuncMap)).
+  - Contextual Scope Filtering on Relational Reports: mengintegrasikan verifikasi kepemilikan guru ke dalam penyusunan query SQL laporan nilai siswa untuk mencegah kebocoran data nilai lintas pengajar ([Go Database/SQL Tutorial](https://go.dev/doc/database/)).
+- Penyimpangan dari rencana: tidak ada.
+- Belum diverifikasi: tidak ada.
+
+Laporan eksekusi T3.7
+- Diubah: `internal/excel/essay.go`, `internal/excel/essay_test.go`, `internal/guru/essay.go`, `internal/guru/handler_essay.go`, `internal/guru/penilaian_fase3_test.go`, `internal/httpserver/server.go`, `web/templates/guru_essay.gohtml`, `docs/PORTING_MAP.md`, `docs/TODO.md`.
+- Verifikasi:
+  - `go test -v ./internal/excel` → PASS: `TestBuatDanBacaImportEssay` memverifikasi pembacaan baris Excel skor essay dan `TestBacaImportEssay_ValidasiError` memeriksa validasi baris tidak valid.
+  - `go test -v ./internal/guru` → PASS seluruh skenario `TestPenilaianFase3` (padanan `tests/penilaian_fase3.test.js`):
+    1. Validasi batas skor: skor negatif (-1) atau skor melebihi poin maksimal (5 > 4) ditolak dengan status HTTP 400 Bad Request.
+    2. Otorisasi guru: guru non-pengampu diblokir dengan HTTP 403 Forbidden saat mencoba menilai essay.
+    3. Transisi status koreksi & hitung ulang: setelah seluruh essay siswa dinilai, `status_koreksi` otomatis bertransisi dari `'menunggu_essay'` menjadi `'selesai'` dan nilai akhir terhitung benar (100).
+    4. Impor Excel essay: parsing multipart berkas spreadsheet dan pembaruan batch nilai essay terbukti idempoten.
+  - `make check` (gofmt + vet + test sekuensial) → hijau tanpa error untuk seluruh paket modul `cbt-go`.
+  - `make test-race` (`go test -p 1 -race ./...`) → hijau tanpa data race.
+- Konsep Go:
+  - Domain Integrity Guard with Dynamic Bounds (`SimpanNilaiEssay`): memvalidasi masukan skor guru terhadap poin maksimal setiap butir soal essay sebelum melakukan mutasi basis data ([Go by Example: Errors](https://gobyexample.com/errors)).
+  - Automated Score Reconciliation via `sesi.HitungUlangNilai`: memanggil kembali fungsi murni penilaian untuk menghitung ulang perolehan skor otomatis + essay serta menentukan status koreksi akhir secara atomik ([Go Database/SQL Tutorial](https://go.dev/doc/database/)).
+  - Idempotent Spreadsheet Upsert: pembaruan batch nilai essay menggunakan klausa `ON DUPLICATE KEY UPDATE` pada level database sehingga impor ulang file Excel tidak menghasilkan duplikasi rekaman ([Go Wiki: CodeReviewComments](https://go.dev/wiki/CodeReviewComments)).
+- Penyimpangan dari rencana: tidak ada.
+- Belum diverifikasi: tidak ada.
+
+Laporan eksekusi T3.8
+- Diubah: `internal/excel/log.go`, `internal/admin/log_reset.go`, `internal/admin/handler_log_reset.go`, `internal/admin/log_reset_test.go`, `internal/guru/handler_log.go`, `internal/guru/guru_log_test.go`, `internal/httpserver/server.go`, `web/templates/admin_log.gohtml`, `web/templates/guru_log.gohtml`, `docs/TODO.md`.
+- Verifikasi:
+  - `go test -v ./internal/admin` → PASS: `TestLogKecuranganDanResetUjianAdmin` memverifikasi pembacaan log pelanggaran admin, aksi reset ujian per siswa secara atomik (menghapus jawaban, nilai_essay, nilai_ujian, log_kecurangan, sesi_ujian hanya untuk siswa dan ujian bersangkutan), serta reset massal seluruh peserta pada ujian tertentu tanpa mempengaruhi ujian lain.
+  - `go test -v ./internal/guru` → PASS: `TestGuruLogKecurangan_Otorisasi` memverifikasi bahwa Guru 1 dapat melihat dan mengekspor log kecurangan pada ujian yang diampunya, sedangkan Guru 2 diblokir dengan HTTP 403 Forbidden pada akses tampilan maupun ekspor berkas Excel.
+  - `make check` (gofmt + vet + test sekuensial) → hijau tanpa error untuk seluruh paket modul `cbt-go`.
+  - `make test-race` (`go test -p 1 -race ./...`) → hijau tanpa data race.
+- Konsep Go:
+  - Atomic Cascading Purge within Transaction (`ResetUjianSiswa` & `ResetUjianSemua`): membungkus serangkaian operasi penghapusan data relasional (jawaban, nilai essay, nilai ujian, log kecurangan, dan sesi) ke dalam satu transaksi database atomik `db.BeginTx` dengan rollback otomatis jika terjadi kegagalan ([Go Database/SQL Tutorial: Transactions](https://go.dev/doc/database/execute-transactions)).
+  - Contextual Audit Logging via `log/slog`: mencatat kejadian administratif penting (reset ujian) secara terstruktur tanpa membocorkan data kredensial atau melanggar integritas relasi foreign key ([Go Doc: log/slog](https://pkg.go.dev/log/slog)).
+  - Scope-Isolated Deletion: menyusun klausa WHERE secara ketat (`siswa_id = ? AND ujian_id = ?` dan `ujian_id = ?`) untuk memastikan isolasi penuh dan mencegah modifikasi data yang tidak diinginkan pada entitas lain ([Go by Example: SQL](https://gobyexample.com/)).
 - Penyimpangan dari rencana: tidak ada.
 - Belum diverifikasi: tidak ada.
 
 ## Hasil review
 _(Diisi Claude.)_
+

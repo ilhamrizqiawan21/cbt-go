@@ -87,6 +87,98 @@ func RequireSiswaAPI(sm *scs.SessionManager, db *sql.DB) func(http.Handler) http
 	}
 }
 
+// RequireAdmin memastikan request halaman HTML berasal dari admin.
+// Jika tidak login atau bukan admin, dialihkan ke /login-admin.
+func RequireAdmin(sm *scs.SessionManager) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if sm == nil {
+				http.Redirect(w, r, "/login-admin", http.StatusFound)
+				return
+			}
+			adminID := sm.GetInt(r.Context(), "adminId")
+			peran := sm.GetString(r.Context(), "peran")
+			if adminID == 0 || peran != "admin" {
+				http.Redirect(w, r, "/login-admin", http.StatusFound)
+				return
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
+// RequireAdminAPI memastikan request API berasal dari admin yang memiliki sesi aktif.
+// Mengembalikan 401 Unauthorized jika tidak login, atau 403 Forbidden jika bukan admin.
+func RequireAdminAPI(sm *scs.SessionManager) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if sm == nil {
+				writeJSONError(w, http.StatusUnauthorized, "Sesi tidak ditemukan atau telah berakhir")
+				return
+			}
+			adminID := sm.GetInt(r.Context(), "adminId")
+			peran := sm.GetString(r.Context(), "peran")
+
+			if adminID == 0 && peran == "" {
+				writeJSONError(w, http.StatusUnauthorized, "Sesi tidak ditemukan atau telah berakhir")
+				return
+			}
+			if adminID == 0 || peran != "admin" {
+				writeJSONError(w, http.StatusForbidden, "Akses ditolak: hanya admin")
+				return
+			}
+
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
+// RequireGuru memastikan request halaman HTML berasal dari guru yang memiliki sesi aktif.
+// Jika tidak login atau bukan guru, dialihkan ke /login-guru.
+func RequireGuru(sm *scs.SessionManager) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if sm == nil {
+				http.Redirect(w, r, "/login-guru", http.StatusFound)
+				return
+			}
+			guruID := sm.GetInt(r.Context(), "guruId")
+			peran := sm.GetString(r.Context(), "peran")
+			if guruID == 0 || peran != "guru" {
+				http.Redirect(w, r, "/login-guru", http.StatusFound)
+				return
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
+// RequireGuruAPI memastikan request API berasal dari guru yang memiliki sesi aktif.
+// Mengembalikan 401 Unauthorized jika tidak login, atau 403 Forbidden jika bukan guru.
+func RequireGuruAPI(sm *scs.SessionManager) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if sm == nil {
+				writeJSONError(w, http.StatusUnauthorized, "Sesi tidak ditemukan atau telah berakhir")
+				return
+			}
+			guruID := sm.GetInt(r.Context(), "guruId")
+			peran := sm.GetString(r.Context(), "peran")
+
+			if guruID == 0 && peran == "" {
+				writeJSONError(w, http.StatusUnauthorized, "Sesi tidak ditemukan atau telah berakhir")
+				return
+			}
+			if guruID == 0 || peran != "guru" {
+				writeJSONError(w, http.StatusForbidden, "Akses ditolak: hanya guru")
+				return
+			}
+
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
 func writeJSONError(w http.ResponseWriter, code int, msg string) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(code)

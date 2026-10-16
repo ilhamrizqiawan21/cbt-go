@@ -45,7 +45,7 @@ Tandai ✔ saat padanan Go lulus. `N/A` hanya dengan alasan tertulis.
 | Tes Node | Perilaku yang diuji | Paket Go | Item | ✔ |
 |----------|---------------------|----------|------|---|
 | `penilaian_service.test.js` | Hitung nilai PG/menjodohkan/essay, contoh PRD §5 | `penilaian` | T1.1 | ✔ |
-| `penilaian_fase3.test.js` | Penilaian + essay + status koreksi | `penilaian`, `sesi` | T1.1, T1.6 | |
+| `penilaian_fase3.test.js` | Penilaian + essay + status koreksi | `penilaian`, `sesi`, `guru` | T3.7 | ✔ |
 | `sesi_service.test.js` | Batas waktu, sisa detik, grace, takeover, perpanjang | `sesi` | T1.2 | ✔ |
 | `auth_db.test.js` | Login siswa (PIN, kelas, pesan generik) | `auth` | T1.3 | ✔ |
 | `takeover_login.test.js` | Login ulang mengambil alih | `auth`, `sesi` | T1.3 | ✔ |
@@ -57,14 +57,14 @@ Tandai ✔ saat padanan Go lulus. `N/A` hanya dengan alasan tertulis.
 | `finalize_service.test.js` | Finalisasi idempoten, auto-close | `sesi` | T1.6, T1.7 | ✔ |
 | `ketahanan_e2e.test.js` | Putus-sambung: progres & timer tidak hilang | integrasi | T1.8 | ✔ |
 | `sesi_endpoint_socket.test.js` | Endpoint sesi + event socket | `realtime`, `sesi` | T2.2 | ✔ |
-| `socket_monitor.test.js` | Broadcast monitor, room admin | `realtime`, `monitor` | T2.4 | |
-| `monitor_service.test.js` | Status turunan (online/offline/…) | `monitor` | T2.4 | |
+| `socket_monitor.test.js` | Broadcast monitor, room admin | `realtime`, `monitor` | T2.4 | ✔ |
+| `monitor_service.test.js` | Status turunan (online/offline/…) | `monitor` | T2.4 | ✔ |
 | `halaman_monitor.test.js` | Halaman monitor, 410 baris | `monitor` | T2.6 | |
 | `aksi_admin_audit.test.js` | Buka kunci/tambah waktu/paksa selesai + audit | `monitor` | T2.5 | |
 | `buka_kunci.test.js` | Buka kunci tanpa hapus data | `monitor` | T2.5 | |
 | `device_type.test.js` | Kebijakan hp vs laptop | `realtime`/`sesi` | T2.2 | ✔ |
 | `kebijakan_perangkat.test.js` | Batas pelanggaran per perangkat | `sesi` | T2.2 | ✔ |
-| `guru_otorisasi_soal.test.js` | Guru hanya soal mapelnya | `guru*` | T3.5 | |
+| `guru_otorisasi_soal.test.js` | Guru hanya soal mapelnya | `guru*` | T3.5 | ✔ |
 | `security_audit.test.js` | Audit keamanan (kunci jawaban, rate limit, cookie) | lintas paket | T4.1 | |
 | `production_env.test.js` | Konfigurasi produksi | `config` | T4.1 | |
 | `migrate.test.js` | Migrator idempoten | `cmd/migrate` | T0.3 | ✔ |

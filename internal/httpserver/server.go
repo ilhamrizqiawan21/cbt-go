@@ -12,7 +12,11 @@ import (
 	"github.com/alexedwards/scs/mysqlstore"
 	"github.com/alexedwards/scs/v2"
 
+	"cbt-go/internal/admin"
+	"cbt-go/internal/auth"
 	"cbt-go/internal/config"
+	"cbt-go/internal/guru"
+	"cbt-go/internal/monitor"
 	"cbt-go/internal/ratelimit"
 	"cbt-go/internal/realtime"
 )
@@ -27,14 +31,16 @@ type Pinger interface {
 
 // Deps adalah dependensi yang dibutuhkan router.
 type Deps struct {
-	DB             Pinger
-	Logger         *slog.Logger
-	Config         config.Config
-	SessionManager *scs.SessionManager
-	RateLimiterNIS *ratelimit.KeyLimiter
-	RateLimiterIP  *ratelimit.KeyLimiter
-	RealtimeHub    *realtime.Hub
-	CustomHandler  http.Handler // opsional, untuk rute kustom atau pengujian
+	DB               Pinger
+	Logger           *slog.Logger
+	Config           config.Config
+	SessionManager   *scs.SessionManager
+	RateLimiterNIS   *ratelimit.KeyLimiter
+	RateLimiterIP    *ratelimit.KeyLimiter
+	RateLimiterAdmin *ratelimit.KeyLimiter
+	RealtimeHub      *realtime.Hub
+	MonitorService   *monitor.Service
+	CustomHandler    http.Handler // opsional, untuk rute kustom atau pengujian
 }
 
 // NewSessionManager membangun scs.SessionManager dengan backend MySQL (tabel sessions).
@@ -58,9 +64,41 @@ func New(d Deps) http.Handler {
 	registerPublicRoutes(mux, d.DB, d.SessionManager)
 	registerAuthRoutes(mux, d)
 	registerAPISiswaRoutes(mux, d)
+
+	sqlDB, _ := d.DB.(*sql.DB)
+	monitorSvc := d.MonitorService
+	if monitorSvc == nil && sqlDB != nil {
+		monitorSvc = monitor.NewService(sqlDB, d.RealtimeHub)
+	}
+
+	if monitorSvc != nil {
+		requireAdminAPI := auth.RequireAdminAPI(d.SessionManager)
+		mux.Handle("GET /admin/api/monitor/{ujianId}", requireAdminAPI(monitor.GetMonitorHandler(monitorSvc)))
+	}
+
+	if sqlDB != nil {
+		admin.RegisterAdminMasterRoutes(mux, sqlDB, d.SessionManager, auth.RequireAdmin(d.SessionManager))
+		admin.RegisterAdminSiswaRoutes(mux, sqlDB, d.SessionManager, auth.RequireAdmin(d.SessionManager))
+		admin.RegisterAdminUjianRoutes(mux, sqlDB, d.SessionManager, auth.RequireAdmin(d.SessionManager), auth.RequireAdminAPI(d.SessionManager))
+		admin.RegisterAdminSoalRoutes(mux, sqlDB, d.SessionManager, auth.RequireAdmin(d.SessionManager), auth.RequireAdminAPI(d.SessionManager))
+		admin.RegisterAdminHasilRoutes(mux, sqlDB, d.SessionManager, auth.RequireAdmin(d.SessionManager))
+		admin.RegisterAdminLogResetRoutes(mux, sqlDB, d.SessionManager, auth.RequireAdmin(d.SessionManager))
+		guru.RegisterGuruRoutes(mux, sqlDB, d.SessionManager, auth.RequireGuru(d.SessionManager), auth.RequireGuruAPI(d.SessionManager))
+		guru.RegisterGuruHasilRoutes(mux, sqlDB, d.SessionManager, auth.RequireGuru(d.SessionManager))
+		guru.RegisterGuruEssayRoutes(mux, sqlDB, d.SessionManager, auth.RequireGuru(d.SessionManager))
+		guru.RegisterGuruLogRoutes(mux, sqlDB, d.SessionManager, auth.RequireGuru(d.SessionManager))
+	}
+
 	if d.RealtimeHub != nil {
-		if sqlDB, ok := d.DB.(*sql.DB); ok && sqlDB != nil {
-			realtime.RegisterSiswaEvents(d.RealtimeHub, sqlDB, nil)
+		var onNotify realtime.OnMonitorNotifyFunc
+		if monitorSvc != nil {
+			onNotify = func(ujianID int, immediateEvent string, immediateData any) {
+				_ = monitorSvc.SiarkanUpdate(context.Background(), ujianID)
+			}
+		}
+
+		if sqlDB != nil {
+			realtime.RegisterSiswaEvents(d.RealtimeHub, sqlDB, onNotify)
 		}
 		mux.Handle("GET /ws", d.RealtimeHub.ServeSiswaWS())
 		mux.Handle("GET /ws/admin", d.RealtimeHub.ServeAdminWS())

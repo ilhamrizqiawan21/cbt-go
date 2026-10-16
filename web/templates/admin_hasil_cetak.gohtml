@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>Cetak Hasil Ujian — {{.Ujian.NamaUjian}}</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; font-size: 12pt; color: #333; }
+        .header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px; }
+        .header h1 { margin: 0; font-size: 16pt; }
+        .header p { margin: 4px 0 0; font-size: 11pt; color: #555; }
+        .meta { margin-bottom: 15px; }
+        .meta table { width: 100%; }
+        .meta td { padding: 3px 0; }
+        table.data { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        table.data th, table.data td { border: 1px solid #000; padding: 6px 8px; text-align: left; font-size: 10pt; }
+        table.data th { background-color: #f2f2f2; text-align: center; }
+        .text-center { text-align: center !important; }
+        .text-right { text-align: right !important; }
+        @media print {
+            .no-print { display: none; }
+            body { margin: 0; }
+        }
+    </style>
+</head>
+<body>
+<div class="no-print" style="margin-bottom: 15px;">
+    <button onclick="window.print()" style="padding: 8px 16px; font-weight: bold; cursor: pointer;">Cetak Laporan</button>
+</div>
+
+<div class="header">
+    <h1>DAFTAR NILAI UJIAN BERBASIS KOMPUTER (CBT)</h1>
+    <p>MTs Al-Ihsan Batujajar — Tahun Ajaran 2025/2026</p>
+</div>
+
+<div class="meta">
+    <table>
+        <tr>
+            <td style="width: 15%;"><strong>Ujian</strong></td>
+            <td style="width: 35%;">: {{.Ujian.NamaUjian}}</td>
+            <td style="width: 15%;"><strong>Mata Pelajaran</strong></td>
+            <td style="width: 35%;">: {{.Ujian.NamaMapel}}</td>
+        </tr>
+        <tr>
+            <td><strong>Kelas</strong></td>
+            <td>: {{.Ujian.NamaKelas}}</td>
+            <td><strong>Guru Pengampu</strong></td>
+            <td>: {{.Ujian.NamaGuru}}</td>
+        </tr>
+    </table>
+</div>
+
+<table class="data">
+    <thead>
+        <tr>
+            <th style="width: 5%;">No</th>
+            <th style="width: 15%;">NIS</th>
+            <th>Nama Siswa</th>
+            <th style="width: 10%;">Kelas</th>
+            <th style="width: 8%;">Benar</th>
+            <th style="width: 8%;">Salah</th>
+            <th style="width: 8%;">Kosong</th>
+            <th style="width: 12%;">Nilai Akhir</th>
+            <th style="width: 12%;">Status</th>
+        </tr>
+    </thead>
+    <tbody>
+        {{range $i, $h := .HasilList}}
+        <tr>
+            <td class="text-center">{{add $i 1}}</td>
+            <td class="text-center">{{$h.NIS}}</td>
+            <td>{{$h.NamaSiswa}}</td>
+            <td class="text-center">{{$h.Kelas}}</td>
+            <td class="text-center">{{$h.Benar}}</td>
+            <td class="text-center">{{$h.Salah}}</td>
+            <td class="text-center">{{$h.Kosong}}</td>
+            <td class="text-center"><strong>{{$h.NilaiAkhir}}</strong></td>
+            <td class="text-center">{{$h.StatusKoreksi}}</td>
+        </tr>
+        {{else}}
+        <tr>
+            <td colspan="9" class="text-center">Belum ada hasil ujian.</td>
+        </tr>
+        {{end}}
+    </tbody>
+</table>
+
+<div style="margin-top: 40px; float: right; text-align: center; width: 200px;">
+    <p>Batujajar, {{.TanggalCetak}}</p>
+    <p style="margin-top: 60px;"><strong>({{.Ujian.NamaGuru}})</strong><br>Guru Pengampu</p>
+</div>
+
+</body>
+</html>
+
