@@ -17,7 +17,118 @@ let ujianSudahSelesai  = false;
 const KEY_LOCAL_ANSWERS = `answers_${siswaId}_${ujianId}`;
 const KEY_QUEUE         = `sync_queue_${siswaId}_${ujianId}`;
 
-const socket = io();
+// ─────────────────────────────────────────────
+// Pembungkus Tipis WebSocket + Exponential Backoff (DESIGN §5, T2.3)
+// Format amplop dua arah: {"event": "<nama>", "data": {...}}
+// ─────────────────────────────────────────────
+const socket = (function createWSClient() {
+    const handlers = {};
+    let ws = null;
+    let reconnectAttempt = 0;
+    let reconnectTimer = null;
+    let hasConnectedOnce = false;
+    let manualClose = false;
+
+    const BASE_DELAY_MS = 1000;
+    const MAX_DELAY_MS  = 30000;
+
+    function trigger(event, data) {
+        const list = handlers[event];
+        if (!list) return;
+        list.forEach(fn => {
+            try { fn(data || {}); } catch (err) { console.error('ws handler error:', err); }
+        });
+    }
+
+    function getWSUrl() {
+        const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        return `${proto}//${window.location.host}/ws`;
+    }
+
+    function scheduleReconnect() {
+        if (manualClose || ujianSudahSelesai) return;
+        if (reconnectTimer) clearTimeout(reconnectTimer);
+
+        const exp = Math.min(reconnectAttempt, 5);
+        const jitter = Math.floor(Math.random() * 400);
+        const delay = Math.min(MAX_DELAY_MS, BASE_DELAY_MS * Math.pow(2, exp) + jitter);
+        reconnectAttempt++;
+
+        reconnectTimer = setTimeout(() => {
+            connect();
+        }, delay);
+    }
+
+    function connect() {
+        if (manualClose || ujianSudahSelesai) return;
+        try {
+            ws = new WebSocket(getWSUrl());
+        } catch (err) {
+            scheduleReconnect();
+            return;
+        }
+
+        ws.addEventListener('open', () => {
+            const isReconnect = hasConnectedOnce;
+            hasConnectedOnce = true;
+            reconnectAttempt = 0;
+            trigger('connect', {});
+            if (isReconnect) {
+                trigger('reconnect', {});
+            }
+        });
+
+        ws.addEventListener('message', (evt) => {
+            try {
+                const msg = JSON.parse(evt.data);
+                if (msg && msg.event) {
+                    trigger(msg.event, msg.data);
+                }
+            } catch (_) {}
+        });
+
+        ws.addEventListener('close', () => {
+            ws = null;
+            scheduleReconnect();
+        });
+
+        ws.addEventListener('error', () => {
+            // Event close akan dipanggil setelah error dan memicu scheduleReconnect
+        });
+    }
+
+    window.addEventListener('online', () => {
+        if (!ws || ws.readyState === WebSocket.CLOSED) {
+            reconnectAttempt = 0;
+            connect();
+        }
+    });
+
+    // Mulai koneksi segera setelah listener terdaftar di bawah
+    setTimeout(connect, 0);
+
+    return {
+        on(event, fn) {
+            if (!handlers[event]) handlers[event] = [];
+            handlers[event].push(fn);
+        },
+        emit(event, data = {}) {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                try {
+                    ws.send(JSON.stringify({ event, data }));
+                } catch (_) {}
+            }
+        },
+        close() {
+            manualClose = true;
+            if (reconnectTimer) clearTimeout(reconnectTimer);
+            if (ws) {
+                try { ws.close(); } catch (_) {}
+            }
+        }
+    };
+})();
+window.socket = socket;
 
 function getLocalAnswers() {
     try { return JSON.parse(localStorage.getItem(KEY_LOCAL_ANSWERS) || '{}'); }
@@ -607,10 +718,15 @@ socket.on('connect', () => {
     socket.emit('siswa-siap');
 });
 
+let soalSudahDimuat = false;
+
 socket.on('mulai-ujian', ({ durasi, sisa_detik }) => {
     console.log('mulai-ujian, sisa_detik:', sisa_detik, 'durasi:', durasi);
     startTimer(durasi, sisa_detik);
-    loadSoal();
+    if (!soalSudahDimuat) {
+        soalSudahDimuat = true;
+        loadSoal();
+    }
     startPolling();
     startHeartbeat();
     startResyncTimer();

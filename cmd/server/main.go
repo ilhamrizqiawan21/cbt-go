@@ -23,6 +23,8 @@ import (
 	"cbt-go/internal/db"
 	"cbt-go/internal/httpserver"
 	"cbt-go/internal/ratelimit"
+	"cbt-go/internal/realtime"
+	"cbt-go/internal/sesi"
 )
 
 const shutdownTimeout = 15 * time.Second
@@ -68,9 +70,22 @@ func run() error {
 
 	sm := httpserver.NewSessionManager(pool, cfg)
 
-	// Rate limiter: Siswa 10 req/15 mnt per NIS, 300 req/15 mnt per IP (T0.8, D-018)
+	// Rate limiter: Siswa 10 req/15 mnt per NIS, 600 req/15 mnt per IP (atau RATE_LIMIT_LOGIN_IP)
+	// agar mampu melayani 410-500 siswa serentak dari 1 IP NAT sekolah (paritas Node rateLimiter.js).
+	rateLimitIP := 600
+	if v, err := strconv.Atoi(os.Getenv("RATE_LIMIT_LOGIN_IP")); err == nil && v > 0 {
+		rateLimitIP = v
+	}
 	limiterNIS := ratelimit.New(ctx, 10, 15*time.Minute, 15*time.Minute)
-	limiterIP := ratelimit.New(ctx, 300, 15*time.Minute, 15*time.Minute)
+	limiterIP := ratelimit.New(ctx, rateLimitIP, 15*time.Minute, 15*time.Minute)
+
+	// Auto-finalize background job: periksa dan tutup sesi kadaluarsa setiap 30 detik (T1.7, D-009)
+	autoFinalizer := sesi.StartAutoFinalizeJob(ctx, pool, 30*time.Second, sesi.DefaultGraceDetik, logger)
+	defer autoFinalizer.Stop()
+
+	// Hub WebSocket untuk koneksi siswa (/ws) dan pemantauan admin (/ws/admin) (T2.1)
+	wsHub := realtime.NewHub(sm, realtime.Config{})
+	defer wsHub.Close()
 
 	srv := &http.Server{
 		Addr: net.JoinHostPort("", strconv.Itoa(cfg.Port)),
@@ -81,6 +96,7 @@ func run() error {
 			SessionManager: sm,
 			RateLimiterNIS: limiterNIS,
 			RateLimiterIP:  limiterIP,
+			RealtimeHub:    wsHub,
 		}),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       30 * time.Second,

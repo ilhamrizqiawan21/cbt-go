@@ -1,0 +1,16 @@
+{
+  "name": "cbt-go-loadtest",
+  "version": "1.0.0",
+  "description": "Skrip uji beban untuk CBT Sekolah Go",
+  "main": "loadtest.js",
+  "type": "commonjs",
+  "scripts": {
+    "loadtest": "node loadtest.js"
+  },
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "dotenv": "^17.4.2",
+    "mysql2": "^3.22.3"
+  }
+}
+

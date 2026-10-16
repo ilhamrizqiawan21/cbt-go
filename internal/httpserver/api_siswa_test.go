@@ -1,6 +1,7 @@
 package httpserver_test
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -495,4 +496,354 @@ func extractPilihanKeys[T any](items []T) []string {
 		keys = append(keys, strings.Join(rowKeys, ","))
 	}
 	return keys
+}
+
+func TestSinkronJawabanRoute(t *testing.T) {
+	db := testdb.Open(t)
+	testdb.Reset(t, db)
+
+	handler, deps := setupAPISiswaTestApp(t, db)
+	siswaID, ujianID, deviceToken := setupAPISiswaData(t, db)
+
+	t.Run("401 bila tidak login", func(t *testing.T) {
+		req := httptest.NewRequest("POST", "/api/sinkron-jawaban", strings.NewReader(`[]`))
+		req.Header.Set("Content-Type", "application/json")
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusUnauthorized {
+			t.Errorf("status = %d, want 401", rec.Code)
+		}
+	})
+
+	t.Run("409 bila sesi diambil alih", func(t *testing.T) {
+		cookie := createSiswaSessionCookie(t, deps, siswaID, ujianID, "token-sudah-usang")
+		req := httptest.NewRequest("POST", "/api/sinkron-jawaban", strings.NewReader(`[]`))
+		req.Header.Set("Content-Type", "application/json")
+		req.AddCookie(cookie)
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusConflict {
+			t.Errorf("status = %d, want 409", rec.Code)
+		}
+	})
+
+	t.Run("400 bila batch > 100", func(t *testing.T) {
+		cookie := createSiswaSessionCookie(t, deps, siswaID, ujianID, deviceToken)
+		type Item struct {
+			SoalID  int    `json:"soal_id"`
+			Jawaban string `json:"jawaban"`
+		}
+		items := make([]Item, 101)
+		for i := range items {
+			items[i] = Item{SoalID: 1, Jawaban: "A"}
+		}
+		b, _ := json.Marshal(items)
+
+		req := httptest.NewRequest("POST", "/api/sinkron-jawaban", bytes.NewReader(b))
+		req.Header.Set("Content-Type", "application/json")
+		req.AddCookie(cookie)
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusBadRequest {
+			t.Errorf("status = %d, want 400", rec.Code)
+		}
+	})
+
+	t.Run("413 bila payload melebihi 1 MB", func(t *testing.T) {
+		cookie := createSiswaSessionCookie(t, deps, siswaID, ujianID, deviceToken)
+		bigStr := strings.Repeat("A", 1024*1024+10)
+		body := `[{"soal_id":1,"jawaban":"` + bigStr + `"}]`
+
+		req := httptest.NewRequest("POST", "/api/sinkron-jawaban", strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.AddCookie(cookie)
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusRequestEntityTooLarge {
+			t.Errorf("status = %d, want 413, got %d", http.StatusRequestEntityTooLarge, rec.Code)
+		}
+	})
+
+	t.Run("200 berhasil sinkron batch dan tidak membocorkan kunci", func(t *testing.T) {
+		cookie := createSiswaSessionCookie(t, deps, siswaID, ujianID, deviceToken)
+		body := `{"jawaban":[{"soal_id":1,"jawaban":"كَتَبَ"}]}`
+
+		req := httptest.NewRequest("POST", "/api/sinkron-jawaban", strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.AddCookie(cookie)
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status = %d, want 200, body: %s", rec.Code, rec.Body.String())
+		}
+
+		rawJSON := rec.Body.String()
+		for _, terlarang := range []string{"jawaban_benar", "kunci", "is_benar"} {
+			if strings.Contains(strings.ToLower(rawJSON), terlarang) {
+				t.Errorf("respons tidak boleh membocorkan kunci '%s': %s", terlarang, rawJSON)
+			}
+		}
+
+		var res struct {
+			Success    bool `json:"success"`
+			Tersinkron int  `json:"tersinkron"`
+			Diabaikan  int  `json:"diabaikan"`
+			Total      int  `json:"total"`
+		}
+		if err := json.Unmarshal(rec.Body.Bytes(), &res); err != nil {
+			t.Fatalf("unmarshal response error: %v", err)
+		}
+		if !res.Success || res.Tersinkron != 1 {
+			t.Errorf("response salah: %+v", res)
+		}
+	})
+}
+
+func TestSimpanJawabanLegacyRoute(t *testing.T) {
+	db := testdb.Open(t)
+	testdb.Reset(t, db)
+
+	handler, deps := setupAPISiswaTestApp(t, db)
+	siswaID, ujianID, deviceToken := setupAPISiswaData(t, db)
+
+	t.Run("401 bila tidak login", func(t *testing.T) {
+		req := httptest.NewRequest("POST", "/api/simpan-jawaban", strings.NewReader(`{}`))
+		req.Header.Set("Content-Type", "application/json")
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusUnauthorized {
+			t.Errorf("status = %d, want 401", rec.Code)
+		}
+	})
+
+	t.Run("403 bila ujian tidak cocok", func(t *testing.T) {
+		cookie := createSiswaSessionCookie(t, deps, siswaID, ujianID, deviceToken)
+		body := `{"ujian_id":9999,"soal_id":1,"jawaban":"A"}`
+		req := httptest.NewRequest("POST", "/api/simpan-jawaban", strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.AddCookie(cookie)
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusForbidden {
+			t.Errorf("status = %d, want 403", rec.Code)
+		}
+	})
+
+	t.Run("200 berhasil simpan jawaban tunggal", func(t *testing.T) {
+		cookie := createSiswaSessionCookie(t, deps, siswaID, ujianID, deviceToken)
+		body := `{"ujian_id":` + jsonNumber(ujianID) + `,"soal_id":1,"jawaban":"كَتَبَ"}`
+		req := httptest.NewRequest("POST", "/api/simpan-jawaban", strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.AddCookie(cookie)
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status = %d, want 200, body: %s", rec.Code, rec.Body.String())
+		}
+
+		var res struct {
+			Success bool `json:"success"`
+			SoalID  int  `json:"soal_id"`
+		}
+		if err := json.Unmarshal(rec.Body.Bytes(), &res); err != nil {
+			t.Fatalf("unmarshal error: %v", err)
+		}
+		if !res.Success || res.SoalID != 1 {
+			t.Errorf("response salah: %+v", res)
+		}
+	})
+}
+
+func TestHeartbeatRoute(t *testing.T) {
+	db := testdb.Open(t)
+	testdb.Reset(t, db)
+
+	handler, deps := setupAPISiswaTestApp(t, db)
+	siswaID, ujianID, deviceToken := setupAPISiswaData(t, db)
+
+	t.Run("401 jika tanpa login", func(t *testing.T) {
+		req := httptest.NewRequest("POST", "/api/heartbeat", nil)
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusUnauthorized {
+			t.Errorf("status = %d, want 401", rec.Code)
+		}
+	})
+
+	t.Run("409 jika device token telah diambil alih", func(t *testing.T) {
+		// Ubah device_token di DB menjadi token baru (disimulasikan perangkat lain login)
+		_, err := db.Exec("UPDATE sesi_ujian SET device_token = 'token-perangkat-baru' WHERE siswa_id = ? AND ujian_id = ?", siswaID, ujianID)
+		if err != nil {
+			t.Fatalf("update token db: %v", err)
+		}
+
+		cookie := createSiswaSessionCookie(t, deps, siswaID, ujianID, deviceToken)
+		req := httptest.NewRequest("POST", "/api/heartbeat", nil)
+		req.AddCookie(cookie)
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusConflict {
+			t.Fatalf("status = %d, want 409", rec.Code)
+		}
+
+		var errRes struct {
+			Error string `json:"error"`
+			Code  int    `json:"code"`
+		}
+		if err := json.Unmarshal(rec.Body.Bytes(), &errRes); err != nil {
+			t.Fatalf("unmarshal error: %v", err)
+		}
+		if errRes.Code != 409 {
+			t.Errorf("code = %d, want 409", errRes.Code)
+		}
+
+		// Kembalikan token DB
+		_, _ = db.Exec("UPDATE sesi_ujian SET device_token = ? WHERE siswa_id = ? AND ujian_id = ?", deviceToken, siswaID, ujianID)
+	})
+
+	t.Run("200 berhasil update last_seen", func(t *testing.T) {
+		// Mundurkan last_seen di DB
+		_, err := db.Exec("UPDATE sesi_ujian SET last_seen = NOW() - INTERVAL 5 MINUTE WHERE siswa_id = ? AND ujian_id = ?", siswaID, ujianID)
+		if err != nil {
+			t.Fatalf("mundurkan last_seen: %v", err)
+		}
+
+		var timeBefore time.Time
+		_ = db.QueryRow("SELECT last_seen FROM sesi_ujian WHERE siswa_id = ? AND ujian_id = ?", siswaID, ujianID).Scan(&timeBefore)
+
+		cookie := createSiswaSessionCookie(t, deps, siswaID, ujianID, deviceToken)
+		req := httptest.NewRequest("POST", "/api/heartbeat", nil)
+		req.AddCookie(cookie)
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status = %d, want 200, body: %s", rec.Code, rec.Body.String())
+		}
+
+		var res struct {
+			Success   bool      `json:"success"`
+			Timestamp time.Time `json:"timestamp"`
+		}
+		if err := json.Unmarshal(rec.Body.Bytes(), &res); err != nil {
+			t.Fatalf("unmarshal error: %v", err)
+		}
+		if !res.Success {
+			t.Errorf("success want true")
+		}
+
+		var timeAfter time.Time
+		_ = db.QueryRow("SELECT last_seen FROM sesi_ujian WHERE siswa_id = ? AND ujian_id = ?", siswaID, ujianID).Scan(&timeAfter)
+		if !timeAfter.After(timeBefore) {
+			t.Errorf("last_seen tidak diperbarui: %v vs %v", timeAfter, timeBefore)
+		}
+	})
+}
+
+func TestSelesaiUjianRoute(t *testing.T) {
+	db := testdb.Open(t)
+	testdb.Reset(t, db)
+
+	siswaID, ujianID, deviceToken := setupAPISiswaData(t, db)
+
+	t.Run("401 jika tanpa sesi login", func(t *testing.T) {
+		handler, _ := setupAPISiswaTestApp(t, db)
+		req := httptest.NewRequest("POST", "/api/selesai-ujian", nil)
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusUnauthorized {
+			t.Errorf("status = %d, want 401", rec.Code)
+		}
+	})
+
+	t.Run("200 sukses selesai ujian default tanpa tampilkan nilai", func(t *testing.T) {
+		handler, deps := setupAPISiswaTestApp(t, db)
+		cookie := createSiswaSessionCookie(t, deps, siswaID, ujianID, deviceToken)
+
+		req := httptest.NewRequest("POST", "/api/selesai-ujian", nil)
+		req.AddCookie(cookie)
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status = %d, want 200, body: %s", rec.Code, rec.Body.String())
+		}
+
+		var res struct {
+			Success bool   `json:"success"`
+			Message string `json:"message"`
+		}
+		if err := json.Unmarshal(rec.Body.Bytes(), &res); err != nil {
+			t.Fatalf("unmarshal error: %v", err)
+		}
+		if !res.Success || res.Message != "Jawaban terkirim" {
+			t.Errorf("respons salah: %+v", res)
+		}
+
+		// Status di database harus menjadi 'selesai'
+		var status string
+		_ = db.QueryRow("SELECT status FROM sesi_ujian WHERE siswa_id = ? AND ujian_id = ?", siswaID, ujianID).Scan(&status)
+		if status != "selesai" {
+			t.Errorf("status di DB = %s, want selesai", status)
+		}
+
+		// Request berikutnya harus ditolak 403 karena ujian sudah selesai
+		reqNext := httptest.NewRequest("POST", "/api/heartbeat", nil)
+		reqNext.AddCookie(cookie)
+		recNext := httptest.NewRecorder()
+		handler.ServeHTTP(recNext, reqNext)
+		if recNext.Code != http.StatusForbidden {
+			t.Errorf("request setelah selesai harus 403, dapat %d", recNext.Code)
+		}
+	})
+
+	t.Run("200 menampilkan nilai bila TAMPILKAN_NILAI_SISWA true", func(t *testing.T) {
+		testdb.Reset(t, db)
+		sID, uID, dToken := setupAPISiswaData(t, db)
+
+		cfg := config.Config{
+			Env:                 config.EnvTest,
+			Timezone:            time.UTC,
+			TampilkanNilaiSiswa: true,
+		}
+		sm := httpserver.NewSessionManager(db, cfg)
+		deps := httpserver.Deps{
+			DB:             db,
+			Config:         cfg,
+			SessionManager: sm,
+		}
+		handler := httpserver.New(deps)
+		cookie := createSiswaSessionCookie(t, &deps, sID, uID, dToken)
+
+		req := httptest.NewRequest("POST", "/api/selesai-ujian", nil)
+		req.AddCookie(cookie)
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status = %d, want 200, body: %s", rec.Code, rec.Body.String())
+		}
+
+		var res struct {
+			Nilai         int    `json:"nilai"`
+			StatusKoreksi string `json:"status_koreksi"`
+		}
+		if err := json.Unmarshal(rec.Body.Bytes(), &res); err != nil {
+			t.Fatalf("unmarshal error: %v", err)
+		}
+		if res.StatusKoreksi == "" {
+			t.Errorf("nilai respons tidak lengkap: %s", rec.Body.String())
+		}
+	})
 }

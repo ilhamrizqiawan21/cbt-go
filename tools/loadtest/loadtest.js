@@ -1,12 +1,13 @@
 #!/usr/bin/env node
+const fs = require('fs');
 const http = require('http');
 const https = require('https');
 const mysql = require('mysql2/promise');
 const bcrypt = require('bcrypt');
 const path = require('path');
-require('dotenv').config();
+require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
 
-// HTTP Agent dengan keep-alive dan connection pooling untuk 410 klien
+// HTTP Agent dengan keep-alive dan connection pooling untuk 500+ klien
 const httpAgent = new http.Agent({
     keepAlive: true,
     maxSockets: 600,
@@ -160,6 +161,14 @@ async function seedLoadTestData(pool, count = 410) {
         );
     } else {
         ujianId = ujianExist[0].id;
+        // Pastikan jendela waktu ujian masih aktif dan sesi lama dari run sebelumnya dibersihkan
+        await pool.query(
+            `UPDATE ujian SET tanggal_mulai = NOW() - INTERVAL 10 MINUTE, tanggal_selesai = NOW() + INTERVAL 2 HOUR WHERE id = ?`,
+            [ujianId]
+        );
+        await pool.query("DELETE FROM jawaban_siswa WHERE ujian_id = ?", [ujianId]);
+        await pool.query("DELETE FROM nilai_ujian WHERE ujian_id = ?", [ujianId]);
+        await pool.query("DELETE FROM sesi_ujian WHERE ujian_id = ?", [ujianId]);
     }
 
     // 5. Seed siswa sintetis secara batch
@@ -230,6 +239,31 @@ function calculatePercentile(numbers, p) {
 }
 
 /**
+ * Membaca penggunaan memori (VmRSS, VmHWM) dan waktu CPU (utime+stime) dari proses server di Linux
+ */
+function readProcessStats(pid) {
+    if (!pid) return null;
+    try {
+        const statusContent = fs.readFileSync(`/proc/${pid}/status`, 'utf8');
+        const rssMatch = statusContent.match(/VmRSS:\s+(\d+)\s+kB/);
+        const hwmMatch = statusContent.match(/VmHWM:\s+(\d+)\s+kB/);
+        const rssMb = rssMatch ? Number(rssMatch[1]) / 1024 : 0;
+        const hwmMb = hwmMatch ? Number(hwmMatch[1]) / 1024 : 0;
+
+        const statContent = fs.readFileSync(`/proc/${pid}/stat`, 'utf8');
+        const afterComm = statContent.slice(statContent.lastIndexOf(')') + 2).trim().split(/\s+/);
+        // Field 14 (utime) dan 15 (stime) adalah index 11 dan 12 pada array setelah ')'
+        const utime = Number(afterComm[11] || 0);
+        const stime = Number(afterComm[12] || 0);
+        const totalTicks = utime + stime; // 100 ticks per detik pada Linux standar (USER_HZ=100)
+
+        return { rssMb, hwmMb, totalTicks };
+    } catch (_) {
+        return null;
+    }
+}
+
+/**
  * Eksekutor simulasi load test
  */
 async function runLoadTest(options = {}) {
@@ -238,6 +272,7 @@ async function runLoadTest(options = {}) {
     const rampUpMs = options.rampUpMs !== undefined ? options.rampUpMs : 300000; // default 5 menit (300 dtk)
     const durationMs = options.durationMs !== undefined ? options.durationMs : 300000;
     const disconnectRatio = options.disconnectRatio !== undefined ? options.disconnectRatio : 0.15; // 15% putus-sambung
+    const serverPid = options.serverPid || null;
     const pool = options.pool;
 
     if (!pool) {
@@ -255,6 +290,7 @@ async function runLoadTest(options = {}) {
     console.log(`- Durasi Ramp-up   : ${(rampUpMs / 1000).toFixed(1)} detik`);
     console.log(`- Target Durasi    : ${(durationMs / 1000).toFixed(1)} detik`);
     console.log(`- Rasio Putus      : ${(disconnectRatio * 100).toFixed(0)}%`);
+    if (serverPid) console.log(`- Server PID       : ${serverPid}`);
     console.log(`============================================================\n`);
 
     const stats = {
@@ -290,6 +326,7 @@ async function runLoadTest(options = {}) {
 
     const startTime = Date.now();
     const memoryInitial = process.memoryUsage();
+    const srvInitial = readProcessStats(serverPid);
 
     // Fungsi simulasi 1 siswa
     async function simulateStudent(student, index) {
@@ -405,6 +442,20 @@ async function runLoadTest(options = {}) {
 
     const totalDurationSec = (Date.now() - startTime) / 1000;
     const memoryFinal = process.memoryUsage();
+    const srvFinal = readProcessStats(serverPid);
+
+    let serverMetrics = null;
+    if (srvInitial && srvFinal) {
+        const cpuSec = (srvFinal.totalTicks - srvInitial.totalTicks) / 100;
+        const avgCpuPct = totalDurationSec > 0 ? (cpuSec / totalDurationSec) * 100 : 0;
+        serverMetrics = {
+            initialRssMb: srvInitial.rssMb.toFixed(1),
+            finalRssMb: srvFinal.rssMb.toFixed(1),
+            peakRssMb: srvFinal.hwmMb.toFixed(1),
+            cpuSeconds: cpuSec.toFixed(2),
+            avgCpuPercent: avgCpuPct.toFixed(1)
+        };
+    }
 
     // 5. Audit Integritas Data di Database
     const [dbAnswerCountRows] = await pool.query(
@@ -431,6 +482,7 @@ async function runLoadTest(options = {}) {
             p50: calculatePercentile(lats, 50),
             p90: calculatePercentile(lats, 90),
             p95: calculatePercentile(lats, 95),
+            p99: calculatePercentile(lats, 99),
             max: lats.length ? Math.max(...lats) : 0
         };
     }
@@ -458,6 +510,7 @@ async function runLoadTest(options = {}) {
             initialRssMb: (memoryInitial.rss / 1024 / 1024).toFixed(1),
             finalRssMb: (memoryFinal.rss / 1024 / 1024).toFixed(1)
         },
+        serverMetrics,
         endpoints: summary
     };
 
@@ -469,11 +522,15 @@ async function runLoadTest(options = {}) {
     console.log(`Jawaban Dikirim    : ${report.totalAnswersSent}`);
     console.log(`Jawaban di DB      : ${report.answersInDatabase}`);
     console.log(`Jawaban Hilang     : ${report.answersLost}`);
-    console.log(`Memory RSS         : ${report.memory.initialRssMb} MB -> ${report.memory.finalRssMb} MB`);
+    console.log(`Loadtest Gen RSS   : ${report.memory.initialRssMb} MB -> ${report.memory.finalRssMb} MB`);
+    if (serverMetrics) {
+        console.log(`Server Target RSS  : ${serverMetrics.initialRssMb} MB -> ${serverMetrics.finalRssMb} MB (Peak HWM: ${serverMetrics.peakRssMb} MB)`);
+        console.log(`Server Target CPU  : ${serverMetrics.cpuSeconds}s total (${serverMetrics.avgCpuPercent}% avg)`);
+    }
     console.log(`-----------------------------------------------------`);
     console.log(`Rincian Respons per Endpoint:`);
     for (const [epName, epStats] of Object.entries(summary)) {
-        console.log(`  ${epName.padEnd(28)} | Req: ${String(epStats.count).padStart(4)} | Sukses: ${String(epStats.success).padStart(4)} | Min: ${String(epStats.min).padStart(4)}ms | Avg: ${String(epStats.avg).padStart(6)}ms | p95: ${String(epStats.p95).padStart(4)}ms | Max: ${String(epStats.max).padStart(5)}ms`);
+        console.log(`  ${epName.padEnd(28)} | Req: ${String(epStats.count).padStart(4)} | Sukses: ${String(epStats.success).padStart(4)} | p50: ${String(epStats.p50).padStart(4)}ms | p95: ${String(epStats.p95).padStart(4)}ms | p99: ${String(epStats.p99).padStart(4)}ms | Max: ${String(epStats.max).padStart(5)}ms`);
     }
     console.log(`-----------------------------------------------------`);
     console.log(`AMBANG TERIMA:`);
@@ -485,26 +542,59 @@ async function runLoadTest(options = {}) {
     return report;
 }
 
+function createLoadTestPool() {
+    const dbName = process.env.LOADTEST_DB_NAME || 'cbt_sekolah_go_test';
+    if (dbName === 'cbt_sekolah') {
+        throw new Error('PELANGGARAN KEAMANAN: tools/loadtest dilarang keras menyentuh database cbt_sekolah milik Node!');
+    }
+    if (dbName !== 'cbt_sekolah_go' && dbName !== 'cbt_sekolah_go_test') {
+        throw new Error(`Database tidak diizinkan untuk loadtest Go: ${dbName}`);
+    }
+
+    const poolConfig = {
+        user: process.env.DB_USER || 'root',
+        password: process.env.DB_PASSWORD || '',
+        database: dbName,
+        waitForConnections: true,
+        connectionLimit: 30,
+        queueLimit: 0,
+        timezone: '+07:00'
+    };
+
+    const socketPath = process.env.DB_SOCKET || (fs.existsSync('/var/lib/mysql/mysql.sock') ? '/var/lib/mysql/mysql.sock' : '');
+    if (socketPath) {
+        poolConfig.socketPath = socketPath;
+    } else {
+        poolConfig.host = process.env.DB_HOST || '127.0.0.1';
+        poolConfig.port = Number(process.env.DB_PORT || 3306);
+    }
+
+    return mysql.createPool(poolConfig);
+}
+
 if (require.main === module) {
     const args = process.argv.slice(2);
     let clients = 410;
     let rampUp = 300; // detik
     let url = process.env.LOADTEST_URL || 'http://127.0.0.1:3000';
     let cleanupAfter = false;
+    let serverPid = null;
 
     for (const arg of args) {
         if (arg.startsWith('--clients=')) clients = Number(arg.split('=')[1]);
         if (arg.startsWith('--ramp-up=')) rampUp = Number(arg.split('=')[1]);
         if (arg.startsWith('--url=')) url = arg.split('=')[1];
+        if (arg.startsWith('--server-pid=')) serverPid = Number(arg.split('=')[1]);
         if (arg === '--cleanup') cleanupAfter = true;
     }
 
-    const pool = require('../models/db');
+    const pool = createLoadTestPool();
 
     runLoadTest({
         url,
         clients,
         rampUpMs: rampUp * 1000,
+        serverPid,
         pool
     }).then(async (report) => {
         if (cleanupAfter) {
@@ -524,5 +614,7 @@ module.exports = {
     runLoadTest,
     seedLoadTestData,
     cleanupLoadTestData,
-    sendRequest
+    sendRequest,
+    createLoadTestPool
 };
+

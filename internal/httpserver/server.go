@@ -14,6 +14,7 @@ import (
 
 	"cbt-go/internal/config"
 	"cbt-go/internal/ratelimit"
+	"cbt-go/internal/realtime"
 )
 
 const healthTimeout = 2 * time.Second
@@ -32,6 +33,7 @@ type Deps struct {
 	SessionManager *scs.SessionManager
 	RateLimiterNIS *ratelimit.KeyLimiter
 	RateLimiterIP  *ratelimit.KeyLimiter
+	RealtimeHub    *realtime.Hub
 	CustomHandler  http.Handler // opsional, untuk rute kustom atau pengujian
 }
 
@@ -56,6 +58,13 @@ func New(d Deps) http.Handler {
 	registerPublicRoutes(mux, d.DB, d.SessionManager)
 	registerAuthRoutes(mux, d)
 	registerAPISiswaRoutes(mux, d)
+	if d.RealtimeHub != nil {
+		if sqlDB, ok := d.DB.(*sql.DB); ok && sqlDB != nil {
+			realtime.RegisterSiswaEvents(d.RealtimeHub, sqlDB, nil)
+		}
+		mux.Handle("GET /ws", d.RealtimeHub.ServeSiswaWS())
+		mux.Handle("GET /ws/admin", d.RealtimeHub.ServeAdminWS())
+	}
 
 	var baseHandler http.Handler = mux
 	if d.CustomHandler != nil {

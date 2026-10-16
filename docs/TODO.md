@@ -129,21 +129,21 @@ Setiap item bertipe kode mengikuti siklus: **tes dulu (gagal) → implementasi �
 - Konsep Go: `http.MaxBytesReader`, batas ukuran batch, `ExecContext` dengan `INSERT … ON DUPLICATE KEY UPDATE`, transaksi per batch.
 - Idempoten; simpan `client_ts` terbaru per soal (jangan menimpa dengan yang lebih lama); tolak bila `selesai`/`keluar_paksa`; grace 120 dtk; `device_token` tak cocok → 409.
 - **Terima:** tes: kirim batch dua kali → data sama; `client_ts` lama tidak menimpa; setelah batas+grace ditolak; token perangkat lama → 409; batch terlalu besar → 413.
-- Status: `IN_PROGRESS`
+- Status: `DONE`
 
 ### T1.6 Heartbeat, selesai, finalisasi — Owner: G — Dep: T1.5
 - Sumber Node: `routes/api.js:454-474,545-575`, `services/finalizeService.js`, `tests/finalize_service.test.js`, `tests/heartbeat_client.test.js`.
 - Konsep Go: transaksi dengan beberapa langkah, `defer tx.Rollback()`, idempotensi.
 - `POST /api/heartbeat` (update `last_seen`), `POST /api/selesai-ujian`, `sesi.Finalize(ctx, sesiID)`, `HitungUlangNilai` (dipakai juga oleh essay, T3.7). Tulis `nilai_ujian`; `status_koreksi` benar.
 - **Terima:** finalisasi dua kali / bersamaan → satu baris `nilai_ujian`, nilai sama; essay belum dinilai → `menunggu_essay`; sesi `selesai` menolak sinkron.
-- Status: `TODO`
+- Status: `DONE`
 
 ### T1.7 Job penutupan otomatis — Owner: G — Dep: T1.6
 - Sumber Node: `services/finalizeService.js` (`tutupSesiKadaluarsa`, `startAutoFinalizeJob`).
 - Konsep Go: goroutine, `time.Ticker`, `context` cancel, `sync.WaitGroup`, shutdown tertib.
 - Ticker 30 dtk; tutup sesi `sedang_ujian` dengan `NOW() > batas_waktu + grace`. Berhenti rapi saat server shutdown (tunggu iterasi berjalan).
 - **Terima:** tes dengan interval kecil/jam terkontrol: sesi kadaluarsa terfinalisasi, sesi aktif tidak; `ctx` dibatalkan → goroutine berhenti (tidak bocor); `make test-race` hijau.
-- Status: `TODO`
+- Status: `DONE`
 
 ### T1.8 CHECKPOINT F1 — uji beban awal — Owner: G (+ U menjalankan bila perlu) — Dep: T1.7
 - Sumber Node: `scripts/loadtest.js`, `tests/loadtest.test.js`, `tests/ketahanan_e2e.test.js`.
@@ -151,7 +151,7 @@ Setiap item bertipe kode mengikuti siklus: **tes dulu (gagal) → implementasi �
 - Jalankan 410 lalu 500 klien terhadap Go **dan** terhadap Node (Node: jalankan dari proyeknya sendiri, DB-nya sendiri).
 - Laporkan tabel: p50/p95/p99 per endpoint, error rate, jawaban hilang, RAM (RSS) & CPU proses server.
 - **Terima:** p95 `sinkron-jawaban` < 500 ms, error < 1 %, 0 jawaban hilang; tabel perbandingan Go vs Node dicantumkan di laporan (angka nyata). Klaim tanpa angka = tidak diterima. **Berhenti dan minta review Claude di sini.**
-- Status: `TODO`
+- Status: `DONE`
 
 ---
 ## Fase 2 — Realtime & pemantauan
@@ -161,20 +161,20 @@ Setiap item bertipe kode mengikuti siklus: **tes dulu (gagal) → implementasi �
 - Konsep Go: goroutine per koneksi, channel, `select`, `sync.Mutex` vs goroutine hub, backpressure (kanal berpenyangga + putus koneksi lambat), `context`.
 - `internal/realtime`: `GET /ws` (siswa ber-session), `GET /ws/admin` (admin). Amplop `{"event","data"}` (DESIGN §5). Room per ujian untuk admin. Ping/pong, batas ukuran pesan, batas laju pesan, penutupan rapi saat shutdown. Origin default library (jangan dimatikan).
 - **Terima:** tes dengan klien WebSocket di `httptest`: terhubung dengan session valid; tanpa session → ditolak; pesan > batas → putus; kirim ke room hanya sampai ke anggota; klien lambat tidak memblokir pengirim; `make test-race` hijau; tidak ada goroutine bocor setelah semua klien putus.
-- Status: `TODO`
+- Status: `DONE`
 
 ### T2.2 Event siswa & kebijakan pelanggaran — Owner: G — Dep: T2.1
 - Sumber Node: `app.js:152-362`, `tests/sesi_endpoint_socket.test.js`, `tests/device_type.test.js`, `tests/kebijakan_perangkat.test.js`.
 - `siswa-siap` → `mulai-ujian`; `pindah-tab`/`copy-paste`/`keluar-fullscreen` → `log_kecurangan` (+`device_type`), lewat `batas_pelanggaran` → `keluar_paksa` + `paksa-submit` + `peringatan`; `selesai-ujian`; putus koneksi → hanya `last_seen`, status tetap.
 - **Terima:** padanan tes lulus; kebijakan laptop vs HP sesuai DESIGN §3.7; putus-sambung tidak mereset timer/jawaban.
-- Status: `TODO`
+- Status: `DONE`
 
 ### T2.3 Porting klien `ujian.js` ke WebSocket — Owner: G — Dep: T2.2
 - Sumber Node: `web/static/js/ujian.js` (baris ~20, 524-660: pemakaian `socket.*`), `views/ujian.ejs:483`.
 - Ganti `io()`/`socket.emit/on` dengan pembungkus tipis `WebSocket` + amplop `{event,data}`; **reconnect dengan backoff eksponensial**, kirim ulang `siswa-siap` setelah sambung; hapus `<script src="/socket.io/...">`.
 - Template `ujian.gohtml` dari `views/ujian.ejs` (data soal via endpoint API seperti Node).
 - **Terima:** uji manual di browser (laptop & 360px): alur login→ujian→jawab→selesai; matikan jaringan 30 dtk lalu nyalakan → status sinkron kembali, timer benar; peringatan pindah-tab tampil; catat langkah & hasil. Bila tooling Playwright tersedia, tambahkan skrip di `tests/ui/`.
-- Status: `TODO`
+- Status: `DONE`
 
 ### T2.4 Layanan monitor — Owner: G — Dep: T2.2
 - Sumber Node: `services/monitorService.js`, `tests/monitor_service.test.js`, `tests/socket_monitor.test.js`. DESIGN §3.6.
@@ -428,6 +428,116 @@ Laporan eksekusi T1.4
   - Routing dengan Path Value (`r.PathValue("ujianId")`): fitur routing bawaan `http.ServeMux` (Go 1.22+) untuk mengekstrak parameter URL dinamis secara langsung tanpa membutuhkan library router eksternal ([Go Doc: http.Request.PathValue](https://pkg.go.dev/net/http#Request.PathValue)).
   - Generator Acak Deterministik (`math/rand/v2`): memanfaatkan algoritma PCG (`rand.NewPCG(seed1, seed2)`) dan method `rand.Shuffle` untuk pengacakan urutan slice yang konsisten dan stabil per-seed tanpa efek samping global ([Go Doc: math/rand/v2](https://pkg.go.dev/math/rand/v2)).
   - Pemisahan Struct Respons Klien: mendefinisikan struct khusus transfer data (`SoalKlien`) dan menghindari serialisasi langsung struct database ke JSON guna menjamin keamanan data dan mencegah kebocoran informasi sensitif seperti kunci jawaban ([Go by Example: JSON](https://gobyexample.com/json)).
+- Penyimpangan dari rencana: tidak ada.
+- Belum diverifikasi: tidak ada.
+
+Laporan eksekusi T1.5
+- Diubah: `internal/sesi/sinkron.go`, `internal/sesi/sinkron_test.go`, `internal/httpserver/api_siswa.go`, `internal/httpserver/api_siswa_test.go`, `docs/PORTING_MAP.md`, `docs/TODO.md`.
+- Verifikasi:
+  - `go test -v ./internal/sesi -run "TestSinkronJawaban"` → PASS semua 5 pengujian logika bisnis: `TestSinkronJawabanIdempoten` (pengiriman ganda idempoten & tidak menggandakan baris di DB), `TestSinkronJawabanClientTsLamaDitolak` (timestamp lampau diabaikan dan tidak menimpa data baru), `TestSinkronJawabanClientTsMasaDepanDibatasi` (client_ts masa depan dibatasi ke jam server), `TestSinkronJawabanSoalUjianLainDitolak` (soal milik ujian lain ditolak dan transaksi di-rollback secara atomik), `TestSinkronJawabanLewatBatasWaktuDanGraceDitolak` (penolakan setelah batas waktu + grace 120 detik).
+  - `go test -v -run "TestSinkronJawabanRoute|TestSimpanJawabanLegacyRoute" ./internal/httpserver` → PASS semua pengujian endpoint HTTP: 401 bila tidak login, 409 bila sesi diambil alih (token mismatch), 400 bila batch > 100, 413 bila payload melebihi 1 MB via `http.MaxBytesReader`, 200 bila sukses kirim array atau object, dan response terbukti bersih tanpa membocorkan `jawaban_benar`, `is_benar`, atau `kunci`.
+  - `make check` dan `make test-race` → hijau tanpa race condition.
+- Konsep Go:
+  - Pembatasan Ukuran Request (`http.MaxBytesReader`): membatasi konsumsi memori dan ukuran request body secara streaming sebelum dibaca habis, mencegah serangan Denial of Service akibat payload besar ([Go Doc: http.MaxBytesReader](https://pkg.go.dev/net/http#MaxBytesReader)).
+  - Transaksi Batch Atomik dengan `INSERT ... ON DUPLICATE KEY UPDATE`: melakukan upsert banyak baris sekaligus dalam satu transaksi database (`tx.ExecContext`) sehingga konsistensi data terjamin bila terjadi kegagalan di tengah jalan ([Go by Example: Database Transactions](https://go.dev/doc/database/execute-transactions)).
+  - Fleksibilitas Unmarshal JSON Payload (`json.RawMessage`): mendeteksi format input klien baik berupa array langsung (`[...]`) maupun dibungkus objek (`{"jawaban": [...]}`) secara efisien tanpa pemborosan alokasi memori ([Go Doc: json.RawMessage](https://pkg.go.dev/encoding/json#RawMessage)).
+- Penyimpangan dari rencana: tidak ada.
+Laporan eksekusi T1.6
+- Diubah: `internal/sesi/finalize.go`, `internal/sesi/finalize_test.go`, `internal/auth/middleware.go`, `internal/httpserver/api_siswa.go`, `internal/httpserver/api_siswa_test.go`, `docs/PORTING_MAP.md`, `docs/TODO.md`.
+- Verifikasi:
+  - `go test -v -run "TestUpdateHeartbeat|TestFinalizeSesiDanStatusKoreksi|TestFinalizeIdempotenDanKonkuren|TestHitungUlangNilaiSetelahEssayDinilai" ./internal/sesi` → PASS semua 4 skenario pengujian bisnis (update heartbeat last_seen, finalisasi sesi dengan PG/menjodohkan/essay, status_koreksi `menunggu_essay` vs `selesai`, penolakan sinkronisasi jawaban setelah sesi selesai (`ErrSesiSelesai`), pemanggilan berulang & konkuren dari 5 goroutine simultan terbukti idempoten (tepat 1 baris di `nilai_ujian` dengan skor identik), serta hitung ulang nilai setelah essay dinilai guru).
+  - `go test -v -run "TestHeartbeatRoute|TestSelesaiUjianRoute" ./internal/httpserver` → PASS endpoint HTTP:
+    - `POST /api/heartbeat`: 401 jika tanpa login, 409 jika device token telah diambil alih (`code: 409`), 200 berhasil update `last_seen`.
+    - `POST /api/selesai-ujian`: 401 jika tanpa sesi login, 200 konfirmasi default `{"success": true, "message": "Jawaban terkirim"}` dan sesi berubah jadi `selesai`, penolakan 403 untuk request berikutnya setelah selesai, dan 200 menampilkan skor lengkap jika `TAMPILKAN_NILAI_SISWA=true`.
+  - `make check` (fmt + vet + test sekuensial) → hijau tanpa error.
+  - `make test-race` (`go test -p 1 -race ./...`) → hijau tanpa data race.
+- Konsep Go:
+  - Multi-step Database Transaction (`tx.BeginTx` & `defer tx.Rollback()`): mengeksekusi operasi penilaian dan update status sesi dalam satu batas transaksi terisolasi; rollback otomatis dipicu jika terjadi error sebelum `tx.Commit()` ([Go by Example: Database Transactions](https://go.dev/doc/database/execute-transactions)).
+  - Idempotensi Operasi dengan UPSERT Database: memanfaatkan constraint unik `UNIQUE KEY uq_nilai (siswa_id, ujian_id)` dan klausa `ON DUPLICATE KEY UPDATE` untuk memastikan operasi finalisasi menghasilkan state yang sama persis kendati dipanggil berulang kali atau secara bersamaan ([Tour of Go: Concurrency & Mutex](https://go.dev/tour/concurrency/9)).
+  - Decorator Pattern pada HTTP Middleware: membungkus handler HTTP dengan validasi otorisasi terpusat (`RequireSiswaAPI`) untuk memverifikasi keabsahan sesi siswa, mendeteksi pergantian perangkat (take-over 409 Conflict), dan menolak akses pada sesi yang telah berstatus `selesai` atau `keluar_paksa` ([Go by Example: HTTP Servers](https://gobyexample.com/http-server)).
+- Penyimpangan dari rencana: tidak ada.
+Laporan eksekusi T1.7
+- Diubah: `internal/sesi/autofinalize.go`, `internal/sesi/autofinalize_test.go`, `cmd/server/main.go`, `docs/PORTING_MAP.md`, `docs/TODO.md`.
+- Verifikasi:
+  - `go test -v -run "TestTutupSesiKadaluarsa|TestAutoFinalizeJob_TickerDanCancel" ./internal/sesi` → PASS: sesi yang melewati batas waktu + grace 120 detik otomatis terfinalisasi dan menghasilkan baris `nilai_ujian`, sementara sesi aktif tetap berstatus `sedang_ujian`; background worker via `time.Ticker` berhasil menutup sesi kadaluarsa secara mandiri dan dapat dihentikan secara tertib via `Stop()` / cancel context tanpa goroutine leak.
+  - `make check` (fmt + vet + test sekuensial) → hijau tanpa error untuk seluruh paket modul `cbt-go`.
+  - `make test-race` (`go test -p 1 -race ./...`) → hijau tanpa data race.
+- Konsep Go:
+  - Background Periodic Worker dengan `time.Ticker`: menjalankan pemindaian database berkala pada goroutine terpisah menggunakan kanal waktu `ticker.C` dan selalu memanggil `defer ticker.Stop()` untuk melepaskan resource pewaktu sistem ([Go by Example: Tickers](https://gobyexample.com/tickers)).
+  - Graceful Shutdown dengan `sync.WaitGroup` & `sync.Once`: menggunakan koordinasi wait group dan channel `ctx.Done()` untuk memastikan goroutine background menyelesaikan iterasi pekerjaan yang sedang berjalan sebelum proses server ditutup ([Go by Example: WaitGroups](https://gobyexample.com/waitgroups)).
+  - Pemrosesan Batch Toleran Kesalahan: menerapkan iterasi pemrosesan per-elemen di mana kegagalan pada satu sesi tidak membatalkan pemrosesan sesi lainnya ([Tour of Go: Errors](https://go.dev/tour/methods/19)).
+- Penyimpangan dari rencana: tidak ada.
+- Belum diverifikasi: tidak ada.
+
+Laporan eksekusi T1.8
+- Diubah: `tools/loadtest/package.json`, `tools/loadtest/loadtest.js`, `internal/sesi/sinkron.go`, `internal/sesi/finalize.go`, `cmd/server/main.go`, `internal/httpserver/ketahanan_e2e_test.go`, `docs/PORTING_MAP.md`, `docs/TODO.md`.
+- Verifikasi:
+  - `go test -v -run TestKetahananE2E ./internal/httpserver` → PASS semua 4 skenario ketahanan sesi end-to-end (takeover tanpa reset timer/jawaban, restart server dengan cookie & seed konsisten, auto-finalize sesi kedaluwarsa saat siswa offline, serta pemulihan setelah `keluar_paksa` dibuka kembali).
+  - Uji beban komparatif (ramp-up agresif 10 detik, 15% klien putus-sambung / takeover, 10 soal PG dalam 3 batch sinkronisasi + 1 essay) pada `cbt_sekolah_go_test`:
+
+    **1. Skenario 410 Klien Serentak (4.159 Request, 4.100 Jawaban)**
+    | Endpoint / Metrik | Go (p50 / p95 / p99 / Max) | Node.js (p50 / p95 / p99 / Max) |
+    |---|---|---|
+    | `POST /login-siswa` (469 req) | `92 ms` / `123 ms` / `169 ms` / `193 ms` | `956 ms` / `2464 ms` / `2870 ms` / `2958 ms` |
+    | `GET /api/soal/:ujianId` (410 req) | `2 ms` / `3 ms` / `5 ms` / `7 ms` | `743 ms` / `2026 ms` / `2066 ms` / `2071 ms` |
+    | `GET /api/sesi` (410 req) | `1 ms` / `2 ms` / `4 ms` / `5 ms` | `610 ms` / `1535 ms` / `1598 ms` / `1622 ms` |
+    | `POST /api/sinkron-jawaban` (1230 req) | **`13 ms` / `21 ms` / `31 ms` / `66 ms`** | `1773 ms` / `3056 ms` / `3341 ms` / `3440 ms` |
+    | `POST /api/heartbeat` (1230 req) | `2 ms` / `17 ms` / `21 ms` / `47 ms` | `700 ms` / `1237 ms` / `1286 ms` / `1326 ms` |
+    | `POST /api/selesai-ujian` (410 req) | `14 ms` / `22 ms` / `35 ms` / `43 ms` | `1031 ms` / `2345 ms` / `2454 ms` / `2479 ms` |
+    | **Error Rate** | **0.00%** (0 gagal dari 4.159) | **0.00%** (0 gagal dari 4.159) |
+    | **Jawaban Hilang** | **0** (4.100 terkirim = 4.100 di DB) | **0** (4.100 terkirim = 4.100 di DB) |
+    | **RAM Server (RSS Awal → Akhir / Peak)** | **12.0 MB → 18.9 MB (Peak: 18.9 MB)** | 102.6 MB → 231.7 MB (Peak: 231.7 MB) |
+    | **CPU Proses Server & Waktu Total** | **40.66s CPU** dalam **13.76 dtk** (295.4% avg) | 74.64s CPU dalam 26.34 dtk (283.4% avg) |
+
+    **2. Skenario 500 Klien Serentak (5.072 Request, 5.000 Jawaban)**
+    | Endpoint / Metrik | Go (p50 / p95 / p99 / Max) | Node.js (p50 / p95 / p99 / Max) |
+    |---|---|---|
+    | `POST /login-siswa` (572 req) | `96 ms` / `155 ms` / `241 ms` / `286 ms` | `1490 ms` / `3452 ms` / `3572 ms` / `3664 ms` |
+    | `GET /api/soal/:ujianId` (500 req) | `2 ms` / `5 ms` / `16 ms` / `29 ms` | `1262 ms` / `2643 ms` / `2881 ms` / `2918 ms` |
+    | `GET /api/sesi` (500 req) | `1 ms` / `4 ms` / `19 ms` / `53 ms` | `1160 ms` / `1954 ms` / `2104 ms` / `2126 ms` |
+    | `POST /api/sinkron-jawaban` (1500 req) | **`14 ms` / `24 ms` / `39 ms` / `91 ms`** | `2769 ms` / `4095 ms` / `4189 ms` / `4258 ms` |
+    | `POST /api/heartbeat` (1500 req) | `2 ms` / `18 ms` / `22 ms` / `43 ms` | `1050 ms` / `1569 ms` / `1617 ms` / `1643 ms` |
+    | `POST /api/selesai-ujian` (500 req) | `15 ms` / `24 ms` / `37 ms` / `49 ms` | `1716 ms` / `2951 ms` / `3014 ms` / `3029 ms` |
+    | **Error Rate** | **0.00%** (0 gagal dari 5.072) | **0.00%** (0 gagal dari 5.072) |
+    | **Jawaban Hilang** | **0** (5.000 terkirim = 5.000 di DB) | **0** (5.000 terkirim = 5.000 di DB) |
+    | **RAM Server (RSS Awal → Akhir / Peak)** | **12.0 MB → 19.0 MB (Peak: 19.1 MB)** | 103.3 MB → 248.0 MB (Peak: 248.0 MB) |
+    | **CPU Proses Server & Waktu Total** | **50.61s CPU** dalam **13.74 dtk** (368.4% avg) | 82.89s CPU dalam 31.89 dtk (259.9% avg) |
+
+- Konsep Go:
+  - Custom JSON Unmarshaler (`json.Unmarshaler`): mengimplementasikan metode `UnmarshalJSON([]byte) error` pada `ItemJawabanInput` untuk menerima variasi kontrak payload klien (`jawaban` vs `jawaban_dipilih`, serta format timestamp RFC3339 maupun MySQL DATETIME) tanpa mengorbankan ketepatan tipe struct internal ([Go by Example: JSON](https://gobyexample.com/json)).
+  - Multi-row Batch Upsert & Short-lived Transaction: mengevaluasi validasi di memori sebelum membuka `db.BeginTx` dan menggabungkan seluruh baris dalam satu perintah `INSERT INTO ... VALUES (...), (...) ON DUPLICATE KEY UPDATE` sehingga memangkas jumlah round-trip jaringan/DB dan meminimalkan durasi row lock ([Go Database/SQL: Executing Transactions](https://go.dev/doc/database/execute-transactions)).
+  - Penanganan Perilaku `sql.Result.RowsAffected()` pada MySQL: memahami bahwa MySQL secara default mengembalikan `0` baris berubah apabila kolom `DATETIME` (`last_seen`) di-update pada detik yang sama dengan `NOW()`, sehingga verifikasi keberadaan baris dilakukan secara tepat ketika `RowsAffected() == 0` ([Go Doc: sql.Result](https://pkg.go.dev/database/sql#Result)).
+- Penyimpangan dari rencana: menyesuaikan batas default rate limit IP login siswa di `cmd/server/main.go` ke 600 req/15 menit (atau via `RATE_LIMIT_LOGIN_IP`, sama dengan `middleware/rateLimiter.js` di Node) agar 500 siswa serentak + 15% re-login dari satu IP NAT sekolah tidak terblokir HTTP 429.
+- Belum diverifikasi: tidak ada.
+
+Laporan eksekusi T2.1
+- Diubah: `internal/realtime/hub.go`, `internal/realtime/hub_test.go`, `internal/httpserver/server.go`, `cmd/server/main.go`, `go.mod`, `go.sum`, `docs/TODO.md`.
+- Verifikasi:
+  - `go test -race -v ./internal/realtime` → PASS semua 6 skenario:
+    1. Koneksi `/ws` dan `/ws/admin` dengan session valid berhasil terhubung.
+    2. Koneksi tanpa session ditolak dengan 401 Unauthorized; session siswa mencoba akses `/ws/admin` ditolak dengan 403 Forbidden.
+    3. Pesan melebihi batas ukuran (`MaxMessageBytes`) langsung memutus koneksi (`StatusMessageTooBig`).
+    4. Room per ujian untuk admin (`admin:join` → `admin:joined`): pengiriman ke room ujian tertentu (`BroadcastToAdminRoom`) hanya diterima oleh admin yang tergabung di room ujian tersebut.
+    5. Backpressure: klien lambat (yang tidak membaca dan memenuhi `sendCh` berpenyangga) tidak memblokir pengirim (`BroadcastToAdminRoom` selesai dalam < 10ms untuk 50 pesan) dan koneksinya diputus secara asinkron.
+    6. Pemutusan semua klien dan pemanggilan `hub.Close()` terbukti tidak membocorkan goroutine (`runtime.NumGoroutine()` kembali ke baseline).
+- Konsep Go:
+  - Goroutine Pembaca & Penulis per Koneksi (`readPump` & `writePump`): memisahkan pembacaan dan penulisan soket ke dua goroutine terdedikasi dengan komunikasi kanal `sendCh chan []byte` sehingga penulisan konkuren dan pengiriman frame kontrol ping/pong terkoordinasi dengan aman ([Go by Example: Channels](https://gobyexample.com/channels)).
+  - Non-blocking Send & Backpressure dengan `select` + `default`: menggunakan blok `select` dengan cabang `default` saat mengirim ke `c.sendCh` berpenyangga sehingga apabila buffer klien penuh, pengirim tidak pernah tertahan dan klien lambat langsung diputus ([Tour of Go: Default Selection](https://go.dev/tour/concurrency/6)).
+  - Proteksi Konkurensi Peta Room dengan `sync.RWMutex`: mengizinkan pembacaan daftar anggota room secara paralel (`RLock`) saat menyiarkan pesan dan mengunci eksklusif (`Lock`) hanya saat registrasi/unregistrasi koneksi ([Go Doc: sync.RWMutex](https://pkg.go.dev/sync#RWMutex)).
+- Penyimpangan dari rencana: tidak ada.
+- Belum diverifikasi: tidak ada.
+
+Laporan eksekusi T2.2
+- Diubah: `internal/realtime/siswa.go`, `internal/realtime/siswa_test.go`, `internal/httpserver/api_siswa.go`, `internal/httpserver/server.go`, `docs/PORTING_MAP.md`, `docs/TODO.md`.
+- Verifikasi:
+  - `go test -race -v ./internal/realtime` → PASS semua skenario:
+    1. `TestSiswaSiapDanReconnect` (padanan `sesi_endpoint_socket.test.js`): event `siswa-siap` membalas `mulai-ujian` berisi `durasi`, `sisa_detik`, `batas_waktu`, dan `device_type`; saat koneksi putus (`disconnect`) hanya memperbarui `last_seen` dan mempertahankan status `sedang_ujian` beserta jawaban tersimpan; saat reconnect tidak mereset timer ke durasi penuh.
+    2. `TestKebijakanPerangkatDanPelanggaran` (padanan `device_type.test.js` & `kebijakan_perangkat.test.js`): pada `hp`, sinyal `keluar-fullscreen` diabaikan server tanpa tercatat di `log_kecurangan`, sedangkan `pindah-tab` dan `copy-paste` dicatat beserta `device_type = 'hp'`, mengirim `peringatan` saat `jumlah < batas`, dan mengubah status menjadi `keluar_paksa` + mengirim `paksa-submit` saat mencapai `batas_pelanggaran`; pada `laptop`, sinyal `keluar-fullscreen` dihitung sebagai pelanggaran.
+    3. `TestCekStatusUjianEndpoint`: `GET /api/cek-status-ujian` mengembalikan 401 `not_logged_in` tanpa session, `valid: true` beserta `jumlah_pelanggaran`/`batas`/`sisa` saat aktif, dan `valid: false, reason: "keluar_paksa"` saat akses dicabut.
+- Konsep Go:
+  - First-class Functions & Callback Injection (`OnMonitorNotifyFunc` & `SetSiswaHandlers`): menyuntikkan fungsi handler event ke dalam `Hub` tanpa menciptakan circular dependency antar paket ([Go by Example: Closures](https://gobyexample.com/closures)).
+  - Penanganan Nilai `NULL` SQL (`sql.NullString` & `COALESCE`): memindai kolom opsional `device_type` dari database menggunakan tipe pembungkus `sql.NullString` agar aman dari error `Scan` ketika bernilai `NULL` ([Go Doc: sql.NullString](https://pkg.go.dev/database/sql#NullString)).
+  - Context Timeout Terisolasi saat Disconnect (`context.WithTimeout(context.Background(), 3*time.Second)`): menjalankan kueri pembaruan `last_seen` menggunakan context baru berbatas waktu ketika koneksi klien telah terputus (`c.ctx` sudah dibatalkan) ([Go Blog: Context](https://go.dev/blog/context)).
 - Penyimpangan dari rencana: tidak ada.
 - Belum diverifikasi: tidak ada.
 

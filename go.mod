@@ -11,6 +11,7 @@ require (
 	filippo.io/edwards25519 v1.2.0 // indirect
 	github.com/alexedwards/scs/mysqlstore v0.0.0-20251002162104-209de6e426de // indirect
 	github.com/alexedwards/scs/v2 v2.9.0 // indirect
+	github.com/coder/websocket v1.8.15 // indirect
 	github.com/mfridman/interpolate v0.0.2 // indirect
 	github.com/pressly/goose/v3 v3.29.0 // indirect
 	github.com/sethvargo/go-retry v0.5.0 // indirect

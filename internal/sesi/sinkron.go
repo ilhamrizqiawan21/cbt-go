@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -13,11 +14,13 @@ import (
 )
 
 var (
-	ErrBatchTerlaluBesar = errors.New("sesi: ukuran batch melebihi batas maksimal 100 item")
-	ErrFormatDataInvalid = errors.New("sesi: format data tidak valid, harus berupa array jawaban")
-	ErrSoalInvalid       = errors.New("sesi: item jawaban tidak lengkap atau soal_id tidak valid")
-	ErrSoalUjianLain     = errors.New("sesi: soal tidak ditemukan atau bukan milik ujian ini")
-	ErrWaktuHabis        = errors.New("sesi: waktu ujian telah berakhir dan melewati batas toleransi")
+	ErrBatchTerlaluBesar   = errors.New("sesi: ukuran batch melebihi batas maksimal 100 item")
+	ErrFormatDataInvalid   = errors.New("sesi: format data tidak valid, harus berupa array jawaban")
+	ErrSoalInvalid         = errors.New("sesi: item jawaban tidak lengkap atau soal_id tidak valid")
+	ErrSoalUjianLain       = errors.New("sesi: soal tidak ditemukan atau bukan milik ujian ini")
+	ErrSoalBukanMilikUjian = ErrSoalUjianLain
+	ErrWaktuHabis          = errors.New("sesi: waktu ujian telah berakhir dan melewati batas toleransi")
+	ErrWaktuUjianHabis     = ErrWaktuHabis
 )
 
 // ItemJawabanInput memuat satu butir jawaban siswa yang dikirim dalam batch sinkronisasi.
@@ -26,6 +29,50 @@ type ItemJawabanInput struct {
 	Jawaban  any       `json:"jawaban"`
 	ClientTS time.Time `json:"client_ts"`
 }
+
+// UnmarshalJSON mendukung fleksibilitas format payload klien (field "jawaban" atau "jawaban_dipilih",
+// serta format waktu RFC3339 maupun MySQL DATETIME "2006-01-02 15:04:05" seperti pada skrip loadtest).
+func (it *ItemJawabanInput) UnmarshalJSON(data []byte) error {
+	var raw struct {
+		SoalID         any    `json:"soal_id"`
+		Jawaban        any    `json:"jawaban"`
+		JawabanDipilih any    `json:"jawaban_dipilih"`
+		ClientTS       string `json:"client_ts"`
+	}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+
+	switch v := raw.SoalID.(type) {
+	case float64:
+		it.SoalID = int(v)
+	case string:
+		if parsed, err := strconv.Atoi(strings.TrimSpace(v)); err == nil {
+			it.SoalID = parsed
+		}
+	}
+
+	if raw.Jawaban != nil {
+		it.Jawaban = raw.Jawaban
+	} else {
+		it.Jawaban = raw.JawabanDipilih
+	}
+
+	tsStr := strings.TrimSpace(raw.ClientTS)
+	if tsStr != "" {
+		if t, err := time.Parse(time.RFC3339Nano, tsStr); err == nil {
+			it.ClientTS = t
+		} else if t, err := time.Parse(time.RFC3339, tsStr); err == nil {
+			it.ClientTS = t
+		} else if t, err := time.ParseInLocation("2006-01-02 15:04:05", tsStr, time.Local); err == nil {
+			it.ClientTS = t
+		}
+	}
+	return nil
+}
+
+// ItemJawaban adalah alias untuk ItemJawabanInput.
+type ItemJawaban = ItemJawabanInput
 
 // HasilSinkron memuat ringkasan hasil proses sinkronisasi batch.
 type HasilSinkron struct {
@@ -56,15 +103,15 @@ func SinkronJawaban(ctx context.Context, db *sql.DB, siswaID, ujianID int, items
 		return &HasilSinkron{Success: true, Tersinkron: 0, Diabaikan: 0, Total: 0}, nil
 	}
 
-	// 1. Cek sesi ujian siswa
+	// 1. Cek sesi ujian siswa sekaligus ambil waktu server DB (NOW()) dalam 1 round-trip
 	var sesiID int
-	var waktuMulai, batasWaktu time.Time
+	var waktuMulai, batasWaktu, nowDB time.Time
 	var status string
 	err := db.QueryRowContext(ctx, `
-		SELECT id, waktu_mulai, batas_waktu, status
+		SELECT id, waktu_mulai, batas_waktu, status, NOW()
 		FROM sesi_ujian
 		WHERE siswa_id = ? AND ujian_id = ?
-	`, siswaID, ujianID).Scan(&sesiID, &waktuMulai, &batasWaktu, &status)
+	`, siswaID, ujianID).Scan(&sesiID, &waktuMulai, &batasWaktu, &status, &nowDB)
 
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -80,20 +127,14 @@ func SinkronJawaban(ctx context.Context, db *sql.DB, siswaID, ujianID int, items
 		return nil, ErrSesiSelesai
 	}
 
-	// 2. Waktu server DB dan validasi batas waktu + grace
-	var nowDB time.Time
-	err = db.QueryRowContext(ctx, "SELECT NOW()").Scan(&nowDB)
-	if err != nil {
-		return nil, fmt.Errorf("query now db: %w", err)
-	}
-
+	// 2. Validasi batas waktu + grace period (D-009)
 	graceDeadline := batasWaktu.Add(time.Duration(DefaultGraceDetik) * time.Second)
 	if nowDB.After(graceDeadline) {
 		return nil, ErrWaktuHabis
 	}
 
 	// 3. Validasi bahwa seluruh soal_id milik ujian_id ini
-	uniqueIDsMap := make(map[int]struct{})
+	uniqueIDsMap := make(map[int]struct{}, len(items))
 	for _, it := range items {
 		if it.SoalID <= 0 {
 			return nil, ErrSoalInvalid
@@ -123,12 +164,15 @@ func SinkronJawaban(ctx context.Context, db *sql.DB, siswaID, ujianID int, items
 		return nil, err
 	}
 
-	// 5. Eksekusi upsert dalam satu transaksi
-	tx, err := db.BeginTx(ctx, nil)
-	if err != nil {
-		return nil, fmt.Errorf("begin tx: %w", err)
+	// 5. Evaluasi semua item di memori sebelum membuka transaksi agar durasi lock DB minimal
+	type rowUpsert struct {
+		SoalID     int
+		JawabanStr string
+		IsBenarPtr *int
+		ClientTS   time.Time
 	}
-	defer tx.Rollback()
+	upsertMap := make(map[int]rowUpsert, len(uniqueIDs))
+	upsertOrder := make([]int, 0, len(uniqueIDs))
 
 	var tersinkron, diabaikan int
 
@@ -165,19 +209,17 @@ func SinkronJawaban(ctx context.Context, db *sql.DB, siswaID, ujianID int, items
 
 		isBenarPtr := hitungIsBenar(sInfo.TipeSoal, jawabanStr, kunciStr)
 
-		_, err = tx.ExecContext(ctx, `
-			INSERT INTO jawaban_siswa (siswa_id, ujian_id, soal_id, jawaban_dipilih, is_benar, client_ts)
-			VALUES (?, ?, ?, ?, ?, ?)
-			ON DUPLICATE KEY UPDATE
-				jawaban_dipilih = VALUES(jawaban_dipilih),
-				is_benar        = VALUES(is_benar),
-				client_ts       = VALUES(client_ts)
-		`, siswaID, ujianID, it.SoalID, jawabanStr, isBenarPtr, clientTS)
-		if err != nil {
-			return nil, fmt.Errorf("upsert jawaban: %w", err)
+		if _, exists := upsertMap[it.SoalID]; !exists {
+			upsertOrder = append(upsertOrder, it.SoalID)
+		}
+		upsertMap[it.SoalID] = rowUpsert{
+			SoalID:     it.SoalID,
+			JawabanStr: jawabanStr,
+			IsBenarPtr: isBenarPtr,
+			ClientTS:   clientTS,
 		}
 
-		// Update map existing
+		// Update map existing untuk item berikutnya dalam batch yang sama
 		existingMap[it.SoalID] = existingJawaban{
 			SoalID:         it.SoalID,
 			JawabanDipilih: sql.NullString{String: jawabanStr, Valid: true},
@@ -187,9 +229,38 @@ func SinkronJawaban(ctx context.Context, db *sql.DB, siswaID, ujianID int, items
 		tersinkron++
 	}
 
-	// Update last_seen pada sesi_ujian
-	_, err = tx.ExecContext(ctx, "UPDATE sesi_ujian SET last_seen = NOW() WHERE id = ?", sesiID)
+	// 6. Eksekusi multi-row batch upsert dan update last_seen dalam satu transaksi singkat
+	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
+		return nil, fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback()
+
+	if len(upsertOrder) > 0 {
+		valuePlaceholders := make([]string, 0, len(upsertOrder))
+		args := make([]any, 0, len(upsertOrder)*6)
+		for _, sid := range upsertOrder {
+			r := upsertMap[sid]
+			valuePlaceholders = append(valuePlaceholders, "(?, ?, ?, ?, ?, ?)")
+			args = append(args, siswaID, ujianID, r.SoalID, r.JawabanStr, r.IsBenarPtr, r.ClientTS)
+		}
+
+		upsertSQL := fmt.Sprintf(`
+			INSERT INTO jawaban_siswa (siswa_id, ujian_id, soal_id, jawaban_dipilih, is_benar, client_ts)
+			VALUES %s
+			ON DUPLICATE KEY UPDATE
+				jawaban_dipilih = VALUES(jawaban_dipilih),
+				is_benar        = VALUES(is_benar),
+				client_ts       = VALUES(client_ts)
+		`, strings.Join(valuePlaceholders, ", "))
+
+		if _, err := tx.ExecContext(ctx, upsertSQL, args...); err != nil {
+			return nil, fmt.Errorf("upsert jawaban batch: %w", err)
+		}
+	}
+
+	// Update last_seen pada sesi_ujian
+	if _, err := tx.ExecContext(ctx, "UPDATE sesi_ujian SET last_seen = NOW() WHERE id = ?", sesiID); err != nil {
 		return nil, fmt.Errorf("update last_seen: %w", err)
 	}
 

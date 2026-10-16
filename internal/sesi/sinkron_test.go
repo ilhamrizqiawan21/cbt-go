@@ -3,7 +3,6 @@ package sesi_test
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"testing"
 	"time"
@@ -12,281 +11,338 @@ import (
 	"cbt-go/internal/testdb"
 )
 
-type harnessSinkron struct {
-	db      *sql.DB
-	siswaID int
-	ujianID int
-	soal1ID int
-	soal2ID int
-	sesiID  int
-}
-
-func setupHarnessSinkron(t *testing.T) *harnessSinkron {
+func setupSinkronData(t *testing.T, db *sql.DB) (int, int, int, int, int) {
 	t.Helper()
-	db := testdb.Open(t)
-	testdb.Reset(t, db)
+	ctx := context.Background()
 
-	// Buat kelas, mapel, guru, pengajaran
-	resKelas, err := db.Exec("INSERT INTO kelas (nama_kelas) VALUES ('VII-A')")
-	if err != nil {
-		t.Fatalf("insert kelas: %v", err)
-	}
-	kelasID, _ := resKelas.LastInsertId()
-
-	resMapel, err := db.Exec("INSERT INTO mata_pelajaran (nama_mapel) VALUES ('Matematika')")
-	if err != nil {
-		t.Fatalf("insert mapel: %v", err)
-	}
-	mapelID, _ := resMapel.LastInsertId()
-
-	resGuru, err := db.Exec("INSERT INTO guru (nip, nama, username, password) VALUES ('19800101', 'Guru 1', 'guru1', 'hash')")
+	res, err := db.ExecContext(ctx, "INSERT INTO guru (nip, nama, username, password) VALUES ('19800101', 'Guru Sinkron', 'guru_sinkron', 'hash')")
 	if err != nil {
 		t.Fatalf("insert guru: %v", err)
 	}
-	guruID, _ := resGuru.LastInsertId()
+	guruID, _ := res.LastInsertId()
 
-	resPengajaran, err := db.Exec("INSERT INTO pengajaran (guru_id, mapel_id, kelas_id) VALUES (?, ?, ?)", guruID, mapelID, kelasID)
+	res, err = db.ExecContext(ctx, "INSERT INTO kelas (nama_kelas) VALUES ('VIII-A')")
+	if err != nil {
+		t.Fatalf("insert kelas: %v", err)
+	}
+	kelasID, _ := res.LastInsertId()
+
+	res, err = db.ExecContext(ctx, "INSERT INTO mata_pelajaran (nama_mapel) VALUES ('IPA')")
+	if err != nil {
+		t.Fatalf("insert mapel: %v", err)
+	}
+	mapelID, _ := res.LastInsertId()
+
+	res, err = db.ExecContext(ctx, "INSERT INTO pengajaran (guru_id, kelas_id, mapel_id) VALUES (?, ?, ?)", guruID, kelasID, mapelID)
 	if err != nil {
 		t.Fatalf("insert pengajaran: %v", err)
 	}
-	pengajaranID, _ := resPengajaran.LastInsertId()
+	pengajaranID, _ := res.LastInsertId()
 
-	// Buat siswa
-	resSiswa, err := db.Exec("INSERT INTO siswa (nis, nama, kelas, pin_ujian) VALUES ('T0001', 'Siswa 1', 'VII-A', 'hash')")
+	res, err = db.ExecContext(ctx, "INSERT INTO siswa (nis, nama, kelas, pin_ujian) VALUES ('T0010', 'Siswa Sinkron', 'VIII-A', 'hash')")
 	if err != nil {
 		t.Fatalf("insert siswa: %v", err)
 	}
-	siswaID, _ := resSiswa.LastInsertId()
+	siswaID, _ := res.LastInsertId()
 
-	// Buat ujian
-	resUjian, err := db.Exec(`
-		INSERT INTO ujian (pengajaran_id, nama_ujian, durasi, tanggal_mulai, tanggal_selesai)
-		VALUES (?, 'Ujian Harian', 60, NOW() - INTERVAL 10 MINUTE, NOW() + INTERVAL 50 MINUTE)
+	// Ujian 1 (Ujian Aktif)
+	res, err = db.ExecContext(ctx, `
+		INSERT INTO ujian (pengajaran_id, nama_ujian, durasi, tanggal_mulai, tanggal_selesai, acak_soal, acak_pilihan, batas_pelanggaran)
+		VALUES (?, 'Ujian IPA 1', 60, NOW() - INTERVAL 10 MINUTE, NOW() + INTERVAL 2 HOUR, 1, 1, 3)
 	`, pengajaranID)
 	if err != nil {
-		t.Fatalf("insert ujian: %v", err)
+		t.Fatalf("insert ujian 1: %v", err)
 	}
-	ujianID, _ := resUjian.LastInsertId()
+	ujianID, _ := res.LastInsertId()
 
-	// Buat soal 1 (PG kunci B)
-	resSoal1, err := db.Exec(`
+	// Ujian 2 (Ujian Lain untuk tes penolakan soal ujian lain)
+	res, err = db.ExecContext(ctx, `
+		INSERT INTO ujian (pengajaran_id, nama_ujian, durasi, tanggal_mulai, tanggal_selesai, acak_soal, acak_pilihan, batas_pelanggaran)
+		VALUES (?, 'Ujian IPA 2', 60, NOW() - INTERVAL 10 MINUTE, NOW() + INTERVAL 2 HOUR, 1, 1, 3)
+	`, pengajaranID)
+	if err != nil {
+		t.Fatalf("insert ujian 2: %v", err)
+	}
+	ujianLainID, _ := res.LastInsertId()
+
+	// Soal 1 (PG, kunci B)
+	resSoal1, err := db.ExecContext(ctx, `
 		INSERT INTO soal (ujian_id, tipe_soal, teks_soal, poin, pilihan_a, pilihan_b, pilihan_c, pilihan_d, jawaban_benar)
-		VALUES (?, 'pg', '1 + 1 = ?', 2, '1', '2', '3', '4', 'B')
+		VALUES (?, 'pg', 'Soal 1 IPA', 2, 'A', 'B', 'C', 'D', 'B')
 	`, ujianID)
 	if err != nil {
 		t.Fatalf("insert soal 1: %v", err)
 	}
 	soal1ID, _ := resSoal1.LastInsertId()
 
-	// Buat soal 2 (PG kunci B)
-	resSoal2, err := db.Exec(`
-		INSERT INTO soal (ujian_id, tipe_soal, teks_soal, poin, pilihan_a, pilihan_b, pilihan_c, pilihan_d, jawaban_benar)
-		VALUES (?, 'pg', 'Ibu kota Indonesia?', 2, 'Bandung', 'Jakarta', 'Surabaya', 'Medan', 'B')
-	`, ujianID)
+	// Soal 2 (Menjodohkan)
+	pasanganKunci := `[{"kiri":"Padat","kanan":"Batu"},{"kiri":"Cair","kanan":"Air"}]`
+	opsiJSON := `{"pasangan":[{"kiri":"Padat","kanan":"Batu"},{"kiri":"Cair","kanan":"Air"}],"pengecoh":["Gas"]}`
+	resSoal2, err := db.ExecContext(ctx, `
+		INSERT INTO soal (ujian_id, tipe_soal, teks_soal, poin, opsi_tambahan, jawaban_benar)
+		VALUES (?, 'menjodohkan', 'Jodohkan wujud zat:', 2, ?, ?)
+	`, ujianID, opsiJSON, pasanganKunci)
 	if err != nil {
 		t.Fatalf("insert soal 2: %v", err)
 	}
 	soal2ID, _ := resSoal2.LastInsertId()
 
-	// Buat sesi ujian aktif
-	hasilMulai, err := sesi.MulaiAtauLanjut(context.Background(), db, int(siswaID), int(ujianID), "laptop")
+	// Soal Ujian Lain (milik ujianLainID)
+	resSoalLain, err := db.ExecContext(ctx, `
+		INSERT INTO soal (ujian_id, tipe_soal, teks_soal, poin, pilihan_a, pilihan_b, pilihan_c, pilihan_d, jawaban_benar)
+		VALUES (?, 'pg', 'Soal Milik Ujian Lain', 2, 'A', 'B', 'C', 'D', 'A')
+	`, ujianLainID)
 	if err != nil {
-		t.Fatalf("mulai sesi: %v", err)
+		t.Fatalf("insert soal ujian lain: %v", err)
+	}
+	soalLainID, _ := resSoalLain.LastInsertId()
+
+	// Buat sesi aktif
+	_, err = sesi.MulaiAtauLanjut(ctx, db, int(siswaID), int(ujianID), "laptop")
+	if err != nil {
+		t.Fatalf("MulaiAtauLanjut: %v", err)
 	}
 
-	return &harnessSinkron{
-		db:      db,
-		siswaID: int(siswaID),
-		ujianID: int(ujianID),
-		soal1ID: int(soal1ID),
-		soal2ID: int(soal2ID),
-		sesiID:  hasilMulai.Sesi.ID,
+	return int(siswaID), int(ujianID), int(soal1ID), int(soal2ID), int(soalLainID)
+}
+
+func TestSinkronJawabanIdempoten(t *testing.T) {
+	db := testdb.Open(t)
+	testdb.Reset(t, db)
+	ctx := context.Background()
+
+	siswaID, ujianID, soal1ID, soal2ID, _ := setupSinkronData(t, db)
+
+	// Batch 2 jawaban: Soal 1 (B = benar), Soal 2 (menjodohkan benar)
+	pasanganJawab := `[{"kiri":"Padat","kanan":"Batu"},{"kiri":"Cair","kanan":"Air"}]`
+	now := time.Now().UTC().Truncate(time.Second)
+
+	items := []sesi.ItemJawaban{
+		{SoalID: soal1ID, Jawaban: "B", ClientTS: now},
+		{SoalID: soal2ID, Jawaban: pasanganJawab, ClientTS: now},
+	}
+
+	// 1. Pengiriman pertama
+	hasil1, err := sesi.SinkronJawaban(ctx, db, siswaID, ujianID, items)
+	if err != nil {
+		t.Fatalf("SinkronJawaban 1 gagal: %v", err)
+	}
+	if hasil1.Tersinkron != 2 || hasil1.Diabaikan != 0 {
+		t.Errorf("hasil 1 salah: %+v, want tersinkron=2, diabaikan=0", hasil1)
+	}
+
+	// Periksa baris di database
+	rows1, err := db.QueryContext(ctx, `
+		SELECT soal_id, jawaban_dipilih, is_benar
+		FROM jawaban_siswa
+		WHERE siswa_id = ? AND ujian_id = ?
+		ORDER BY soal_id ASC
+	`, siswaID, ujianID)
+	if err != nil {
+		t.Fatalf("query jawaban 1: %v", err)
+	}
+	defer rows1.Close()
+
+	type JRow struct {
+		SoalID  int
+		Jawaban string
+		IsBenar int
+	}
+	var data1 []JRow
+	for rows1.Next() {
+		var r JRow
+		if err := rows1.Scan(&r.SoalID, &r.Jawaban, &r.IsBenar); err != nil {
+			t.Fatalf("scan 1: %v", err)
+		}
+		data1 = append(data1, r)
+	}
+	if len(data1) != 2 {
+		t.Fatalf("jumlah jawaban di DB = %d, want 2", len(data1))
+	}
+	if data1[0].IsBenar != 1 || data1[1].IsBenar != 1 {
+		t.Errorf("jawaban seharusnya bernilai is_benar=1: %+v", data1)
+	}
+
+	// 2. Pengiriman kedua (identik) -> idempoten, tidak duplikasi
+	hasil2, err := sesi.SinkronJawaban(ctx, db, siswaID, ujianID, items)
+	if err != nil {
+		t.Fatalf("SinkronJawaban 2 gagal: %v", err)
+	}
+	if hasil2.Tersinkron != 2 || hasil2.Diabaikan != 0 {
+		t.Errorf("hasil 2 salah: %+v, want tersinkron=2, diabaikan=0", hasil2)
+	}
+
+	rows2, err := db.QueryContext(ctx, `
+		SELECT soal_id, jawaban_dipilih, is_benar
+		FROM jawaban_siswa
+		WHERE siswa_id = ? AND ujian_id = ?
+		ORDER BY soal_id ASC
+	`, siswaID, ujianID)
+	if err != nil {
+		t.Fatalf("query jawaban 2: %v", err)
+	}
+	defer rows2.Close()
+
+	var data2 []JRow
+	for rows2.Next() {
+		var r JRow
+		if err := rows2.Scan(&r.SoalID, &r.Jawaban, &r.IsBenar); err != nil {
+			t.Fatalf("scan 2: %v", err)
+		}
+		data2 = append(data2, r)
+	}
+	if len(data2) != 2 {
+		t.Fatalf("jumlah jawaban di DB setelah kirim kedua = %d, want 2 (tidak boleh duplikat)", len(data2))
+	}
+	for i := range data1 {
+		if data1[i] != data2[i] {
+			t.Errorf("data tidak identik pada indeks %d: %+v vs %+v", i, data1[i], data2[i])
+		}
 	}
 }
 
-func TestSinkronJawabanBatch(t *testing.T) {
+func TestSinkronJawabanClientTsLamaDitolak(t *testing.T) {
+	db := testdb.Open(t)
+	testdb.Reset(t, db)
 	ctx := context.Background()
-	h := setupHarnessSinkron(t)
 
-	t.Run("1. Idempoten: kirim batch yang sama dua kali menghasilkan data identik di DB", func(t *testing.T) {
-		t1 := time.Now().Add(-20 * time.Second).Truncate(time.Second)
-		t2 := time.Now().Add(-15 * time.Second).Truncate(time.Second)
+	siswaID, ujianID, soal1ID, _, _ := setupSinkronData(t, db)
 
-		batch := []sesi.ItemJawabanInput{
-			{SoalID: h.soal1ID, Jawaban: "B", ClientTS: t1},
-			{SoalID: h.soal2ID, Jawaban: "B", ClientTS: t2},
-		}
+	// Simpan jawaban baru terlebih dahulu: jawaban 'B' pada t_baru
+	tBaru := time.Now().UTC().Add(-5 * time.Second).Truncate(time.Second)
+	itemsBaru := []sesi.ItemJawaban{
+		{SoalID: soal1ID, Jawaban: "B", ClientTS: tBaru},
+	}
+	hasilBaru, err := sesi.SinkronJawaban(ctx, db, siswaID, ujianID, itemsBaru)
+	if err != nil {
+		t.Fatalf("simpan jawaban baru gagal: %v", err)
+	}
+	if hasilBaru.Tersinkron != 1 {
+		t.Fatalf("tersinkron baru = %d, want 1", hasilBaru.Tersinkron)
+	}
 
-		// Kirim pertama
-		hasil1, err := sesi.SinkronJawaban(ctx, h.db, h.siswaID, h.ujianID, batch)
-		if err != nil {
-			t.Fatalf("sinkron 1 error: %v", err)
-		}
-		if hasil1.Tersinkron != 2 || hasil1.Diabaikan != 0 {
-			t.Errorf("hasil1 = %+v, want tersinkron=2, diabaikan=0", hasil1)
-		}
+	// Sekarang kirim jawaban 'A' dengan timestamp lebih lampau (15 detik lalu)
+	tLama := time.Now().UTC().Add(-15 * time.Second).Truncate(time.Second)
+	itemsLama := []sesi.ItemJawaban{
+		{SoalID: soal1ID, Jawaban: "A", ClientTS: tLama},
+	}
+	hasilLama, err := sesi.SinkronJawaban(ctx, db, siswaID, ujianID, itemsLama)
+	if err != nil {
+		t.Fatalf("simpan jawaban lama gagal: %v", err)
+	}
+	if hasilLama.Diabaikan != 1 || hasilLama.Tersinkron != 0 {
+		t.Errorf("jawaban usang harus diabaikan: %+v", hasilLama)
+	}
 
-		// Verifikasi di database
-		var jawaban1, jawaban2 string
-		var benar1, benar2 sql.NullInt64
-		_ = h.db.QueryRow("SELECT jawaban_dipilih, is_benar FROM jawaban_siswa WHERE siswa_id = ? AND soal_id = ?", h.siswaID, h.soal1ID).Scan(&jawaban1, &benar1)
-		_ = h.db.QueryRow("SELECT jawaban_dipilih, is_benar FROM jawaban_siswa WHERE siswa_id = ? AND soal_id = ?", h.siswaID, h.soal2ID).Scan(&jawaban2, &benar2)
+	// Jawaban di DB harus TETAP 'B'
+	var jawabanDB string
+	err = db.QueryRowContext(ctx, "SELECT jawaban_dipilih FROM jawaban_siswa WHERE siswa_id = ? AND soal_id = ?", siswaID, soal1ID).Scan(&jawabanDB)
+	if err != nil {
+		t.Fatalf("query jawaban: %v", err)
+	}
+	if jawabanDB != "B" {
+		t.Errorf("jawaban di DB = %q, want 'B' (jawaban lama tidak boleh menimpa)", jawabanDB)
+	}
+}
 
-		if jawaban1 != "B" || benar1.Int64 != 1 {
-			t.Errorf("soal 1: jawaban=%q, is_benar=%d", jawaban1, benar1.Int64)
-		}
-		if jawaban2 != "B" || benar2.Int64 != 1 {
-			t.Errorf("soal 2: jawaban=%q, is_benar=%d", jawaban2, benar2.Int64)
-		}
+func TestSinkronJawabanClientTsMasaDepanDibatasi(t *testing.T) {
+	db := testdb.Open(t)
+	testdb.Reset(t, db)
+	ctx := context.Background()
 
-		// Kirim kedua (payload identik)
-		hasil2, err := sesi.SinkronJawaban(ctx, h.db, h.siswaID, h.ujianID, batch)
-		if err != nil {
-			t.Fatalf("sinkron 2 error: %v", err)
-		}
-		if hasil2.Tersinkron != 2 || hasil2.Diabaikan != 0 {
-			t.Errorf("hasil2 = %+v, want tersinkron=2, diabaikan=0", hasil2)
-		}
+	siswaID, ujianID, soal1ID, _, _ := setupSinkronData(t, db)
 
-		// Pastikan baris di DB tidak berlipat ganda
-		var count int
-		_ = h.db.QueryRow("SELECT COUNT(*) FROM jawaban_siswa WHERE siswa_id = ? AND ujian_id = ?", h.siswaID, h.ujianID).Scan(&count)
-		if count != 2 {
-			t.Errorf("jumlah jawaban di DB = %d, want 2", count)
-		}
-	})
+	// Kirim dengan client_ts 1 hari di masa depan
+	tDepan := time.Now().UTC().Add(24 * time.Hour)
+	items1 := []sesi.ItemJawaban{
+		{SoalID: soal1ID, Jawaban: "A", ClientTS: tDepan},
+	}
+	_, err := sesi.SinkronJawaban(ctx, db, siswaID, ujianID, items1)
+	if err != nil {
+		t.Fatalf("kirim masa depan gagal: %v", err)
+	}
 
-	t.Run("2. client_ts lebih usang tidak menimpa jawaban baru", func(t *testing.T) {
-		tBaru := time.Now().Add(-5 * time.Second).Truncate(time.Second)
-		batchBaru := []sesi.ItemJawabanInput{
-			{SoalID: h.soal1ID, Jawaban: "B", ClientTS: tBaru},
-		}
-		_, err := sesi.SinkronJawaban(ctx, h.db, h.siswaID, h.ujianID, batchBaru)
-		if err != nil {
-			t.Fatalf("kirim batch baru gagal: %v", err)
-		}
+	// Kirim lagi beberapa detik kemudian dengan jawaban 'B'
+	tNormal := time.Now().UTC().Add(1 * time.Second)
+	items2 := []sesi.ItemJawaban{
+		{SoalID: soal1ID, Jawaban: "B", ClientTS: tNormal},
+	}
+	hasil2, err := sesi.SinkronJawaban(ctx, db, siswaID, ujianID, items2)
+	if err != nil {
+		t.Fatalf("kirim kedua gagal: %v", err)
+	}
+	if hasil2.Tersinkron != 1 {
+		t.Errorf("jawaban kedua seharusnya tersinkron karena waktu masa depan dibatasi: %+v", hasil2)
+	}
 
-		// Kirim jawaban dengan client_ts 15 detik yang lalu (lebih usang)
-		tLama := time.Now().Add(-20 * time.Second).Truncate(time.Second)
-		batchLama := []sesi.ItemJawabanInput{
-			{SoalID: h.soal1ID, Jawaban: "A", ClientTS: tLama},
-		}
-		hasilLama, err := sesi.SinkronJawaban(ctx, h.db, h.siswaID, h.ujianID, batchLama)
-		if err != nil {
-			t.Fatalf("kirim batch lama gagal: %v", err)
-		}
-		if hasilLama.Diabaikan != 1 || hasilLama.Tersinkron != 0 {
-			t.Errorf("hasilLama = %+v, want diabaikan=1, tersinkron=0", hasilLama)
-		}
+	var jawabanDB string
+	err = db.QueryRowContext(ctx, "SELECT jawaban_dipilih FROM jawaban_siswa WHERE siswa_id = ? AND soal_id = ?", siswaID, soal1ID).Scan(&jawabanDB)
+	if err != nil {
+		t.Fatalf("query jawaban: %v", err)
+	}
+	if jawabanDB != "B" {
+		t.Errorf("jawaban di DB = %q, want 'B'", jawabanDB)
+	}
+}
 
-		// Pastikan jawaban di DB tetap "B"
-		var finalJawaban string
-		_ = h.db.QueryRow("SELECT jawaban_dipilih FROM jawaban_siswa WHERE siswa_id = ? AND soal_id = ?", h.siswaID, h.soal1ID).Scan(&finalJawaban)
-		if finalJawaban != "B" {
-			t.Errorf("jawaban di DB = %q, want 'B' (tidak boleh tertimpa jawaban lama)", finalJawaban)
-		}
-	})
+func TestSinkronJawabanSoalUjianLainDitolak(t *testing.T) {
+	db := testdb.Open(t)
+	testdb.Reset(t, db)
+	ctx := context.Background()
 
-	t.Run("3. Soal ujian lain ditolak", func(t *testing.T) {
-		// Buat ujian kedua
-		resUjianLain, err := h.db.Exec(`
-			INSERT INTO ujian (pengajaran_id, nama_ujian, durasi, tanggal_mulai, tanggal_selesai)
-			VALUES (1, 'Ujian Lain', 60, NOW() - INTERVAL 10 MINUTE, NOW() + INTERVAL 50 MINUTE)
-		`)
-		if err != nil {
-			t.Fatalf("insert ujian lain: %v", err)
-		}
-		ujianLainID, _ := resUjianLain.LastInsertId()
+	siswaID, ujianID, soal1ID, _, soalLainID := setupSinkronData(t, db)
 
-		// Buat soal milik ujian lain
-		resSoalLain, err := h.db.Exec(`
-			INSERT INTO soal (ujian_id, tipe_soal, teks_soal, poin, pilihan_a, pilihan_b, jawaban_benar)
-			VALUES (?, 'pg', 'Soal ujian asing', 2, 'A', 'B', 'A')
-		`, ujianLainID)
-		if err != nil {
-			t.Fatalf("insert soal lain: %v", err)
-		}
-		soalAsingID, _ := resSoalLain.LastInsertId()
+	// Batch memuat soal1ID (milik ujian) dan soalLainID (bukan milik ujian)
+	items := []sesi.ItemJawaban{
+		{SoalID: soal1ID, Jawaban: "B"},
+		{SoalID: soalLainID, Jawaban: "A"},
+	}
 
-		batch := []sesi.ItemJawabanInput{
-			{SoalID: h.soal1ID, Jawaban: "B"},
-			{SoalID: int(soalAsingID), Jawaban: "A"},
-		}
+	_, err := sesi.SinkronJawaban(ctx, db, siswaID, ujianID, items)
+	if err == nil {
+		t.Fatal("diharapkan error ketika mengirim soal milik ujian lain, dapat nil")
+	}
+	if !errors.Is(err, sesi.ErrSoalBukanMilikUjian) {
+		t.Errorf("err = %v, want ErrSoalBukanMilikUjian", err)
+	}
 
-		_, err = sesi.SinkronJawaban(ctx, h.db, h.siswaID, h.ujianID, batch)
-		if !errors.Is(err, sesi.ErrSoalUjianLain) {
-			t.Errorf("err = %v, want ErrSoalUjianLain", err)
-		}
-	})
+	// Pastikan transaksi atomic: tidak ada jawaban yang tersimpan
+	var count int
+	err = db.QueryRowContext(ctx, "SELECT COUNT(*) FROM jawaban_siswa WHERE siswa_id = ?", siswaID).Scan(&count)
+	if err != nil {
+		t.Fatalf("query count: %v", err)
+	}
+	if count != 0 {
+		t.Errorf("count jawaban di DB = %d, want 0 (rollback)", count)
+	}
+}
 
-	t.Run("4. Batasi ukuran batch maksimal 100 item", func(t *testing.T) {
-		batchBesar := make([]sesi.ItemJawabanInput, 101)
-		for i := 0; i < 101; i++ {
-			batchBesar[i] = sesi.ItemJawabanInput{SoalID: h.soal1ID, Jawaban: "A"}
-		}
+func TestSinkronJawabanLewatBatasWaktuDanGraceDitolak(t *testing.T) {
+	db := testdb.Open(t)
+	testdb.Reset(t, db)
+	ctx := context.Background()
 
-		_, err := sesi.SinkronJawaban(ctx, h.db, h.siswaID, h.ujianID, batchBesar)
-		if !errors.Is(err, sesi.ErrBatchTerlaluBesar) {
-			t.Errorf("err = %v, want ErrBatchTerlaluBesar", err)
-		}
-	})
+	siswaID, ujianID, soal1ID, _, _ := setupSinkronData(t, db)
 
-	t.Run("5. Menolak jika waktu melewati batas_waktu + grace", func(t *testing.T) {
-		// Mundurkan batas_waktu sesi ke 10 menit yang lalu (melewati grace 120 detik)
-		_, _ = h.db.Exec("UPDATE sesi_ujian SET batas_waktu = NOW() - INTERVAL 10 MINUTE WHERE id = ?", h.sesiID)
+	// Ubah batas_waktu sesi ke 10 menit yang lalu (melebihi grace 120 detik)
+	_, err := db.ExecContext(ctx, `
+		UPDATE sesi_ujian
+		SET batas_waktu = NOW() - INTERVAL 10 MINUTE
+		WHERE siswa_id = ? AND ujian_id = ?
+	`, siswaID, ujianID)
+	if err != nil {
+		t.Fatalf("update batas_waktu: %v", err)
+	}
 
-		batch := []sesi.ItemJawabanInput{
-			{SoalID: h.soal1ID, Jawaban: "B"},
-		}
-		_, err := sesi.SinkronJawaban(ctx, h.db, h.siswaID, h.ujianID, batch)
-		if !errors.Is(err, sesi.ErrWaktuHabis) {
-			t.Errorf("err = %v, want ErrWaktuHabis", err)
-		}
+	items := []sesi.ItemJawaban{
+		{SoalID: soal1ID, Jawaban: "B"},
+	}
 
-		// Kembalikan batas_waktu
-		_, _ = h.db.Exec("UPDATE sesi_ujian SET batas_waktu = NOW() + INTERVAL 50 MINUTE WHERE id = ?", h.sesiID)
-	})
-
-	t.Run("6. Jawaban menjodohkan dan essay", func(t *testing.T) {
-		// Buat soal menjodohkan
-		pasanganJSON := `[{"kiri":"1","kanan":"A"},{"kiri":"2","kanan":"B"}]`
-		resMenjodohkan, _ := h.db.Exec(`
-			INSERT INTO soal (ujian_id, tipe_soal, teks_soal, poin, jawaban_benar)
-			VALUES (?, 'menjodohkan', 'Jodohkan angka & huruf', 2, ?)
-		`, h.ujianID, pasanganJSON)
-		menjodohkanID, _ := resMenjodohkan.LastInsertId()
-
-		// Buat soal essay
-		resEssay, _ := h.db.Exec(`
-			INSERT INTO soal (ujian_id, tipe_soal, teks_soal, poin)
-			VALUES (?, 'essay', 'Jelaskan konsep X', 4)
-		`, h.ujianID)
-		essayID, _ := resEssay.LastInsertId()
-
-		batch := []sesi.ItemJawabanInput{
-			{SoalID: int(menjodohkanID), Jawaban: json.RawMessage(pasanganJSON)},
-			{SoalID: int(essayID), Jawaban: "Jawaban essay siswa"},
-		}
-
-		hasil, err := sesi.SinkronJawaban(ctx, h.db, h.siswaID, h.ujianID, batch)
-		if err != nil {
-			t.Fatalf("sinkron menjodohkan/essay gagal: %v", err)
-		}
-		if hasil.Tersinkron != 2 {
-			t.Errorf("tersinkron = %d, want 2", hasil.Tersinkron)
-		}
-
-		// Periksa is_benar
-		var benarMenjodohkan sql.NullInt64
-		var benarEssay sql.NullInt64
-		_ = h.db.QueryRow("SELECT is_benar FROM jawaban_siswa WHERE siswa_id = ? AND soal_id = ?", h.siswaID, menjodohkanID).Scan(&benarMenjodohkan)
-		_ = h.db.QueryRow("SELECT is_benar FROM jawaban_siswa WHERE siswa_id = ? AND soal_id = ?", h.siswaID, essayID).Scan(&benarEssay)
-
-		if benarMenjodohkan.Int64 != 1 {
-			t.Errorf("is_benar menjodohkan = %d, want 1", benarMenjodohkan.Int64)
-		}
-		if benarEssay.Valid {
-			t.Errorf("is_benar essay harus NULL, got %d", benarEssay.Int64)
-		}
-	})
+	_, err = sesi.SinkronJawaban(ctx, db, siswaID, ujianID, items)
+	if err == nil {
+		t.Fatal("diharapkan error waktu habis, dapat nil")
+	}
+	if !errors.Is(err, sesi.ErrWaktuUjianHabis) {
+		t.Errorf("err = %v, want ErrWaktuUjianHabis", err)
+	}
 }

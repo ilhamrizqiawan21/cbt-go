@@ -51,8 +51,13 @@ func RequireSiswaAPI(sm *scs.SessionManager, db *sql.DB) func(http.Handler) http
 				return
 			}
 
-			// Validasi device_token di database jika db tersedia
-			if db != nil && sessionToken != "" {
+			// Validasi status sesi dan device_token di database jika db tersedia
+			if db != nil {
+				clientToken := r.Header.Get("X-Device-Token")
+				if clientToken == "" {
+					clientToken = sessionToken
+				}
+
 				var dbToken sql.NullString
 				var status string
 				err := db.QueryRowContext(r.Context(), `
@@ -70,7 +75,7 @@ func RequireSiswaAPI(sm *scs.SessionManager, db *sql.DB) func(http.Handler) http
 						writeJSONError(w, http.StatusForbidden, "Ujian sudah selesai")
 						return
 					}
-					if dbToken.Valid && dbToken.String != sessionToken {
+					if dbToken.Valid && clientToken != "" && dbToken.String != clientToken {
 						writeJSONError(w, http.StatusConflict, "Sesi Anda telah diambil alih di perangkat lain")
 						return
 					}
@@ -85,5 +90,5 @@ func RequireSiswaAPI(sm *scs.SessionManager, db *sql.DB) func(http.Handler) http
 func writeJSONError(w http.ResponseWriter, code int, msg string) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(code)
-	_ = json.NewEncoder(w).Encode(map[string]string{"error": msg})
+	_ = json.NewEncoder(w).Encode(map[string]any{"error": msg, "code": code})
 }

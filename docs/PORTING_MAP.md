@@ -52,25 +52,25 @@ Tandai ✔ saat padanan Go lulus. `N/A` hanya dengan alasan tertulis.
 | `token_ujian.test.js` | Token ujian opsional | `auth` | T1.3 | ✔ |
 | `soal_arab_hp.test.js` | Paket soal/Arab, tanpa kunci jawaban | `soal` | T1.4 | ✔ |
 | `menjodohkan.test.js` | Soal menjodohkan: format & nilai | `penilaian`, `soal` | T1.1, T1.4 | ✔ |
-| `sinkron_jawaban.test.js` | Upsert idempoten, grace, device_token | `sesi` | T1.5 | |
-| `heartbeat_client.test.js` | Heartbeat / klien | `sesi` (+ JS) | T1.6 | |
-| `finalize_service.test.js` | Finalisasi idempoten, auto-close | `sesi` | T1.6, T1.7 | |
-| `ketahanan_e2e.test.js` | Putus-sambung: progres & timer tidak hilang | integrasi | T1.8 | |
-| `sesi_endpoint_socket.test.js` | Endpoint sesi + event socket | `realtime`, `sesi` | T2.2 | |
+| `sinkron_jawaban.test.js` | Upsert idempoten, grace, device_token | `sesi` | T1.5 | ✔ |
+| `heartbeat_client.test.js` | Heartbeat / klien | `sesi` (+ JS) | T1.6 | ✔ |
+| `finalize_service.test.js` | Finalisasi idempoten, auto-close | `sesi` | T1.6, T1.7 | ✔ |
+| `ketahanan_e2e.test.js` | Putus-sambung: progres & timer tidak hilang | integrasi | T1.8 | ✔ |
+| `sesi_endpoint_socket.test.js` | Endpoint sesi + event socket | `realtime`, `sesi` | T2.2 | ✔ |
 | `socket_monitor.test.js` | Broadcast monitor, room admin | `realtime`, `monitor` | T2.4 | |
 | `monitor_service.test.js` | Status turunan (online/offline/…) | `monitor` | T2.4 | |
 | `halaman_monitor.test.js` | Halaman monitor, 410 baris | `monitor` | T2.6 | |
 | `aksi_admin_audit.test.js` | Buka kunci/tambah waktu/paksa selesai + audit | `monitor` | T2.5 | |
 | `buka_kunci.test.js` | Buka kunci tanpa hapus data | `monitor` | T2.5 | |
-| `device_type.test.js` | Kebijakan hp vs laptop | `realtime`/`sesi` | T2.2 | |
-| `kebijakan_perangkat.test.js` | Batas pelanggaran per perangkat | `sesi` | T2.2 | |
+| `device_type.test.js` | Kebijakan hp vs laptop | `realtime`/`sesi` | T2.2 | ✔ |
+| `kebijakan_perangkat.test.js` | Batas pelanggaran per perangkat | `sesi` | T2.2 | ✔ |
 | `guru_otorisasi_soal.test.js` | Guru hanya soal mapelnya | `guru*` | T3.5 | |
 | `security_audit.test.js` | Audit keamanan (kunci jawaban, rate limit, cookie) | lintas paket | T4.1 | |
 | `production_env.test.js` | Konfigurasi produksi | `config` | T4.1 | |
 | `migrate.test.js` | Migrator idempoten | `cmd/migrate` | T0.3 | ✔ |
 | `persistent_seed.test.js` | Seed tetap setelah restart | `sesi` | T1.4 | ✔ |
 | `backup_restore.test.js` | Backup & restore | skrip | T4.2 | |
-| `loadtest.test.js` | Skrip loadtest | N/A (Node tool disalin) — alasan: alat uji, bukan fitur | — | |
+| `loadtest.test.js` | Skrip loadtest | N/A (Node tool disalin) — alasan: alat uji, bukan fitur | — | N/A |
 | `landing.test.js` | Halaman landing | `httpserver` | T0.7 | ✔ |
 | `rfinal_minor.test.js` | Perbaikan MINOR review akhir Node | lintas | T4.1 | |
 | `tests/ui/*.ui.js` | Playwright 360px Arab, monitor | dipakai ulang vs server Go | T4.4 | |
