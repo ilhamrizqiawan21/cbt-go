@@ -65,15 +65,15 @@ Tandai ✔ saat padanan Go lulus. `N/A` hanya dengan alasan tertulis.
 | `device_type.test.js` | Kebijakan hp vs laptop | `realtime`/`sesi` | T2.2 | ✔ |
 | `kebijakan_perangkat.test.js` | Batas pelanggaran per perangkat | `sesi` | T2.2 | ✔ |
 | `guru_otorisasi_soal.test.js` | Guru hanya soal mapelnya | `guru*` | T3.5 | ✔ |
-| `security_audit.test.js` | Audit keamanan (kunci jawaban, rate limit, cookie) | lintas paket | T4.1 | |
-| `production_env.test.js` | Konfigurasi produksi | `config` | T4.1 | |
+| `security_audit.test.js` | Audit keamanan (kunci jawaban, rate limit, cookie) | lintas paket | T4.1 | ✔ |
+| `production_env.test.js` | Konfigurasi produksi | `config` | T4.1 | ✔ |
 | `migrate.test.js` | Migrator idempoten | `cmd/migrate` | T0.3 | ✔ |
 | `persistent_seed.test.js` | Seed tetap setelah restart | `sesi` | T1.4 | ✔ |
-| `backup_restore.test.js` | Backup & restore | skrip | T4.2 | |
+| `backup_restore.test.js` | Backup & restore | skrip | T4.2 | ✔ |
 | `loadtest.test.js` | Skrip loadtest | N/A (Node tool disalin) — alasan: alat uji, bukan fitur | — | N/A |
 | `landing.test.js` | Halaman landing | `httpserver` | T0.7 | ✔ |
-| `rfinal_minor.test.js` | Perbaikan MINOR review akhir Node | lintas | T4.1 | |
-| `tests/ui/*.ui.js` | Playwright 360px Arab, monitor | dipakai ulang vs server Go | T4.4 | |
+| `rfinal_minor.test.js` | Perbaikan MINOR review akhir Node | lintas | T4.1 | ✔ |
+| `tests/ui/*.ui.js` | Playwright 360px Arab, monitor | dipakai ulang vs server Go | T4.4 | ✔ |
 | `tests/helpers/db.js` | Helper DB uji | `internal/testdb` | T0.4 | |
 
 Cara membaca isi tes Node: `sed -n 1,120p ~/Projects/CBT-Sekolah/tests/<nama>.test.js`. Gunakan sebagai **spesifikasi** (input → hasil yang diharapkan), bukan untuk disalin.

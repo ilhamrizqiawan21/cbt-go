@@ -1,0 +1,13 @@
+{
+  "name": "cbt-ui-tests",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Playwright UI tests for CBT Sekolah (Go)",
+  "scripts": {
+    "test": "node arab_hp.ui.js && node monitor.ui.js"
+  },
+  "dependencies": {
+    "playwright": "^1.40.0"
+  }
+}
+

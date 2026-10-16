@@ -22,7 +22,7 @@ if [ -f "$PROJECT_ROOT/.env" ]; then
 fi
 
 # 2. Nilai Default
-TARGET_DB="${DB_NAME:-cbt_sekolah}"
+TARGET_DB="${DB_NAME:-cbt_sekolah_go}"
 DB_USER_VAL="${DB_USER:-root}"
 DB_PASS_VAL="${DB_PASSWORD:-}"
 DB_HOST_VAL="${DB_HOST:-127.0.0.1}"

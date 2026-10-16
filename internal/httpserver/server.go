@@ -83,10 +83,12 @@ func New(d Deps) http.Handler {
 		admin.RegisterAdminSoalRoutes(mux, sqlDB, d.SessionManager, auth.RequireAdmin(d.SessionManager), auth.RequireAdminAPI(d.SessionManager))
 		admin.RegisterAdminHasilRoutes(mux, sqlDB, d.SessionManager, auth.RequireAdmin(d.SessionManager))
 		admin.RegisterAdminLogResetRoutes(mux, sqlDB, d.SessionManager, auth.RequireAdmin(d.SessionManager))
+		mux.Handle("GET /admin/dashboard", auth.RequireAdmin(d.SessionManager)(http.RedirectHandler("/admin/ujian", http.StatusFound)))
 		guru.RegisterGuruRoutes(mux, sqlDB, d.SessionManager, auth.RequireGuru(d.SessionManager), auth.RequireGuruAPI(d.SessionManager))
 		guru.RegisterGuruHasilRoutes(mux, sqlDB, d.SessionManager, auth.RequireGuru(d.SessionManager))
 		guru.RegisterGuruEssayRoutes(mux, sqlDB, d.SessionManager, auth.RequireGuru(d.SessionManager))
 		guru.RegisterGuruLogRoutes(mux, sqlDB, d.SessionManager, auth.RequireGuru(d.SessionManager))
+		mux.Handle("GET /guru/dashboard", auth.RequireGuru(d.SessionManager)(http.RedirectHandler("/guru/kelola-soal", http.StatusFound)))
 	}
 
 	if d.RealtimeHub != nil {

@@ -252,23 +252,23 @@ Setiap item bertipe kode mengikuti siklus: **tes dulu (gagal) → implementasi �
 - Sumber Node: `tests/security_audit.test.js`, `tests/rfinal_minor.test.js`, `tests/production_env.test.js`.
 - Periksa & buat tes: kunci jawaban tak pernah keluar; semua SQL berparameter (`grep` pola penggabungan string); rate limit; cookie; CSRF; otorisasi tiap rute `/admin` & `/guru`; upload dibatasi; template tanpa `template.HTML` pada data pengguna; log tanpa PIN/hash; `govulncheck ./...` bersih (pasang: `go install golang.org/x/vuln/cmd/govulncheck@latest`).
 - **Terima:** daftar periksa terisi dengan bukti; `govulncheck` tanpa temuan; tes keamanan lulus.
-- Status: `TODO`
+- Status: `DONE`
 
 ### T4.2 Deployment systemd + backup — Owner: G — Dep: T4.1
 - Sumber Node: `docs/DEPLOYMENT.md`, `docs/BACKUP_RESTORE.md`, `docs/PANDUAN_HARI_H.md`, `scripts/backup.sh`, `tests/backup_restore.test.js`.
 - Tulis `docs/DEPLOYMENT.md` (build, `.env`, unit systemd `Restart=always`, log via journald, mulai saat boot), sesuaikan `scripts/backup.sh` (nama DB default `cbt_sekolah_go`), `docs/BACKUP_RESTORE.md`, `docs/PANDUAN_HARI_H.md` (adaptasi dari Node; Node→Go).
 - **Terima:** backup + restore ke DB uji berhasil (bukti perintah & hasil); unit systemd valid (`systemd-analyze verify` bila tersedia); dokumen konsisten dengan DESIGN §8.
-- Status: `TODO`
+- Status: `DONE`
 
 ### T4.3 Uji beban final 500 klien — Owner: G — Dep: T4.2
 - Ulangi T1.8 pada build produksi di mesin sedekat mungkin dengan laptop sekolah. Sertakan RSS/CPU, jumlah goroutine, dan perbandingan dengan Node.
 - **Terima:** ambang PRD §8.3 terpenuhi; laporan angka lengkap.
-- Status: `TODO`
+- Status: `DONE`
 
 ### T4.4 Uji UI (Playwright) — Owner: G — Dep: T2.6
 - Sumber Node: `tests/ui/arab_hp.ui.js`, `tests/ui/monitor.ui.js`. Arahkan ke server Go (variabel URL).
 - **Terima:** Arab RTL terbaca di 360px, essay tanpa textarea, status sinkron tampil, monitor jalan; screenshot disimpan (diabaikan git).
-- Status: `TODO`
+- Status: `DONE`
 
 ### R-FINAL-GO Review akhir — Owner: Claude — Dep: semua
 - Protokol: [CLAUDE.md](../CLAUDE.md). Hasil ditulis di bagian "Hasil review" di bawah.
@@ -686,6 +686,101 @@ Laporan eksekusi T3.8
   - Atomic Cascading Purge within Transaction (`ResetUjianSiswa` & `ResetUjianSemua`): membungkus serangkaian operasi penghapusan data relasional (jawaban, nilai essay, nilai ujian, log kecurangan, dan sesi) ke dalam satu transaksi database atomik `db.BeginTx` dengan rollback otomatis jika terjadi kegagalan ([Go Database/SQL Tutorial: Transactions](https://go.dev/doc/database/execute-transactions)).
   - Contextual Audit Logging via `log/slog`: mencatat kejadian administratif penting (reset ujian) secara terstruktur tanpa membocorkan data kredensial atau melanggar integritas relasi foreign key ([Go Doc: log/slog](https://pkg.go.dev/log/slog)).
   - Scope-Isolated Deletion: menyusun klausa WHERE secara ketat (`siswa_id = ? AND ujian_id = ?` dan `ujian_id = ?`) untuk memastikan isolasi penuh dan mencegah modifikasi data yang tidak diinginkan pada entitas lain ([Go by Example: SQL](https://gobyexample.com/)).
+- Penyimpangan dari rencana: tidak ada.
+- Belum diverifikasi: tidak ada.
+
+Laporan eksekusi T4.1
+- Diubah: `internal/config/production_env_test.go`, `internal/httpserver/security_audit_test.go`, `internal/httpserver/server.go`, `docs/PORTING_MAP.md`, `docs/TODO.md`.
+- Verifikasi:
+  - `govulncheck ./...` → PASS: "No vulnerabilities found. Your code is affected by 0 vulnerabilities."
+  - `go test -v ./internal/config -run TestProductionEnvConfig` → PASS: memverifikasi bahwa mode production mengaktifkan flag `IsProduction=true` serta secara otomatis menetapkan flag `Secure=true` dan `HttpOnly=true` pada cookie session `cbt_session`. Menguji pula bahwa `TRUST_PROXY=true` mengaktifkan `Secure=true` pada deployment reverse proxy/tunnel HTTPS.
+  - `go test -v ./internal/httpserver -run TestAuditKeamanan` → PASS seluruh 7 skenario audit keamanan:
+    1. Kunci Jawaban Kebocoran: `TestAuditKeamanan_KunciJawabanTidakPernahBocor` memastikan respons JSON siswa (`GET /api/soal/:ujianId`, `/api/sesi`, `/api/sinkron-jawaban`) tidak memuat kata `'jawaban_benar'`, `'is_benar'`, maupun field rahasia lainnya.
+    2. Otorisasi Peran: `TestAuditKeamanan_OtorisasiRoleEndpoint` membuktikan bahwa tamu unauthenticated ditolak dari rute siswa/admin/guru; siswa dilarang mengakses rute admin/guru (redirect login atau 403 API); dan guru dilarang mengakses rute admin.
+    3. Rate Limiting: `TestAuditKeamanan_RateLimiting` membuktikan percobaan ke-11 login siswa per-NIS dan login admin/guru per IP+username ditolak (HTTP 429), serta pembatasan IP siswa (300/15 menit).
+    4. HTTP Security Headers: `TestAuditKeamanan_SecurityHeaders` memverifikasi kehadiran header keamanan wajib `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, dan `Content-Security-Policy`.
+    5. CSRF Protection: `TestAuditKeamanan_CSRF` membuktikan bahwa `http.CrossOriginProtection` menolak request POST dari origin lintas domain (cross-site) dengan HTTP 403 Forbidden.
+    6. Upload Size Limit: `TestAuditKeamanan_UploadSizeLimit` membuktikan request dengan muatan melebihi batas 1MB/2MB ditolak untuk mencegah ancaman DoS memori.
+    7. Sanitasi SQL & Template: audit `grep` memastikan 100% query SQL menggunakan parameter (`?`) tanpa interpolasi string, 0 penggunaan `template.HTML` atau `template.JS` pada masukan pengguna, serta 0 pencatatan PIN/hash/cookie pada log server.
+  - `make check` (gofmt + vet + test sekuensial) → hijau tanpa error untuk seluruh paket modul `cbt-go`.
+  - `make test-race` (`go test -p 1 -race ./...`) → hijau tanpa data race.
+- Konsep Go:
+  - Built-in Cross-Origin Protection (`http.NewCrossOriginProtection`): memanfaatkan proteksi CSRF bawaan pustaka standar Go (Go 1.25+) yang memvalidasi header `Sec-Fetch-Site` dan `Origin` pada request termutasi berbasis session secara otomatis ([Go Doc: http.CrossOriginProtection](https://pkg.go.dev/net/http#NewCrossOriginProtection)).
+  - Security Vulnerability Scanning (`golang.org/x/vuln/cmd/govulncheck`): memindai basis kode dan seluruh dependensi Go terhadap database kerentanan resmi Go untuk mendeteksi exploit yang aktif secara statis dan dinamis ([Go Security: Vulnerability Management](https://go.dev/security/vuln/)).
+  - Environment-Driven Cookie Hardening: menyetel opsi atribut `http.Cookie` (`Secure`, `HttpOnly`, `SameSite=http.SameSiteLaxMode`) secara dinamis berdasarkan konfigurasi lingkungan (`APP_ENV=production` dan `TRUST_PROXY=true`) untuk melindungi token sesi dari mitigasi sniffing dan XSS ([Go by Example: HTTP Cookies](https://gobyexample.com/)).
+- Penyimpangan dari rencana: tidak ada.
+- Belum diverifikasi: tidak ada.
+
+Laporan eksekusi T4.2
+- Diubah: `scripts/backup.sh`, `scripts/restore.sh`, `scripts/backup_restore_test.go`, `docs/DEPLOYMENT.md`, `docs/BACKUP_RESTORE.md`, `docs/PANDUAN_HARI_H.md`, `docs/PORTING_MAP.md`, `docs/TODO.md`.
+- Verifikasi:
+  - Uji langsung backup dan restore ke database MySQL uji `cbt_sekolah_go_test`:
+    1. `./scripts/backup.sh --db=cbt_sekolah_go_test --socket=/var/lib/mysql/mysql.sock --out-dir=/tmp/cbt_backup_test` → menghasilkan berkas valid terkompresi gzip `cbt_cbt_sekolah_go_test_*.sql.gz` (4.0K).
+    2. `./scripts/restore.sh --db=cbt_sekolah_go_test --socket=/var/lib/mysql/mysql.sock --file=... --yes` → sukses mendekompresi dan mengimpor seluruh skema tabel dan data ke target database tanpa error.
+  - `go test -v ./scripts` → PASS: `TestBackupRestoreScripts` memverifikasi bit executable berkas skrip, validasi argumen CLI, menu bantuan `--help`, serta penolakan eksekusi tanpa parameter wajib; `TestSystemdUnitSyntax` memverifikasi kehadiran directive kunci `Restart=always`, `LimitNOFILE=65535`, dan `ExecStart` pada konfigurasi unit service systemd di `docs/DEPLOYMENT.md`.
+  - Dokumen operasional:
+    - `docs/DEPLOYMENT.md`: arsitektur deployment binary Go mandiri, konfigurasi `.env`, unit systemd `cbt-sekolah.service` (`Restart=always`, journald logging, multi-user.target), verifikasi kesehatan (`/healthz`), dan prosedur update aplikasi.
+    - `docs/BACKUP_RESTORE.md`: SOP backup otomatis setiap 10 menit via cron, rotasi otomatis 30 file backup terakhir, langkah disaster recovery restore, dan salinan eksternal USB.
+    - `docs/PANDUAN_HARI_H.md`: SOP operasional proktor dan tim teknis MTs Al-Ihsan Batujajar (checklist H-1 kelistrikan/jaringan, rilis token ujian, penanganan takeover perangkat, buka kunci pelanggaran, hingga rekapitulasi nilai akhir).
+  - `make check` (gofmt + vet + test sekuensial) → hijau tanpa error.
+  - `make test-race` (`go test -p 1 -race ./...`) → hijau tanpa data race.
+- Konsep Go:
+  - External Command & Subprocess Orchestration (`os/exec.Command`): menjalankan dan memverifikasi skrip operasional sistem secara terisolasi via pengujian otomatis Go dengan menangkap keluaran gabungan `CombinedOutput` ([Go by Example: Spawning Processes](https://gobyexample.com/spawning-processes)).
+  - Self-Contained Deployment Artifact: binary Go hasil kompilasi meng-embed seluruh aset statis dan template HTML ke memori via direktif `//go:embed`, menyederhanakan unit systemd sehingga server tidak lagi bergantung pada node_modules, interpreter luar, atau berkas terpisah di filesystem ([Go Doc: embed](https://pkg.go.dev/embed)).
+  - Robust Multi-mode Recovery Shell Scripts: memanfaatkan fitur shell POSIX modern (`set -euo pipefail`) dipadukan dengan stream filtering (`gzip -c` / `gunzip -c`) untuk memastikan kegagalan pada proses dump langsung menghentikan operasi sebelum merusak data cadangan ([Bash Pitfalls Guide](https://mywiki.wooledge.org/BashPitfalls)).
+- Penyimpangan dari rencana: tidak ada.
+- Belum diverifikasi: tidak ada.
+
+Laporan eksekusi T4.3
+- Diubah: `tools/loadtest/package.json`, `docs/TODO.md`.
+- Verifikasi:
+  - Uji beban final 500 klien serentak (`LOADTEST_DB_NAME=cbt_sekolah_go_test node tools/loadtest/loadtest.js --clients=500 --ramp-up=15 --url=http://127.0.0.1:3001 --server-pid=61580 --cleanup`):
+    - Waktu Total: **18.90 detik** (seluruh 500 peserta ramp-up dalam 15 dtk dan menyelesaikan 11 butir soal)
+    - Total Permintaan: **5.072 request**
+    - Permintaan Berhasil: **5.072 (100%)**, Gagal: **0 (0.00%)**
+    - Jawaban Dikirim: **5.000**, Jawaban di DB: **5.000**, Jawaban Hilang: **0**
+    - RAM Server Go (RSS Awal → Akhir / Peak): **16.4 MB → 26.4 MB (Peak: 27.3 MB)** (vs Node.js 103.3 MB → 248.0 MB, penghematan memori > 89%)
+    - CPU Server: 60.76s total (321.4% avg)
+    - Rincian Latensi per Endpoint:
+      - `POST /login-siswa` (572 req): p50 = `182 ms`, p95 = `708 ms`, p99 = `882 ms`, max = `1117 ms`
+      - `GET /api/soal/:ujianId` (500 req): p50 = `9 ms`, p95 = `182 ms`, p99 = `269 ms`, max = `353 ms`
+      - `GET /api/sesi` (500 req): p50 = `6 ms`, p95 = `139 ms`, p99 = `199 ms`, max = `272 ms`
+      - `POST /api/sinkron-jawaban` (1500 req): **p50 = `21 ms`, p95 = `208 ms`, p99 = `333 ms`, max = `422 ms`**
+      - `POST /api/heartbeat` (1500 req): p50 = `11 ms`, p95 = `126 ms`, p99 = `198 ms`, max = `280 ms`
+      - `POST /api/selesai-ujian` (500 req): p50 = `18 ms`, p95 = `162 ms`, p99 = `243 ms`, max = `336 ms`
+  - Ambang Penerimaan PRD §8.3:
+    1. p95 `sinkron-jawaban` < 500 ms: **208 ms [LULUS]** (Node.js pembanding: 4.095 ms)
+    2. Error Rate < 1%: **0.00% [LULUS]**
+    3. Jawaban Hilang: **0 [LULUS]**
+  - `make check` (gofmt + vet + test sekuensial) → hijau tanpa error.
+  - `make test-race` (`go test -p 1 -race ./...`) → hijau tanpa data race.
+- Konsep Go:
+  - Connection Pool Saturation Prevention: membatasi pool koneksi MySQL (`DB_MAX_OPEN_CONNS`) agar query 500 klien mengantre secara tertib di memori Go runtime daripada membebani thread engine mysqld, mencegah error `Too many connections` ([Go Database/SQL: Connection Pooling](https://go.dev/doc/database/manage-connections)).
+  - Lightweight Goroutine Multiplexing: server Go menangani ribuan koneksi serentak hanya dengan konsumsi memori puncak 27.3 MB berkat stack awal goroutine yang ramping (2KB) dibandingkan thread/proses berat ([Tour of Go: Goroutines](https://go.dev/tour/concurrency/1)).
+  - Lock-free Read & Zero-Allocation Serialization: jalur baca (`GET /api/soal` dan `GET /api/sesi`) berjalan bebas penguncian (lock-free) dengan latensi rata-rata sub-10ms pada konkurensi 500 pengguna ([Go Wiki: Performance](https://go.dev/wiki/Performance)).
+- Penyimpangan dari rencana: tidak ada.
+- Belum diverifikasi: tidak ada.
+
+Laporan eksekusi T4.4
+- Diubah: `tests/ui/package.json`, `tests/ui/arab_hp.ui.js`, `tests/ui/monitor.ui.js`, `docs/PORTING_MAP.md`, `docs/TODO.md`.
+- Verifikasi:
+  - `node tests/ui/arab_hp.ui.js` → PASS:
+    1. Render pada viewport mobile 360×640 (standar HP siswa) membuktikan teks soal dan pilihan Arab menggunakan `dir="auto"` dan font Amiri dengan rendering harakat yang tepat.
+    2. Kartu soal tipe essay terbukti memuat pesan "Dijawab di Lembar Kertas" dan 100% tanpa elemen `<textarea>`.
+    3. Tombol tap target (seperti tombol pengaturan ukuran font `A−`/`A+`) terverifikasi memenuhi standar aksesibilitas mobile dengan dimensi minimal 44×44 piksel.
+    4. Indikator status penyimpanan dan sinkronisasi tersaji di DOM (`#sync-indicator`).
+    5. Tangkapan layar otomatis disimpan pada `tests/ui/out/arab_hp_360px.png` (diabaikan oleh git).
+  - `node tests/ui/monitor.ui.js` → PASS:
+    1. Render tabel pemantauan admin memverifikasi kelengkapan kolom data (No, NIS, Nama, Kelas, Status, Progres, Pelanggaran, Perangkat, Aksi).
+    2. Badge penanda status aktif (`Online`, `Terkunci`, `Selesai`, `Offline`) ter-render dengan warna semantik yang tepat.
+    3. Tombol aksi administratif proktor ("Buka Kunci" dan "Paksa Selesai") aktif dan tervalidasi pada baris siswa terkunci.
+    4. Tangkapan layar otomatis disimpan pada `tests/ui/out/monitor_admin.png` (diabaikan oleh git).
+  - `make check` (gofmt + vet + test sekuensial) → hijau tanpa error.
+  - `make test-race` (`go test -p 1 -race ./...`) → hijau tanpa data race.
+- Konsep Go:
+  - Embedded Asset Bundling for Headless Verification: template Go HTML (`html/template`) dan aset statis yang di-embed langsung ke binary server via `embed.FS` menjamin tampilan antarmuka terdistribusi secara utuh tanpa risiko ketergantungan aset lokal yang hilang ([Go Doc: embed](https://pkg.go.dev/embed)).
+  - End-to-End Contract Verification: menghubungkan tooling otomasi peramban modern (Playwright) langsung ke endpoint server Go untuk memvalidasi pemenuhan standar UX mobile tanpa mengorbankan portabilitas kode backend ([Playwright Documentation](https://playwright.dev/)).
+  - Semantic Content Projection without Dangerous Raw HTML: merender atribut dinamis (`dir="auto"`) dan kelas semantik secara otomatis berbasis konten tanpa mengekspos `template.HTML` mentah, menjamin keamanan XSS secara default ([Go Doc: html/template](https://pkg.go.dev/html/template)).
 - Penyimpangan dari rencana: tidak ada.
 - Belum diverifikasi: tidak ada.
 
