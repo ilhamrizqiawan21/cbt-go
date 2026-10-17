@@ -59,9 +59,9 @@ Tandai ✔ saat padanan Go lulus. `N/A` hanya dengan alasan tertulis.
 | `sesi_endpoint_socket.test.js` | Endpoint sesi + event socket | `realtime`, `sesi` | T2.2 | ✔ |
 | `socket_monitor.test.js` | Broadcast monitor, room admin | `realtime`, `monitor` | T2.4 | ✔ |
 | `monitor_service.test.js` | Status turunan (online/offline/…) | `monitor` | T2.4 | ✔ |
-| `halaman_monitor.test.js` | Halaman monitor, 410 baris | `monitor` | T2.6 | |
-| `aksi_admin_audit.test.js` | Buka kunci/tambah waktu/paksa selesai + audit | `monitor` | T2.5 | |
-| `buka_kunci.test.js` | Buka kunci tanpa hapus data | `monitor` | T2.5 | |
+| `halaman_monitor.test.js` | Halaman monitor, 410 baris | `monitor` (`TestSnapshot_410Siswa_DB`), `web` (`TestAdminMonitor_410Baris`), `tests/ui/monitor.ui.js` | T2.6 | ✔ |
+| `aksi_admin_audit.test.js` | Buka kunci/tambah waktu/paksa selesai + audit | `admin` (`handler_monitor_test.go`, DB nyata) | T2.5 | ✔ |
+| `buka_kunci.test.js` | Buka kunci tanpa hapus data | `admin` (`TestAdminBukaKunci_DB`) | T2.5 | ✔ |
 | `device_type.test.js` | Kebijakan hp vs laptop | `realtime`/`sesi` | T2.2 | ✔ |
 | `kebijakan_perangkat.test.js` | Batas pelanggaran per perangkat | `sesi` | T2.2 | ✔ |
 | `guru_otorisasi_soal.test.js` | Guru hanya soal mapelnya | `guru*` | T3.5 | ✔ |
@@ -87,5 +87,13 @@ Cara membaca isi tes Node: `sed -n 1,120p ~/Projects/CBT-Sekolah/tests/<nama>.te
 | Query monitor saat tak ada admin | Tetap dijalankan (MINOR di review Node) | **Dilewati** | DESIGN §3.6 |
 | `GET /healthz` | Tidak ada | Ada | Operasional |
 | Urutan acak soal | PRNG Node | `math/rand/v2` PCG | Hanya perlu stabil per `seed` |
+
+| Ganti nama kelas | Tidak diketahui (repo Node tidak tersedia saat perbaikan) | `siswa.kelas` ikut diganti dalam satu transaksi | `siswa.kelas` menyimpan nama (G-016); tanpa ini siswa terputus dari ujian kelasnya. Diputuskan G-020 |
+| `GET /admin/soal/tambah-batch` | Halaman batch | Redirect ke Bank Soal (form tambah ada di modal); `POST /admin/soal/batch-tambah` tetap | Halaman lama merender Bank Soal kosong yang menyesatkan |
+| Nilai essay sebelum siswa selesai | Tidak diketahui (repo Node tidak tersedia) | Ditolak (`ErrSesiBelumSelesai`); lembar koreksi hanya siswa sesi `selesai` | Mencegah `nilai_ujian` prematur yang membuat login siswa ditolak. Diputuskan G-021 |
+| `GET /guru/dashboard` | Halaman dashboard | Halaman ringkasan ujian guru (sebelumnya di Go: redirect) | Paritas dengan Node |
+| Sesi terkunci (`keluar_paksa`) | Tidak diketahui (repo Node tidak tersedia) | Layar terkunci, tidak dikumpulkan; buka kunci → login ulang & lanjut; job menilai bila waktu habis | PRD FR-12. G-017 |
+| Validasi soal | Tidak diketahui | Diperketat; kunci menjodohkan diturunkan server | G-018 |
+| Aset Bootstrap | CDN | Lokal (embed) | G-019 |
 
 Hal lain yang berbeda **harus dicatat di sini** oleh eksekutor beserta alasannya (dan ditandai `NEEDS_USER` bila mengubah perilaku yang terlihat pengguna).

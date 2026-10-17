@@ -306,8 +306,16 @@ func SelesaiUjianHandler(db *sql.DB, sm *scs.SessionManager, cfg config.Config) 
 		siswaID := sm.GetInt(r.Context(), "siswaId")
 		ujianID := sm.GetInt(r.Context(), "ujianId")
 
-		hasil, err := sesi.Finalize(r.Context(), db, siswaID, ujianID)
+		hasil, err := sesi.FinalizeOlehSiswa(r.Context(), db, siswaID, ujianID)
 		if err != nil {
+			if errors.Is(err, sesi.ErrKeluarPaksa) {
+				// Tidak difinalisasi: admin masih bisa membuka kunci dan siswa melanjutkan (FR-12).
+				writeJSON(w, http.StatusForbidden, map[string]string{
+					"error":  "Ujian Anda dikunci karena pelanggaran. Hubungi pengawas.",
+					"status": "keluar_paksa",
+				})
+				return
+			}
 			if errors.Is(err, sesi.ErrSesiNotFound) {
 				writeJSON(w, http.StatusNotFound, map[string]string{"error": "Sesi ujian tidak ditemukan"})
 				return

@@ -271,7 +271,7 @@ func TestSoalCRUDDanBatch(t *testing.T) {
 
 	// 7. Batch Tambah Soal
 	daftar := []soal.SoalKelola{
-		{TipeSoal: "pg", TeksSoal: "Soal 1", Poin: 2},
+		{TipeSoal: "pg", TeksSoal: "Soal 1", Poin: 2, PilihanA: soalStringPtr("x"), PilihanB: soalStringPtr("y"), JawabanBenar: soalStringPtr("A")},
 		{TipeSoal: "essay", TeksSoal: "Soal 2", Poin: 4},
 	}
 	total, err := soal.BatchTambahSoal(ctx, db, 10, daftar)

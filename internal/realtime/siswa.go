@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/coder/websocket"
@@ -197,8 +198,11 @@ func handlePelanggaran(
 			WHERE siswa_id = ? AND ujian_id = ?
 		`, siswaID, ujianID)
 
+		// terkunci=true: klien menampilkan layar terkunci dan TIDAK mengumpulkan ujian, sehingga
+		// admin dapat membuka kunci dan siswa melanjutkan dengan jawaban yang sama (FR-12).
 		client.Send("paksa-submit", map[string]any{
-			"message": fmt.Sprintf("⚠️ Batas pelanggaran (%d/%d) terlampaui. Ujian Anda diakhiri.", jumlah, batas),
+			"terkunci": true,
+			"message":  fmt.Sprintf("⚠️ Batas pelanggaran (%d/%d) terlampaui. Ujian Anda dikunci — hubungi pengawas.", jumlah, batas),
 		})
 	} else {
 		sisa := batas - jumlah
@@ -225,11 +229,13 @@ func handleSelesaiUjianWS(
 	siswaID, ujianID int,
 	onNotify OnMonitorNotifyFunc,
 ) {
-	_, _ = db.ExecContext(ctx, `
-		UPDATE sesi_ujian
-		SET status = 'selesai', selesai_pada = COALESCE(selesai_pada, NOW()), last_seen = NOW()
-		WHERE siswa_id = ? AND ujian_id = ?
-	`, siswaID, ujianID)
+	// Klien biasanya sudah memanggil /api/selesai-ujian; event ini cadangan bila panggilan itu gagal.
+	// Wajib lewat finalisasi (menghitung nilai) — mengubah status saja membuat siswa tanpa nilai
+	// karena job penutupan otomatis tidak memproses sesi berstatus selesai. Sesi terkunci tidak disentuh.
+	if _, err := sesi.FinalizeOlehSiswa(ctx, db, siswaID, ujianID); err != nil &&
+		!errors.Is(err, sesi.ErrKeluarPaksa) && !errors.Is(err, sesi.ErrSesiNotFound) {
+		slog.ErrorContext(ctx, "finalisasi via websocket gagal", "siswa_id", siswaID, "ujian_id", ujianID, "err", err)
+	}
 
 	if onNotify != nil {
 		onNotify(ujianID, "", nil)

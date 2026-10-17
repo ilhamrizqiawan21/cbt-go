@@ -3,6 +3,7 @@ package admin
 import (
 	"database/sql"
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
@@ -44,7 +45,7 @@ func GuruListHandler(db *sql.DB, sm *scs.SessionManager) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		list, err := ListGuru(r.Context(), db)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			serverError(w, r, err)
 			return
 		}
 		if wantsJSON(r) {
@@ -53,11 +54,12 @@ func GuruListHandler(db *sql.DB, sm *scs.SessionManager) http.HandlerFunc {
 		}
 		flashError := getFlash(sm, r, "error")
 		flashSuccess := getFlash(sm, r, "success")
-		_ = web.Render(w, "admin_guru.gohtml", map[string]any{
-			"GuruList": list,
-			"Error":    flashError,
-			"Success":  flashSuccess,
-			"Username": sm.GetString(r.Context(), "username"),
+		render(w, r, "admin_guru.gohtml", map[string]any{
+			"GuruList":   list,
+			"Error":      flashError,
+			"Success":    flashSuccess,
+			"Username":   sm.GetString(r.Context(), "username"),
+			"ActiveMenu": "guru",
 		})
 	}
 }
@@ -137,7 +139,7 @@ func GuruHapusHandler(db *sql.DB, sm *scs.SessionManager) http.HandlerFunc {
 		err = HapusGuru(r.Context(), db, id)
 		if err != nil {
 			if wantsJSON(r) {
-				writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+				serverError(w, r, err)
 				return
 			}
 			setFlash(sm, r, "error", err.Error())
@@ -160,18 +162,19 @@ func KelasListHandler(db *sql.DB, sm *scs.SessionManager) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		list, err := ListKelas(r.Context(), db)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			serverError(w, r, err)
 			return
 		}
 		if wantsJSON(r) {
 			writeJSON(w, http.StatusOK, list)
 			return
 		}
-		_ = web.Render(w, "admin_kelas.gohtml", map[string]any{
-			"KelasList": list,
-			"Error":     getFlash(sm, r, "error"),
-			"Success":   getFlash(sm, r, "success"),
-			"Username":  sm.GetString(r.Context(), "username"),
+		render(w, r, "admin_kelas.gohtml", map[string]any{
+			"KelasList":  list,
+			"Error":      getFlash(sm, r, "error"),
+			"Success":    getFlash(sm, r, "success"),
+			"Username":   sm.GetString(r.Context(), "username"),
+			"ActiveMenu": "kelas",
 		})
 	}
 }
@@ -245,7 +248,7 @@ func KelasHapusHandler(db *sql.DB, sm *scs.SessionManager) http.HandlerFunc {
 		err = HapusKelas(r.Context(), db, id)
 		if err != nil {
 			if wantsJSON(r) {
-				writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+				serverError(w, r, err)
 				return
 			}
 			setFlash(sm, r, "error", err.Error())
@@ -268,18 +271,19 @@ func MapelListHandler(db *sql.DB, sm *scs.SessionManager) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		list, err := ListMapel(r.Context(), db)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			serverError(w, r, err)
 			return
 		}
 		if wantsJSON(r) {
 			writeJSON(w, http.StatusOK, list)
 			return
 		}
-		_ = web.Render(w, "admin_mapel.gohtml", map[string]any{
-			"MapelList": list,
-			"Error":     getFlash(sm, r, "error"),
-			"Success":   getFlash(sm, r, "success"),
-			"Username":  sm.GetString(r.Context(), "username"),
+		render(w, r, "admin_mapel.gohtml", map[string]any{
+			"MapelList":  list,
+			"Error":      getFlash(sm, r, "error"),
+			"Success":    getFlash(sm, r, "success"),
+			"Username":   sm.GetString(r.Context(), "username"),
+			"ActiveMenu": "mapel",
 		})
 	}
 }
@@ -353,7 +357,7 @@ func MapelHapusHandler(db *sql.DB, sm *scs.SessionManager) http.HandlerFunc {
 		err = HapusMapel(r.Context(), db, id)
 		if err != nil {
 			if wantsJSON(r) {
-				writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+				serverError(w, r, err)
 				return
 			}
 			setFlash(sm, r, "error", err.Error())
@@ -376,7 +380,7 @@ func PengajaranListHandler(db *sql.DB, sm *scs.SessionManager) http.HandlerFunc 
 	return func(w http.ResponseWriter, r *http.Request) {
 		list, err := ListPengajaran(r.Context(), db)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			serverError(w, r, err)
 			return
 		}
 		if wantsJSON(r) {
@@ -384,11 +388,23 @@ func PengajaranListHandler(db *sql.DB, sm *scs.SessionManager) http.HandlerFunc 
 			return
 		}
 
-		guruList, _ := ListGuru(r.Context(), db)
-		kelasList, _ := ListKelas(r.Context(), db)
-		mapelList, _ := ListMapel(r.Context(), db)
+		guruList, err := ListGuru(r.Context(), db)
+		if err != nil {
+			serverError(w, r, err)
+			return
+		}
+		kelasList, err := ListKelas(r.Context(), db)
+		if err != nil {
+			serverError(w, r, err)
+			return
+		}
+		mapelList, err := ListMapel(r.Context(), db)
+		if err != nil {
+			serverError(w, r, err)
+			return
+		}
 
-		_ = web.Render(w, "admin_pengajaran.gohtml", map[string]any{
+		render(w, r, "admin_pengajaran.gohtml", map[string]any{
 			"PengajaranList": list,
 			"GuruList":       guruList,
 			"KelasList":      kelasList,
@@ -396,6 +412,7 @@ func PengajaranListHandler(db *sql.DB, sm *scs.SessionManager) http.HandlerFunc 
 			"Error":          getFlash(sm, r, "error"),
 			"Success":        getFlash(sm, r, "success"),
 			"Username":       sm.GetString(r.Context(), "username"),
+			"ActiveMenu":     "pengajaran",
 		})
 	}
 }
@@ -439,7 +456,7 @@ func PengajaranHapusHandler(db *sql.DB, sm *scs.SessionManager) http.HandlerFunc
 		err = HapusPengajaran(r.Context(), db, id)
 		if err != nil {
 			if wantsJSON(r) {
-				writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+				serverError(w, r, err)
 				return
 			}
 			setFlash(sm, r, "error", err.Error())
@@ -461,6 +478,27 @@ func PengajaranHapusHandler(db *sql.DB, sm *scs.SessionManager) http.HandlerFunc
 func wantsJSON(r *http.Request) bool {
 	accept := r.Header.Get("Accept")
 	return strings.Contains(accept, "application/json")
+}
+
+// render menampilkan template; bila eksekusi template gagal, kesalahan dicatat dan
+// pengguna mendapat halaman 500 (bukan halaman kosong tanpa jejak).
+func render(w http.ResponseWriter, r *http.Request, name string, data any) {
+	if err := web.Render(w, name, data); err != nil {
+		slog.ErrorContext(r.Context(), "render template admin gagal", "template", name, "err", err)
+		web.RenderError(w, http.StatusInternalServerError, "Terjadi kesalahan saat menampilkan halaman.")
+	}
+}
+
+// serverError mencatat detail error di log server dan mengirim pesan generik ke klien
+// agar struktur SQL/skema tidak bocor.
+func serverError(w http.ResponseWriter, r *http.Request, err error) {
+	slog.ErrorContext(r.Context(), "kesalahan server admin", "method", r.Method, "path", r.URL.Path, "err", err)
+	const msg = "Terjadi kesalahan pada server. Silakan coba lagi."
+	if wantsJSON(r) || isJSONBody(r) || strings.HasPrefix(r.URL.Path, "/admin/api/") {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": msg})
+		return
+	}
+	web.RenderError(w, http.StatusInternalServerError, msg)
 }
 
 func writeJSON(w http.ResponseWriter, code int, data any) {

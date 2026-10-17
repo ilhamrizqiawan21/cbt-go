@@ -1,80 +1,82 @@
 <!DOCTYPE html>
 <html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kelola Ujian — CBT Admin</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-</head>
+<head>{{template "app_head" "Kelola Ujian"}}</head>
 <body class="bg-light">
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-    <div class="container-fluid">
-        <a class="navbar-brand" href="/admin/dashboard">CBT Admin</a>
-        <span class="navbar-text">{{.Username}}</span>
-    </div>
-</nav>
+{{template "admin_navbar" .}}
 
-<div class="container my-4">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h2>Daftar Ujian</h2>
-        <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalTambah">
-            <i class="bi bi-plus-lg"></i> Tambah Ujian
-        </button>
+<div class="container-fluid px-lg-4 py-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+        <div>
+            <h3 class="page-title mb-1"><i class="bi bi-card-checklist text-primary me-2"></i>Kelola Ujian</h3>
+            <p class="text-muted mb-0">Jadwal, durasi, token, dan pengaturan acak per ujian.</p>
+        </div>
+        <div class="page-actions d-flex gap-2">
+            <button type="button" class="btn btn-primary" id="btnTambahUjian" {{if not .PengajaranList}}disabled title="Buat data pengajaran terlebih dahulu"{{end}}>
+                <i class="bi bi-plus-lg me-1"></i> Tambah Ujian
+            </button>
+        </div>
     </div>
 
-    {{if .Error}}
-    <div class="alert alert-danger alert-dismissible fade show" role="alert">
-        {{.Error}}
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    </div>
-    {{end}}
-    {{if .Success}}
-    <div class="alert alert-success alert-dismissible fade show" role="alert">
-        {{.Success}}
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    {{template "app_flash" .}}
+
+    {{if not .PengajaranList}}
+    <div class="alert alert-warning">
+        <i class="bi bi-info-circle me-1"></i> Ujian dibuat per <strong>pengajaran</strong> (guru + mapel + kelas).
+        Silakan isi <a href="/admin/pengajaran" class="alert-link">data pengajaran</a> terlebih dahulu.
     </div>
     {{end}}
 
-    <div class="card">
+    <div class="card border-0 shadow-sm">
         <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
+            <table class="table table-hover mb-0">
                 <thead class="table-light">
                     <tr>
-                        <th>#</th>
+                        <th class="text-center" style="width:50px">No</th>
                         <th>Nama Ujian</th>
-                        <th>Mapel</th>
+                        <th>Mapel / Guru</th>
                         <th>Kelas</th>
-                        <th>Guru</th>
-                        <th>Durasi</th>
-                        <th>Mulai</th>
-                        <th>Selesai</th>
+                        <th class="text-center">Durasi</th>
+                        <th>Jadwal</th>
+                        <th class="text-center">Pengaturan</th>
                         <th>Token</th>
-                        <th>Aksi</th>
+                        <th class="text-end" style="min-width:230px">Aksi</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {{range .UjianList}}
+                    {{range $i, $u := .UjianList}}
                     <tr>
-                        <td>{{.ID}}</td>
-                        <td><strong>{{.NamaUjian}}</strong></td>
-                        <td>{{.NamaMapel}}</td>
-                        <td><span class="badge bg-secondary">{{.NamaKelas}}</span></td>
-                        <td>{{.NamaGuru}}</td>
-                        <td>{{.Durasi}} menit</td>
-                        <td>{{.TanggalMulai.Format "02/01/2006 15:04"}}</td>
-                        <td>{{.TanggalSelesai.Format "02/01/2006 15:04"}}</td>
-                        <td><code>{{if .TokenUjian}}{{.TokenUjian}}{{else}}-{{end}}</code></td>
-                        <td>
-                            <form action="/admin/ujian/hapus/{{.ID}}" method="POST" class="d-inline" onsubmit="return confirm('Hapus ujian ini?')">
-                                <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i> Hapus</button>
+                        <td class="text-center text-muted">{{add $i 1}}</td>
+                        <td class="fw-semibold">{{$u.NamaUjian}}</td>
+                        <td><div>{{$u.NamaMapel}}</div><div class="small text-muted">{{$u.NamaGuru}}</div></td>
+                        <td><span class="badge bg-secondary">{{$u.NamaKelas}}</span></td>
+                        <td class="text-center text-nowrap">{{$u.Durasi}} mnt</td>
+                        <td class="small text-nowrap">{{$u.TanggalMulai.Format "02/01/2006 15:04"}}<br>s.d. {{$u.TanggalSelesai.Format "02/01/2006 15:04"}}</td>
+                        <td class="text-center small">
+                            {{if $u.AcakSoal}}<span class="badge bg-info-subtle text-info-emphasis">Acak soal</span>{{end}}
+                            {{if $u.AcakPilihan}}<span class="badge bg-info-subtle text-info-emphasis">Acak pilihan</span>{{end}}
+                            <div class="text-muted">Maks. {{$u.BatasPelanggaran}} pelanggaran</div>
+                        </td>
+                        <td>{{if $u.TokenUjian}}<code>{{$u.TokenUjian}}</code>{{else}}<span class="text-muted">-</span>{{end}}</td>
+                        <td class="text-end text-nowrap">
+                            <a href="/admin/soal?ujian_id={{$u.ID}}" class="btn btn-sm btn-outline-secondary" title="Bank soal"><i class="bi bi-question-square"></i></a>
+                            <a href="/admin/monitor/{{$u.ID}}" class="btn btn-sm btn-outline-secondary" title="Monitor"><i class="bi bi-display"></i></a>
+                            <a href="/admin/hasil?ujian_id={{$u.ID}}" class="btn btn-sm btn-outline-secondary" title="Hasil"><i class="bi bi-trophy"></i></a>
+                            <button type="button" class="btn btn-sm btn-outline-primary btn-edit-ujian" title="Edit"
+                                    data-id="{{$u.ID}}" data-pengajaran="{{$u.PengajaranID}}" data-nama="{{$u.NamaUjian}}"
+                                    data-durasi="{{$u.Durasi}}" data-mulai="{{$u.TanggalMulai.Format "2006-01-02T15:04"}}"
+                                    data-selesai="{{$u.TanggalSelesai.Format "2006-01-02T15:04"}}"
+                                    data-acak-soal="{{$u.AcakSoal}}" data-acak-pilihan="{{$u.AcakPilihan}}"
+                                    data-batas="{{$u.BatasPelanggaran}}" data-token="{{if $u.TokenUjian}}{{$u.TokenUjian}}{{end}}">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <form action="/admin/ujian/hapus/{{$u.ID}}" method="POST" class="d-inline"
+                                  data-confirm="Hapus ujian &quot;{{$u.NamaUjian}}&quot;? Seluruh soal, sesi, jawaban, dan nilai ujian ini ikut terhapus.">
+                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Hapus"><i class="bi bi-trash"></i></button>
                             </form>
                         </td>
                     </tr>
                     {{else}}
-                    <tr>
-                        <td colspan="10" class="text-center py-4 text-muted">Belum ada data ujian.</td>
-                    </tr>
+                    <tr><td colspan="9" class="text-center py-4 text-muted">Belum ada data ujian.</td></tr>
                     {{end}}
                 </tbody>
             </table>
@@ -82,7 +84,115 @@
     </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<!-- Modal Tambah/Edit Ujian (satu form, action diganti saat edit) -->
+<div class="modal fade" id="modalUjian" tabindex="-1" aria-labelledby="modalUjianLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <form method="POST" action="/admin/ujian/tambah" class="modal-content" id="formUjian">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold" id="modalUjianLabel">Tambah Ujian</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row g-3">
+                    <div class="col-12">
+                        <label for="f_pengajaran" class="form-label fw-semibold">Pengajaran (mapel – kelas – guru)</label>
+                        <select class="form-select" id="f_pengajaran" name="pengajaran_id" required>
+                            <option value="">-- Pilih pengajaran --</option>
+                            {{range .PengajaranList}}
+                            <option value="{{.ID}}">{{.NamaMapel}} – {{.NamaKelas}} – {{.NamaGuru}}</option>
+                            {{end}}
+                        </select>
+                    </div>
+                    <div class="col-md-8">
+                        <label for="f_nama" class="form-label fw-semibold">Nama ujian</label>
+                        <input type="text" class="form-control" id="f_nama" name="nama_ujian" maxlength="150" required placeholder="Contoh: PTS Fiqih Semester Ganjil">
+                    </div>
+                    <div class="col-md-4">
+                        <label for="f_durasi" class="form-label fw-semibold">Durasi (menit)</label>
+                        <input type="number" class="form-control" id="f_durasi" name="durasi" min="1" max="600" value="60" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="f_mulai" class="form-label fw-semibold">Mulai</label>
+                        <input type="datetime-local" class="form-control" id="f_mulai" name="tanggal_mulai" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="f_selesai" class="form-label fw-semibold">Selesai</label>
+                        <input type="datetime-local" class="form-control" id="f_selesai" name="tanggal_selesai" required>
+                        <div class="form-text">Harus setelah waktu mulai. Timer siswa tidak melewati waktu ini.</div>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="f_batas" class="form-label fw-semibold">Batas pelanggaran</label>
+                        <input type="number" class="form-control" id="f_batas" name="batas_pelanggaran" min="1" max="50" value="3" required>
+                        <div class="form-text">Melewati batas → sesi siswa dikunci (keluar paksa).</div>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="f_token" class="form-label fw-semibold">Token ujian (opsional)</label>
+                        <input type="text" class="form-control" id="f_token" name="token_ujian" maxlength="50" autocomplete="off" placeholder="Kosongkan bila tanpa token">
+                    </div>
+                    <div class="col-12 d-flex flex-wrap gap-4">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" role="switch" id="f_acak_soal" name="acak_soal" value="1">
+                            <label class="form-check-label" for="f_acak_soal">Acak urutan soal</label>
+                        </div>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" role="switch" id="f_acak_pilihan" name="acak_pilihan" value="1">
+                            <label class="form-check-label" for="f_acak_pilihan">Acak urutan pilihan</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                <button type="submit" class="btn btn-primary"><i class="bi bi-save me-1"></i> Simpan</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{{template "app_scripts"}}
+<script>
+    (() => {
+        const modal = new bootstrap.Modal(document.getElementById('modalUjian'));
+        const form = document.getElementById('formUjian');
+        const judul = document.getElementById('modalUjianLabel');
+        const $ = (id) => document.getElementById(id);
+
+        const isi = (d) => {
+            $('f_pengajaran').value = d.pengajaran || '';
+            $('f_nama').value = d.nama || '';
+            $('f_durasi').value = d.durasi || 60;
+            $('f_mulai').value = d.mulai || '';
+            $('f_selesai').value = d.selesai || '';
+            $('f_batas').value = d.batas || 3;
+            $('f_token').value = d.token || '';
+            $('f_acak_soal').checked = d.acakSoal === 'true';
+            $('f_acak_pilihan').checked = d.acakPilihan === 'true';
+        };
+
+        const tambah = $('btnTambahUjian');
+        if (tambah) tambah.addEventListener('click', () => {
+            form.action = '/admin/ujian/tambah';
+            judul.textContent = 'Tambah Ujian';
+            isi({});
+            modal.show();
+        });
+
+        document.querySelectorAll('.btn-edit-ujian').forEach((btn) => {
+            btn.addEventListener('click', () => {
+                form.action = '/admin/ujian/edit/' + btn.dataset.id;
+                judul.textContent = 'Edit Ujian';
+                isi(btn.dataset);
+                modal.show();
+            });
+        });
+
+        form.addEventListener('submit', (e) => {
+            if ($('f_mulai').value && $('f_selesai').value && $('f_selesai').value <= $('f_mulai').value) {
+                e.preventDefault();
+                alert('Waktu selesai harus setelah waktu mulai.');
+            }
+        });
+    })();
+</script>
 </body>
 </html>
-

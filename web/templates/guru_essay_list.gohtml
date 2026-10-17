@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>{{template "app_head" "Penilaian Essay"}}</head>
+<body class="bg-light">
+{{template "guru_navbar" .}}
+
+<div class="container py-4">
+    <div class="mb-3">
+        <h3 class="page-title mb-1"><i class="bi bi-pencil-square text-success me-2"></i>Penilaian Essay</h3>
+        <p class="text-muted mb-0">Essay dijawab di lembar kertas. Nilai per soal (0 – poin maksimal) setelah siswa menyelesaikan ujian; nilai akhir dihitung ulang otomatis.</p>
+    </div>
+
+    {{template "app_flash" .}}
+
+    <div class="card border-0 shadow-sm">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Ujian</th>
+                        <th>Kelas</th>
+                        <th class="text-center">Soal essay</th>
+                        <th class="text-center">Siswa selesai</th>
+                        <th style="min-width:180px">Progres koreksi</th>
+                        <th class="text-end">Aksi</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{range .UjianList}}
+                    <tr {{if eq .JumlahEssay 0}}class="text-muted"{{end}}>
+                        <td><div class="fw-semibold">{{.NamaUjian}}</div><div class="small text-muted">{{.NamaMapel}}</div></td>
+                        <td><span class="badge bg-secondary">{{.NamaKelas}}</span></td>
+                        <td class="text-center">{{.JumlahEssay}}</td>
+                        <td class="text-center">{{.Selesai}}</td>
+                        <td>
+                            {{if eq .JumlahEssay 0}}<span class="small">Tidak ada soal essay</span>
+                            {{else if eq .Selesai 0}}<span class="small">Belum ada siswa selesai</span>
+                            {{else}}
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="progress flex-grow-1" style="height:12px">
+                                    <div class="progress-bar bg-success" style="width: {{persen (sub .Selesai .MenungguEssay) .Selesai}}%"></div>
+                                </div>
+                                <span class="small text-nowrap">{{sub .Selesai .MenungguEssay}}/{{.Selesai}}</span>
+                            </div>
+                            {{end}}
+                        </td>
+                        <td class="text-end">
+                            {{if gt .JumlahEssay 0}}
+                            <a href="/guru/essay/{{.ID}}" class="btn btn-sm {{if gt .MenungguEssay 0}}btn-warning{{else}}btn-outline-success{{end}}">
+                                <i class="bi bi-pencil-square"></i> {{if gt .MenungguEssay 0}}Nilai ({{.MenungguEssay}}){{else}}Lihat{{end}}
+                            </a>
+                            {{end}}
+                        </td>
+                    </tr>
+                    {{else}}
+                    <tr><td colspan="6" class="text-center py-5 text-muted">Belum ada ujian pada pengajaran Anda.</td></tr>
+                    {{end}}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{{template "app_scripts"}}
+</body>
+</html>

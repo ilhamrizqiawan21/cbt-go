@@ -12,8 +12,10 @@ import (
 	"cbt-go/internal/penilaian"
 )
 
-// TutupSesiKadaluarsa memeriksa dan memfinalisasi seluruh sesi ujian berstatus 'sedang_ujian'
+// TutupSesiKadaluarsa memeriksa dan memfinalisasi seluruh sesi ujian berstatus 'sedang_ujian' atau 'keluar_paksa'
 // yang waktu pengerjaannya telah melewati batas_waktu ditambah masa toleransi grace period (D-009).
+// Sesi keluar_paksa yang tidak dibuka kunci sampai waktunya habis ikut dinilai dengan jawaban
+// yang sudah tersinkron, agar siswa tetap memiliki nilai.
 func TutupSesiKadaluarsa(ctx context.Context, db *sql.DB, graceDetik int) ([]*penilaian.Hasil, error) {
 	if graceDetik <= 0 {
 		graceDetik = DefaultGraceDetik
@@ -22,7 +24,7 @@ func TutupSesiKadaluarsa(ctx context.Context, db *sql.DB, graceDetik int) ([]*pe
 	rows, err := db.QueryContext(ctx, `
 		SELECT siswa_id, ujian_id
 		FROM sesi_ujian
-		WHERE status = 'sedang_ujian'
+		WHERE status IN ('sedang_ujian', 'keluar_paksa')
 		  AND batas_waktu IS NOT NULL
 		  AND NOW() > DATE_ADD(batas_waktu, INTERVAL ? SECOND)
 	`, graceDetik)

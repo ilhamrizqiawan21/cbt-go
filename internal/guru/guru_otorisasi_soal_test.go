@@ -257,7 +257,8 @@ func TestGuruOtorisasiSoal(t *testing.T) {
 	// 5. Guru 2 mencoba edit Soal 101 (milik Guru 1) via POST -> Ditolak 403 Forbidden
 	bodyEdit := bytes.NewBufferString(`{
 		"tipe_soal": "pg",
-		"teks_soal": "Percobaan edit oleh Guru 2"
+		"teks_soal": "Percobaan edit oleh Guru 2",
+		"pilihan_a": "x", "pilihan_b": "y", "jawaban_benar": "A"
 	}`)
 	reqEdit := httptest.NewRequest(http.MethodPost, "/guru/soal/edit/101", bodyEdit)
 	reqEdit.Header.Set("Content-Type", "application/json")
@@ -352,7 +353,8 @@ func TestAdminSoalAccess(t *testing.T) {
 		"ujian_id": 10,
 		"tipe_soal": "pg",
 		"teks_soal": "Soal dibuat admin",
-		"poin": 2
+		"poin": 2,
+		"pilihan_a": "x", "pilihan_b": "y", "jawaban_benar": "B"
 	}`)
 	reqTambah := httptest.NewRequest(http.MethodPost, "/admin/soal/tambah", bodyTambah)
 	reqTambah.Header.Set("Content-Type", "application/json")

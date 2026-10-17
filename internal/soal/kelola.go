@@ -278,6 +278,9 @@ func TambahSoal(ctx context.Context, db *sql.DB, s SoalKelola) (int, error) {
 
 	s.TipeSoal = tipe
 	s.Poin = DefaultPoin(tipe, s.Poin)
+	if err := ValidasiDanNormalisasi(&s); err != nil {
+		return 0, err
+	}
 
 	res, err := db.ExecContext(ctx, `
 		INSERT INTO soal (
@@ -315,6 +318,9 @@ func EditSoal(ctx context.Context, db *sql.DB, s SoalKelola) error {
 
 	s.TipeSoal = tipe
 	s.Poin = DefaultPoin(tipe, s.Poin)
+	if err := ValidasiDanNormalisasi(&s); err != nil {
+		return err
+	}
 
 	res, err := db.ExecContext(ctx, `
 		UPDATE soal

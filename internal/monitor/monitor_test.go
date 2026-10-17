@@ -152,7 +152,7 @@ func (c *mockConn) Query(query string, args []driver.Value) (driver.Rows, error)
 func (c *mockConn) QueryContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Rows, error) {
 	c.d.queryCount++
 
-	if strings.Contains(query, "FROM ujian") {
+	if strings.Contains(query, "FROM ujian") && !strings.Contains(query, "soal_dijawab") {
 		// Kueri 1: info ujian
 		return &sliceRows{
 			columns: []string{"nama_ujian", "total_soal"},
@@ -162,7 +162,7 @@ func (c *mockConn) QueryContext(ctx context.Context, query string, args []driver
 		}, nil
 	}
 
-	if strings.Contains(query, "FROM siswa") {
+	if strings.Contains(query, "soal_dijawab") {
 		// Kueri 2: daftar 500 siswa sekaligus dalam satu kueri agregasi
 		now := time.Now().UTC()
 		var rows [][]driver.Value
@@ -325,14 +325,17 @@ func TestSnapshot_TanpaNPlusOneQuery(t *testing.T) {
 	ujianID := int(ujianID64)
 
 	// Masukkan 3 soal
+	var soalIDs []int64
 	for i := 1; i <= 3; i++ {
-		_, err = db.ExecContext(ctx, `
-			INSERT INTO soal (ujian_id, tipe_soal, teks_soal, poin, pilihan_a_d, jawaban_benar)
-			VALUES (?, 'pg', 'Soal Test', 2, '["A","B","C","D"]', 'A')
+		rSoal, err := db.ExecContext(ctx, `
+			INSERT INTO soal (ujian_id, tipe_soal, teks_soal, poin, pilihan_a, pilihan_b, pilihan_c, pilihan_d, jawaban_benar)
+			VALUES (?, 'pg', 'Soal Test', 2, 'A1', 'B1', 'C1', 'D1', 'A')
 		`, ujianID)
 		if err != nil {
 			t.Fatalf("insert soal: %v", err)
 		}
+		id, _ := rSoal.LastInsertId()
+		soalIDs = append(soalIDs, id)
 	}
 
 	// 3. Masukkan 5 siswa di kelas VII-MONITOR dengan status berbeda
@@ -401,21 +404,41 @@ func TestSnapshot_TanpaNPlusOneQuery(t *testing.T) {
 		if s.statusSesi != "" {
 			ls := now.Add(-time.Duration(s.lastSeenDeltaSec) * time.Second)
 			bw := now.Add(40 * time.Minute)
-			rSesi, err := db.ExecContext(ctx, `
-				INSERT INTO sesi_ujian (siswa_id, ujian_id, status, device_type, last_seen, batas_waktu, jumlah_pelanggaran)
-				VALUES (?, ?, ?, 'laptop', ?, ?, ?)
-			`, sID, ujianID, s.statusSesi, ls, bw, s.pelanggaran)
+			_, err := db.ExecContext(ctx, `
+				INSERT INTO sesi_ujian (siswa_id, ujian_id, status, device_type, last_seen, batas_waktu)
+				VALUES (?, ?, ?, 'laptop', ?, ?)
+			`, sID, ujianID, s.statusSesi, ls, bw)
 			if err != nil {
 				t.Fatalf("insert sesi_ujian: %v", err)
 			}
-			sesiID, _ := rSesi.LastInsertId()
+
+			// Pelanggaran disimpan di log_kecurangan (tidak ada kolom hitungan di sesi_ujian).
+			// Satu pelanggaran sebelum penanda buka_kunci tidak boleh ikut terhitung.
+			if s.pelanggaran > 0 {
+				_, err = db.ExecContext(ctx, `
+					INSERT INTO log_kecurangan (siswa_id, ujian_id, jenis_kecurangan, device_type)
+					VALUES (?, ?, 'pindah_tab', 'laptop'), (?, ?, 'buka_kunci', 'laptop')
+				`, sID, ujianID, sID, ujianID)
+				if err != nil {
+					t.Fatalf("insert log lama: %v", err)
+				}
+			}
+			for j := 0; j < s.pelanggaran; j++ {
+				_, err = db.ExecContext(ctx, `
+					INSERT INTO log_kecurangan (siswa_id, ujian_id, jenis_kecurangan, device_type)
+					VALUES (?, ?, 'pindah_tab', 'laptop')
+				`, sID, ujianID)
+				if err != nil {
+					t.Fatalf("insert log_kecurangan: %v", err)
+				}
+			}
 
 			// Masukkan jawaban
-			for j := 1; j <= s.jawabanCount; j++ {
+			for j := 0; j < s.jawabanCount; j++ {
 				_, err = db.ExecContext(ctx, `
-					INSERT INTO jawaban_siswa (sesi_id, soal_id, jawaban_dipilih, client_ts)
-					VALUES (?, ?, 'A', NOW())
-				`, sesiID, j)
+					INSERT INTO jawaban_siswa (siswa_id, ujian_id, soal_id, jawaban_dipilih, client_ts)
+					VALUES (?, ?, ?, 'A', NOW())
+				`, sID, ujianID, soalIDs[j])
 				if err != nil {
 					t.Fatalf("insert jawaban: %v", err)
 				}
@@ -455,6 +478,22 @@ func TestSnapshot_TanpaNPlusOneQuery(t *testing.T) {
 
 	if len(snap.Siswa) != 5 {
 		t.Fatalf("jumlah siswa dalam snapshot = %d, want 5", len(snap.Siswa))
+	}
+	byNIS := map[string]monitor.SiswaMonitor{}
+	for _, sm := range snap.Siswa {
+		byNIS[sm.NIS] = sm
+	}
+	for _, want := range siswaList {
+		got := byNIS[want.nis]
+		if got.Status != want.expectStatusMon {
+			t.Errorf("%s: status = %q, want %q", want.nis, got.Status, want.expectStatusMon)
+		}
+		if got.JumlahPelanggaran != want.pelanggaran {
+			t.Errorf("%s: pelanggaran = %d, want %d", want.nis, got.JumlahPelanggaran, want.pelanggaran)
+		}
+		if got.SoalDijawab != want.jawabanCount {
+			t.Errorf("%s: soal dijawab = %d, want %d", want.nis, got.SoalDijawab, want.jawabanCount)
+		}
 	}
 
 	// Uji siaran update saat ada listener
@@ -640,4 +679,63 @@ func TestEndpointGetMonitor_UnitMock(t *testing.T) {
 	if snap.Ringkasan.TotalSiswa != 5 {
 		t.Errorf("snap.Ringkasan.TotalSiswa = %d, want 5", snap.Ringkasan.TotalSiswa)
 	}
+}
+
+// Padanan halaman_monitor.test.js: kelas besar (410 siswa, target sekolah) termuat utuh dalam
+// satu snapshot dan cukup cepat untuk disiarkan setiap ada event.
+func TestSnapshot_410Siswa_DB(t *testing.T) {
+	db := testdb.Open(t)
+	testdb.Reset(t, db)
+	ctx := context.Background()
+
+	exec := func(q string, args ...any) int64 {
+		t.Helper()
+		res, err := db.ExecContext(ctx, q, args...)
+		if err != nil {
+			t.Fatalf("exec %q: %v", q, err)
+		}
+		id, _ := res.LastInsertId()
+		return id
+	}
+	guru := exec("INSERT INTO guru (nip, nama, username, password) VALUES ('1', 'G', 'g410', 'x')")
+	kelas := exec("INSERT INTO kelas (nama_kelas) VALUES ('VII-BESAR')")
+	mapel := exec("INSERT INTO mata_pelajaran (nama_mapel) VALUES ('M')")
+	p := exec("INSERT INTO pengajaran (guru_id, mapel_id, kelas_id) VALUES (?, ?, ?)", guru, mapel, kelas)
+	ujian := exec("INSERT INTO ujian (pengajaran_id, nama_ujian, durasi, tanggal_mulai, tanggal_selesai) VALUES (?, 'U410', 60, NOW(), NOW() + INTERVAL 1 HOUR)", p)
+	exec("INSERT INTO soal (ujian_id, tipe_soal, teks_soal, poin, pilihan_a, pilihan_b, jawaban_benar) VALUES (?, 'pg', 's', 2, 'a', 'b', 'A')", ujian)
+
+	// Satu INSERT multi-baris agar setup cepat.
+	var sb strings.Builder
+	args := make([]any, 0, 410*2)
+	sb.WriteString("INSERT INTO siswa (nis, nama, kelas, pin_ujian) VALUES ")
+	for i := 1; i <= 410; i++ {
+		if i > 1 {
+			sb.WriteString(",")
+		}
+		sb.WriteString("(?, ?, 'VII-BESAR', 'x')")
+		args = append(args, fmt.Sprintf("B%04d", i), fmt.Sprintf("Siswa %d", i))
+	}
+	if _, err := db.ExecContext(ctx, sb.String(), args...); err != nil {
+		t.Fatalf("insert 410 siswa: %v", err)
+	}
+	exec("INSERT INTO sesi_ujian (siswa_id, ujian_id, status, last_seen, batas_waktu) SELECT id, ?, 'sedang_ujian', NOW(), NOW() + INTERVAL 1 HOUR FROM siswa WHERE nis <= 'B0200'", ujian)
+
+	svc := monitor.NewService(db, nil)
+	mulai := time.Now()
+	snap, err := svc.Snapshot(ctx, int(ujian))
+	lama := time.Since(mulai)
+	if err != nil {
+		t.Fatalf("Snapshot: %v", err)
+	}
+	if len(snap.Siswa) != 410 || snap.Ringkasan.TotalSiswa != 410 {
+		t.Fatalf("snapshot memuat %d siswa (ringkasan %d), want 410", len(snap.Siswa), snap.Ringkasan.TotalSiswa)
+	}
+	if snap.Ringkasan.Online != 200 || snap.Ringkasan.BelumMasuk != 210 {
+		t.Errorf("ringkasan = %+v, want online 200 & belum masuk 210", snap.Ringkasan)
+	}
+	// Batas longgar (mesin uji lambat); query tunggal biasanya < 50 ms.
+	if lama > 2*time.Second {
+		t.Errorf("snapshot 410 siswa butuh %v, terlalu lambat", lama)
+	}
+	t.Logf("snapshot 410 siswa: %v", lama)
 }

@@ -3,6 +3,7 @@ package sesi_test
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"testing"
 	"time"
 
@@ -189,4 +190,48 @@ func TestAutoFinalizeJob_TickerDanCancel(t *testing.T) {
 
 	// Stop job secara tertib
 	job.Stop()
+}
+
+// Sesi terkunci (keluar_paksa): siswa tidak bisa mengumpulkan sendiri, admin/job tetap bisa menilai.
+func TestSesiTerkunci_FinalisasiDanPenutupan(t *testing.T) {
+	db := testdb.Open(t)
+	siswa1ID, siswa2ID, ujianID, _ := setupAutoFinalizeData(t, db)
+	ctx := context.Background()
+
+	for _, id := range []int{siswa1ID, siswa2ID} {
+		if _, err := sesi.MulaiAtauLanjut(ctx, db, id, ujianID, "hp"); err != nil {
+			t.Fatalf("mulai siswa %d: %v", id, err)
+		}
+	}
+	_, _ = db.ExecContext(ctx, "UPDATE sesi_ujian SET status = 'keluar_paksa' WHERE ujian_id = ?", ujianID)
+
+	if _, err := sesi.FinalizeOlehSiswa(ctx, db, siswa1ID, ujianID); !errors.Is(err, sesi.ErrKeluarPaksa) {
+		t.Fatalf("FinalizeOlehSiswa terkunci: err = %v, want ErrKeluarPaksa", err)
+	}
+	var n int
+	_ = db.QueryRowContext(ctx, "SELECT COUNT(*) FROM nilai_ujian WHERE ujian_id = ?", ujianID).Scan(&n)
+	if n != 0 {
+		t.Fatalf("nilai_ujian terbentuk saat siswa terkunci mengumpulkan (%d)", n)
+	}
+
+	// Job penutupan: sesi terkunci yang waktunya habis tetap dinilai; yang belum habis tidak.
+	_, _ = db.ExecContext(ctx, "UPDATE sesi_ujian SET batas_waktu = NOW() - INTERVAL 10 MINUTE WHERE siswa_id = ? AND ujian_id = ?", siswa1ID, ujianID)
+	hasil, err := sesi.TutupSesiKadaluarsa(ctx, db, 120)
+	if err != nil {
+		t.Fatalf("TutupSesiKadaluarsa: %v", err)
+	}
+	if len(hasil) != 1 {
+		t.Fatalf("sesi terfinalisasi = %d, want 1 (hanya terkunci yang kedaluwarsa)", len(hasil))
+	}
+	var s1, s2 string
+	_ = db.QueryRowContext(ctx, "SELECT status FROM sesi_ujian WHERE siswa_id = ? AND ujian_id = ?", siswa1ID, ujianID).Scan(&s1)
+	_ = db.QueryRowContext(ctx, "SELECT status FROM sesi_ujian WHERE siswa_id = ? AND ujian_id = ?", siswa2ID, ujianID).Scan(&s2)
+	if s1 != "selesai" || s2 != "keluar_paksa" {
+		t.Errorf("status = %q/%q, want selesai/keluar_paksa", s1, s2)
+	}
+
+	// Paksa selesai oleh admin (Finalize) tetap boleh pada sesi terkunci.
+	if _, err := sesi.Finalize(ctx, db, siswa2ID, ujianID); err != nil {
+		t.Errorf("Finalize admin pada sesi terkunci: %v", err)
+	}
 }

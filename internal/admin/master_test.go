@@ -106,7 +106,10 @@ func TestMasterData_Kelas(t *testing.T) {
 		t.Errorf("tambah kelas duplikat = %v, want %v", err, admin.ErrDuplicateKelas)
 	}
 
-	// 3. Edit kelas
+	// 3. Edit kelas: siswa di kelas lama ikut pindah nama (siswa.kelas menyimpan nama, G-016)
+	if _, err := db.ExecContext(ctx, "INSERT INTO siswa (nis, nama, kelas, pin_ujian) VALUES ('K001', 'Siswa A', 'VII-A', 'x'), ('K002', 'Siswa B', 'VII-B', 'x')"); err != nil {
+		t.Fatalf("insert siswa: %v", err)
+	}
 	err = admin.EditKelas(ctx, db, id, "VII-A Unggulan")
 	if err != nil {
 		t.Fatalf("EditKelas gagal: %v", err)
@@ -117,6 +120,15 @@ func TestMasterData_Kelas(t *testing.T) {
 	}
 	if k.NamaKelas != "VII-A Unggulan" {
 		t.Errorf("nama kelas = %q, want 'VII-A Unggulan'", k.NamaKelas)
+	}
+	var kelasA, kelasB string
+	_ = db.QueryRowContext(ctx, "SELECT kelas FROM siswa WHERE nis = 'K001'").Scan(&kelasA)
+	_ = db.QueryRowContext(ctx, "SELECT kelas FROM siswa WHERE nis = 'K002'").Scan(&kelasB)
+	if kelasA != "VII-A Unggulan" || kelasB != "VII-B" {
+		t.Errorf("kelas siswa setelah rename = %q/%q, want 'VII-A Unggulan'/'VII-B'", kelasA, kelasB)
+	}
+	if err := admin.EditKelas(ctx, db, 999999, "X"); err != admin.ErrNotFound {
+		t.Errorf("edit kelas tidak ada = %v, want ErrNotFound", err)
 	}
 
 	// 4. Hapus kelas

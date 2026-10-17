@@ -14,6 +14,7 @@ import (
 // HasilUjianRow merepresentasikan baris rekapitulasi nilai ujian seorang siswa.
 type HasilUjianRow struct {
 	ID            int       `json:"id"`
+	SiswaID       int       `json:"siswa_id"`
 	NIS           string    `json:"nis"`
 	NamaSiswa     string    `json:"nama_siswa"`
 	Kelas         string    `json:"kelas"`
@@ -41,10 +42,10 @@ func GetHasilByUjian(ctx context.Context, db *sql.DB, ujianID int, kelasFilter s
 	}
 
 	query := `
-		SELECT nu.id, s.nis, s.nama, s.kelas,
+		SELECT nu.id, s.nis, s.nama, COALESCE(s.kelas, ''),
 		       nu.poin_otomatis, nu.poin_essay, nu.poin_maks, nu.nilai,
 		       nu.benar, nu.salah, nu.kosong, nu.status_koreksi, nu.selesai_pada,
-		       u.id, u.nama_ujian, m.nama_mapel, g.nama, k.nama_kelas
+		       u.id, u.nama_ujian, m.nama_mapel, g.nama, k.nama_kelas, s.id
 		FROM nilai_ujian nu
 		JOIN siswa s ON nu.siswa_id = s.id
 		JOIN ujian u ON nu.ujian_id = u.id
@@ -77,7 +78,7 @@ func GetHasilByUjian(ctx context.Context, db *sql.DB, ujianID int, kelasFilter s
 			&h.ID, &h.NIS, &h.NamaSiswa, &h.Kelas,
 			&h.PoinOtomatis, &h.PoinEssay, &h.PoinMaks, &h.NilaiAkhir,
 			&h.Benar, &h.Salah, &h.Kosong, &h.StatusKoreksi, &selesai,
-			&h.UjianID, &h.NamaUjian, &h.NamaMapel, &h.NamaGuru, &h.NamaKelas,
+			&h.UjianID, &h.NamaUjian, &h.NamaMapel, &h.NamaGuru, &h.NamaKelas, &h.SiswaID,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("scan hasil ujian: %w", err)

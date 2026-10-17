@@ -1,37 +1,204 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-    <meta charset="UTF-8">
-    <title>Penilaian Essay — CBT Guru</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    {{template "app_head" "Koreksi Essay"}}
+    <style>
+        @font-face { font-family: 'Amiri'; src: url('/fonts/amiri-v30-arabic-regular.woff2') format('woff2'); font-display: swap; }
+        .skor-input { width: 5.5rem; }
+        tr.tersimpan { background: var(--bs-success-bg-subtle); transition: background .6s; }
+    </style>
 </head>
 <body class="bg-light">
-<div class="container my-4">
-    <h2>Penilaian Essay Siswa</h2>
-    {{if .Error}}<div class="alert alert-danger">{{.Error}}</div>{{end}}
-    {{if .Success}}<div class="alert alert-success">{{.Success}}</div>{{end}}
-    {{if .UjianID}}
-    <div class="mb-3">
-        <a href="/guru/essay/{{.UjianID}}/export" class="btn btn-outline-success btn-sm me-2">Unduh Template Excel</a>
+{{template "guru_navbar" .}}
+
+<div class="container-fluid px-lg-4 py-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+        <div>
+            <a href="/guru/essay" class="small text-decoration-none"><i class="bi bi-arrow-left"></i> Daftar ujian</a>
+            <h3 class="page-title mb-1">{{.Ujian.NamaUjian}}</h3>
+            <p class="text-muted mb-0">{{.Ujian.NamaMapel}} · <span class="badge bg-secondary">{{.Ujian.NamaKelas}}</span> ·
+                {{.JumlahSiswa}} siswa selesai · <strong id="jumlahBelum">{{.BelumDinilai}}</strong> jawaban belum dinilai</p>
+        </div>
+        <div class="page-actions d-flex flex-wrap gap-2">
+            <a href="/guru/essay/{{.UjianID}}/export" class="btn btn-outline-success"><i class="bi bi-file-earmark-excel me-1"></i> Unduh lembar nilai</a>
+            <button type="button" class="btn btn-success" data-bs-toggle="collapse" data-bs-target="#panelImpor"><i class="bi bi-upload me-1"></i> Impor nilai</button>
+        </div>
+    </div>
+
+    {{template "app_flash" .}}
+
+    <div class="collapse mb-3" id="panelImpor">
+        <form action="/guru/essay/{{.UjianID}}/import" method="POST" enctype="multipart/form-data" class="card card-body border-0 shadow-sm">
+            <div class="row g-2 align-items-center">
+                <div class="col-md"><input type="file" name="file" class="form-control" accept=".xlsx" required aria-label="Berkas lembar nilai"></div>
+                <div class="col-md-auto"><button type="submit" class="btn btn-success w-100">Unggah &amp; simpan</button></div>
+            </div>
+            <div class="form-text">Gunakan berkas dari "Unduh lembar nilai", isi kolom Skor, lalu unggah (.xlsx, maks. 2 MB).</div>
+        </form>
+    </div>
+
+    {{if .SoalList}}
+    <div class="row g-2 mb-3">
+        {{range .SoalList}}
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body py-2">
+                    <div class="small text-muted">Soal essay {{.Nomor}} · maks. {{.PoinMaks}} poin</div>
+                    <div dir="auto" style="white-space:pre-line">{{.TeksSoal}}</div>
+                </div>
+            </div>
+        </div>
+        {{end}}
     </div>
     {{end}}
-    <table class="table">
-        <thead><tr><th>NIS</th><th>Nama Siswa</th><th>Soal</th><th>Jawaban Siswa</th><th>Skor</th></tr></thead>
-        <tbody>
-            {{range .JawabanList}}
-            <tr>
-                <td>{{.NIS}}</td>
-                <td>{{.NamaSiswa}}</td>
-                <td>{{.TeksSoal}}</td>
-                <td>{{.JawabanSiswa}}</td>
-                <td>{{if .Skor}}{{.Skor}}{{else}}<em>Belum dinilai</em>{{end}}</td>
-            </tr>
-            {{else}}
-            <tr><td colspan="5">Belum ada jawaban essay.</td></tr>
-            {{end}}
-        </tbody>
-    </table>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-body py-2 border-bottom">
+            <div class="row g-2">
+                <div class="col-md-4"><input type="search" id="cari" class="form-control form-control-sm" placeholder="Cari NIS atau nama…" aria-label="Cari siswa"></div>
+                <div class="col-md-3">
+                    <select id="filterSoal" class="form-select form-select-sm" aria-label="Filter soal">
+                        <option value="">Semua soal</option>
+                        {{range .SoalList}}<option value="{{.ID}}">Soal essay {{.Nomor}}</option>{{end}}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <select id="filterStatus" class="form-select form-select-sm" aria-label="Filter status">
+                        <option value="">Semua</option>
+                        <option value="belum" selected>Belum dinilai</option>
+                        <option value="sudah">Sudah dinilai</option>
+                    </select>
+                </div>
+                <div class="col-md-2 text-md-end small text-muted" id="jumlahTampil"></div>
+            </div>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="text-center" style="width:50px">No</th>
+                        <th>NIS</th>
+                        <th>Nama</th>
+                        <th>Kelas</th>
+                        <th>Soal</th>
+                        <th style="width:260px">Skor</th>
+                        <th class="small text-muted">Nilai akhir</th>
+                    </tr>
+                </thead>
+                <tbody id="tabelEssay">
+                    {{range .JawabanList}}
+                    <tr data-siswa="{{.SiswaID}}" data-soal="{{.SoalID}}" data-cari="{{.NIS}} {{.NamaSiswa}}" data-status="{{if .Skor}}sudah{{else}}belum{{end}}">
+                        <td class="text-center text-muted col-no"></td>
+                        <td class="font-monospace">{{.NIS}}</td>
+                        <td class="fw-semibold">{{.NamaSiswa}}</td>
+                        <td>{{.Kelas}}</td>
+                        <td class="small label-soal"></td>
+                        <td>
+                            <div class="input-group input-group-sm">
+                                <input type="number" class="form-control skor-input" min="0" max="{{.PoinMaks}}" step="1" value="{{if .Skor}}{{.Skor}}{{end}}" aria-label="Skor {{.NamaSiswa}}">
+                                <span class="input-group-text">/ {{.PoinMaks}}</span>
+                                <button type="button" class="btn btn-success btn-simpan"><i class="bi bi-check-lg"></i> Simpan</button>
+                            </div>
+                        </td>
+                        <td class="small text-muted hasil"></td>
+                    </tr>
+                    {{else}}
+                    <tr><td colspan="7" class="text-center py-5 text-muted">
+                        {{if .SoalList}}Belum ada siswa yang menyelesaikan ujian ini.{{else}}Ujian ini tidak memiliki soal essay atau belum ada siswa yang selesai.{{end}}
+                    </td></tr>
+                    {{end}}
+                </tbody>
+            </table>
+        </div>
+        <div class="card-footer bg-white small text-muted">Tekan <kbd>Enter</kbd> di kolom skor untuk menyimpan dan pindah ke baris berikutnya.</div>
+    </div>
 </div>
+
+{{template "app_scripts"}}
+<script>
+(() => {
+    const UJIAN_ID = {{.UjianID}};
+    const $ = (id) => document.getElementById(id);
+    const nomorSoal = {};
+    {{range .SoalList}}nomorSoal[{{.ID}}] = {{.Nomor}};
+    {{end}}
+    const baris = [...document.querySelectorAll('#tabelEssay tr[data-siswa]')];
+    baris.forEach((tr) => { tr.querySelector('.label-soal').textContent = 'Soal ' + (nomorSoal[tr.dataset.soal] || '?'); });
+
+    const terapkanFilter = () => {
+        const q = $('cari').value.toLowerCase().trim();
+        const soal = $('filterSoal').value;
+        const status = $('filterStatus').value;
+        let n = 0;
+        baris.forEach((tr) => {
+            const cocok = (!q || tr.dataset.cari.toLowerCase().includes(q)) && (!soal || tr.dataset.soal === soal) && (!status || tr.dataset.status === status);
+            tr.style.display = cocok ? '' : 'none';
+            if (cocok) tr.querySelector('.col-no').textContent = ++n;
+        });
+        $('jumlahTampil').textContent = `${n} dari ${baris.length}`;
+    };
+    ['cari', 'filterSoal', 'filterStatus'].forEach((id) => $(id).addEventListener('input', terapkanFilter));
+
+    const hitungBelum = () => { $('jumlahBelum').textContent = baris.filter((tr) => tr.dataset.status === 'belum').length; };
+
+    const simpan = async (tr) => {
+        const input = tr.querySelector('.skor-input');
+        const tombol = tr.querySelector('.btn-simpan');
+        const hasil = tr.querySelector('.hasil');
+        const maks = parseInt(input.max, 10);
+        const skor = parseInt(input.value, 10);
+        if (input.value === '' || isNaN(skor) || skor < 0 || skor > maks) {
+            input.classList.add('is-invalid');
+            hasil.textContent = `Skor 0–${maks}`;
+            return false;
+        }
+        input.classList.remove('is-invalid');
+        tombol.disabled = true;
+        try {
+            const res = await fetch('/guru/essay/' + UJIAN_ID, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                body: JSON.stringify({ siswa_id: parseInt(tr.dataset.siswa, 10), soal_id: parseInt(tr.dataset.soal, 10), skor }),
+            });
+            // Sesi login habis: middleware mengarahkan ke halaman login (respons HTML).
+            if (res.redirected || !(res.headers.get('Content-Type') || '').includes('json')) {
+                window.location.href = '/login-guru';
+                return false;
+            }
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Gagal menyimpan');
+            tr.dataset.status = 'sudah';
+            hasil.textContent = `${data.nilai_akhir} · ${data.status_koreksi === 'selesai' ? 'lengkap' : 'menunggu essay lain'}`;
+            tr.classList.add('tersimpan');
+            setTimeout(() => tr.classList.remove('tersimpan'), 1200);
+            hitungBelum();
+            return true;
+        } catch (err) {
+            hasil.textContent = err.message;
+            hasil.classList.add('text-danger');
+            return false;
+        } finally {
+            tombol.disabled = false;
+        }
+    };
+
+    $('tabelEssay').addEventListener('click', (e) => {
+        const b = e.target.closest('.btn-simpan');
+        if (b) simpan(b.closest('tr'));
+    });
+    $('tabelEssay').addEventListener('keydown', async (e) => {
+        if (e.key !== 'Enter' || !e.target.classList.contains('skor-input')) return;
+        e.preventDefault();
+        const tr = e.target.closest('tr');
+        if (!(await simpan(tr))) return;
+        // Fokus ke baris terlihat berikutnya agar penilaian cepat dengan keyboard.
+        const terlihat = baris.filter((x) => x.style.display !== 'none');
+        const berikut = terlihat[terlihat.indexOf(tr) + 1];
+        if (berikut) berikut.querySelector('.skor-input').focus();
+    });
+
+    terapkanFilter();
+})();
+</script>
 </body>
 </html>
-

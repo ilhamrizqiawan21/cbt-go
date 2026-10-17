@@ -1,26 +1,13 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-    <meta charset="UTF-8">
-    <title>Kelola Soal — CBT Guru</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    {{template "app_head" "Kelola Soal"}}
+    {{template "soal_bank_style"}}
 </head>
 <body class="bg-light">
-<div class="container my-4">
-    <h2>Kelola Soal Ujian (Guru)</h2>
-    {{if .Error}}<div class="alert alert-danger">{{.Error}}</div>{{end}}
-    {{if .Success}}<div class="alert alert-success">{{.Success}}</div>{{end}}
-    <table class="table">
-        <thead><tr><th>#</th><th>Nama Ujian</th><th>Mata Pelajaran</th><th>Kelas</th></tr></thead>
-        <tbody>
-            {{range .UjianList}}
-            <tr><td>{{.ID}}</td><td>{{.NamaUjian}}</td><td>{{.NamaMapel}}</td><td>{{.NamaKelas}}</td></tr>
-            {{else}}
-            <tr><td colspan="4">Belum ada ujian yang diampu.</td></tr>
-            {{end}}
-        </tbody>
-    </table>
-</div>
+{{template "guru_navbar" .}}
+{{template "soal_bank" .}}
+{{template "app_scripts"}}
+{{template "soal_bank_script"}}
 </body>
 </html>
-

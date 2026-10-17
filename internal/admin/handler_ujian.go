@@ -9,8 +9,6 @@ import (
 	"strings"
 
 	"github.com/alexedwards/scs/v2"
-
-	"cbt-go/web"
 )
 
 // RegisterAdminUjianRoutes mendaftarkan seluruh rute CRUD ujian admin dan endpoint API pendukungnya.
@@ -30,7 +28,7 @@ func UjianListHandler(db *sql.DB, sm *scs.SessionManager) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		list, err := ListUjian(r.Context(), db)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			serverError(w, r, err)
 			return
 		}
 
@@ -39,16 +37,21 @@ func UjianListHandler(db *sql.DB, sm *scs.SessionManager) http.HandlerFunc {
 			return
 		}
 
-		pengajaranList, _ := ListPengajaran(r.Context(), db)
+		pengajaranList, err := ListPengajaran(r.Context(), db)
+		if err != nil {
+			serverError(w, r, err)
+			return
+		}
 		flashError := getFlash(sm, r, "error")
 		flashSuccess := getFlash(sm, r, "success")
 
-		_ = web.Render(w, "admin_ujian.gohtml", map[string]any{
+		render(w, r, "admin_ujian.gohtml", map[string]any{
 			"UjianList":      list,
 			"PengajaranList": pengajaranList,
 			"Error":          flashError,
 			"Success":        flashSuccess,
 			"Username":       sm.GetString(r.Context(), "username"),
+			"ActiveMenu":     "ujian",
 		})
 	}
 }
@@ -69,7 +72,7 @@ func UjianGetHandler(db *sql.DB, sm *scs.SessionManager) http.HandlerFunc {
 				http.Error(w, "Ujian tidak ditemukan", http.StatusNotFound)
 				return
 			}
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			serverError(w, r, err)
 			return
 		}
 
@@ -238,7 +241,7 @@ func UjianHapusHandler(db *sql.DB, sm *scs.SessionManager) http.HandlerFunc {
 		err = HapusUjian(r.Context(), db, id)
 		if err != nil {
 			if wantsJSON(r) {
-				writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+				serverError(w, r, err)
 				return
 			}
 			setFlash(sm, r, "error", err.Error())
@@ -267,7 +270,7 @@ func UjianByMapelAPIHandler(db *sql.DB) http.HandlerFunc {
 
 		list, err := ListUjianByMapel(r.Context(), db, mapelID)
 		if err != nil {
-			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+			serverError(w, r, err)
 			return
 		}
 

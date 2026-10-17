@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -42,7 +43,11 @@ func validateDBName(name string) error {
 func Open(t testing.TB) *sql.DB {
 	t.Helper()
 
-	_ = godotenv.Load() // abaikan jika .env tidak ada
+	// `go test` menjalankan tes dari direktori paket (mis. internal/admin), bukan root repo,
+	// sehingga .env dicari di root modul. Variabel yang sudah ada di environment tidak ditimpa.
+	if p := cariEnvRoot(); p != "" {
+		_ = godotenv.Load(p)
+	}
 
 	cfg, err := config.Load(os.Getenv)
 	if err != nil && !errors.Is(err, fs.ErrNotExist) {
@@ -144,5 +149,28 @@ func Reset(t testing.TB, pool *sql.DB) {
 		if _, err := conn.ExecContext(ctx, "TRUNCATE TABLE `"+tbl+"`"); err != nil {
 			t.Fatalf("testdb.Reset: gagal truncate tabel %s: %v", tbl, err)
 		}
+	}
+}
+
+// cariEnvRoot menelusuri direktori kerja ke atas sampai menemukan go.mod,
+// lalu mengembalikan path .env di sana bila ada. Kosong bila tidak ditemukan.
+func cariEnvRoot() string {
+	dir, err := os.Getwd()
+	if err != nil {
+		return ""
+	}
+	for {
+		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
+			p := filepath.Join(dir, ".env")
+			if _, err := os.Stat(p); err == nil {
+				return p
+			}
+			return ""
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return ""
+		}
+		dir = parent
 	}
 }

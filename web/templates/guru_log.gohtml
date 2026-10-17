@@ -1,37 +1,88 @@
 <!DOCTYPE html>
 <html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <title>Log Pelanggaran — CBT Guru</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-</head>
+<head>{{template "app_head" "Log Pelanggaran"}}</head>
 <body class="bg-light">
-<div class="container my-4">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h2>Log Pelanggaran Siswa (Guru)</h2>
+{{template "guru_navbar" .}}
+
+<div class="container-fluid px-lg-4 py-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+        <div>
+            <h3 class="page-title mb-1"><i class="bi bi-shield-exclamation text-danger me-2"></i>Log Pelanggaran</h3>
+            <p class="text-muted mb-0">Catatan pelanggaran siswa pada ujian Anda. Buka kunci dan reset dilakukan oleh admin/pengawas.</p>
+        </div>
         {{if .UjianID}}
-        <a href="/guru/log-kecurangan/export?ujian_id={{.UjianID}}" class="btn btn-outline-success btn-sm">Unduh Excel</a>
+        <div class="page-actions d-flex gap-2">
+            <a href="/guru/log-kecurangan/export?ujian_id={{.UjianID}}" class="btn btn-success"><i class="bi bi-file-earmark-excel me-1"></i> Ekspor Excel</a>
+        </div>
         {{end}}
     </div>
-    <table class="table">
-        <thead><tr><th>Waktu</th><th>NIS</th><th>Nama Siswa</th><th>Kelas</th><th>Ujian</th><th>Pelanggaran</th><th>Perangkat</th></tr></thead>
-        <tbody>
-            {{range .LogList}}
-            <tr>
-                <td>{{.Timestamp.Format "02/01/2006 15:04:05"}}</td>
-                <td>{{.NIS}}</td>
-                <td>{{.NamaSiswa}}</td>
-                <td>{{.Kelas}}</td>
-                <td>{{.NamaUjian}}</td>
-                <td><span class="badge bg-warning text-dark">{{.JenisKecurangan}}</span></td>
-                <td>{{.DeviceType}}</td>
-            </tr>
-            {{else}}
-            <tr><td colspan="7">Belum ada catatan pelanggaran.</td></tr>
-            {{end}}
-        </tbody>
-    </table>
+
+    {{template "app_flash" .}}
+
+    <form method="GET" action="/guru/log-kecurangan" class="card border-0 shadow-sm mb-3">
+        <div class="card-body py-2 row g-2 align-items-center">
+            <div class="col-md-5">
+                <select name="ujian_id" class="form-select form-select-sm" aria-label="Filter ujian" onchange="this.form.submit()">
+                    <option value="">Semua ujian saya</option>
+                    {{range .UjianList}}
+                    <option value="{{.ID}}" {{if eq .ID $.UjianID}}selected{{end}}>{{.NamaUjian}} — {{.NamaKelas}}</option>
+                    {{end}}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <select name="jenis" class="form-select form-select-sm" aria-label="Filter jenis" onchange="this.form.submit()">
+                    <option value="">Semua jenis</option>
+                    {{range $j := list "pindah_tab" "keluar_fullscreen" "copy_paste" "ambil_alih_sesi" "buka_kunci"}}
+                    <option value="{{$j}}" {{if eq $j $.Filter}}selected{{end}}>{{template "label_jenis" $j}}</option>
+                    {{end}}
+                </select>
+            </div>
+            <div class="col-md-4 text-md-end small text-muted">{{len .LogList}} catatan{{if not .UjianID}} · pilih ujian untuk ekspor Excel{{end}}</div>
+        </div>
+    </form>
+
+    <div class="card border-0 shadow-sm">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="text-center" style="width:50px">No</th>
+                        <th>Waktu</th>
+                        <th>Siswa</th>
+                        <th>Kelas</th>
+                        <th>Ujian</th>
+                        <th>Jenis</th>
+                        <th class="text-center">Perangkat</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{range $i, $l := .LogList}}
+                    <tr>
+                        <td class="text-center text-muted">{{add $i 1}}</td>
+                        <td class="small font-monospace text-nowrap">{{$l.Timestamp.Format "02/01/2006 15:04:05"}}</td>
+                        <td><div class="fw-semibold">{{$l.NamaSiswa}}</div><div class="small text-muted font-monospace">{{$l.NIS}}</div></td>
+                        <td>{{$l.Kelas}}</td>
+                        <td>{{$l.NamaUjian}}</td>
+                        <td>
+                            {{if eq $l.JenisKecurangan "buka_kunci"}}<span class="badge bg-success-subtle text-success-emphasis">
+                            {{else if eq $l.JenisKecurangan "ambil_alih_sesi"}}<span class="badge bg-info-subtle text-info-emphasis">
+                            {{else}}<span class="badge bg-danger-subtle text-danger-emphasis">{{end}}{{template "label_jenis" $l.JenisKecurangan}}</span>
+                        </td>
+                        <td class="text-center text-nowrap">
+                            {{if eq $l.DeviceType "hp"}}<i class="bi bi-phone"></i> HP
+                            {{else if eq $l.DeviceType "laptop"}}<i class="bi bi-laptop"></i> Laptop
+                            {{else}}<span class="text-muted">-</span>{{end}}
+                        </td>
+                    </tr>
+                    {{else}}
+                    <tr><td colspan="7" class="text-center py-5 text-muted"><i class="bi bi-shield-check fs-1 text-success d-block mb-2"></i>Tidak ada catatan pelanggaran.</td></tr>
+                    {{end}}
+                </tbody>
+            </table>
+        </div>
+    </div>
 </div>
+
+{{template "app_scripts"}}
 </body>
 </html>
-

@@ -11,7 +11,6 @@ import (
 	"cbt-go/internal/admin"
 	"cbt-go/internal/excel"
 	"cbt-go/internal/soal"
-	"cbt-go/web"
 )
 
 // RegisterGuruLogRoutes mendaftarkan rute log pelanggaran siswa dan ekspor spreadsheet untuk guru.
@@ -24,25 +23,24 @@ func RegisterGuruLogRoutes(mux *http.ServeMux, db *sql.DB, sm *scs.SessionManage
 func GuruLogListHandler(db *sql.DB, sm *scs.SessionManager) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		guruID := sm.GetInt(r.Context(), "guruId")
-		ujianStr := r.URL.Query().Get("ujian_id")
-		ujianID, _ := strconv.Atoi(ujianStr)
+		ujianID, _ := strconv.Atoi(r.URL.Query().Get("ujian_id"))
 		jenisFilter := r.URL.Query().Get("jenis")
 
 		if ujianID > 0 {
 			boleh, err := soal.CekOtorisasiUjianGuru(r.Context(), db, guruID, ujianID)
-			if err != nil || !boleh {
-				if wantsJSON(r) {
-					writeJSON(w, http.StatusForbidden, map[string]string{"error": "Akses ditolak: Anda bukan pengampu ujian ini"})
-					return
-				}
-				http.Error(w, "Akses ditolak: Anda bukan pengampu ujian ini", http.StatusForbidden)
+			if err != nil {
+				serverError(w, r, err)
+				return
+			}
+			if !boleh {
+				forbidden(w, r)
 				return
 			}
 		}
 
 		list, err := admin.GetLogKecuranganByGuru(r.Context(), db, guruID, ujianID, jenisFilter)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			serverError(w, r, err)
 			return
 		}
 
@@ -51,19 +49,17 @@ func GuruLogListHandler(db *sql.DB, sm *scs.SessionManager) http.HandlerFunc {
 			return
 		}
 
-		ujianList, _ := soal.ListUjianByGuru(r.Context(), db, guruID)
-		flashError := getFlash(sm, r, "error")
-		flashSuccess := getFlash(sm, r, "success")
-
-		_ = web.Render(w, "guru_log.gohtml", map[string]any{
-			"LogList":   list,
-			"UjianList": ujianList,
-			"UjianID":   ujianID,
-			"Filter":    jenisFilter,
-			"Error":     flashError,
-			"Success":   flashSuccess,
-			"Username":  sm.GetString(r.Context(), "username"),
-		})
+		ujianList, err := soal.ListUjianByGuru(r.Context(), db, guruID)
+		if err != nil {
+			serverError(w, r, err)
+			return
+		}
+		data := dataHalaman(sm, r, "log")
+		data["LogList"] = list
+		data["UjianList"] = ujianList
+		data["UjianID"] = ujianID
+		data["Filter"] = jenisFilter
+		render(w, r, "guru_log.gohtml", data)
 	}
 }
 
@@ -79,12 +75,12 @@ func GuruLogExportHandler(db *sql.DB, sm *scs.SessionManager) http.HandlerFunc {
 		}
 
 		boleh, err := soal.CekOtorisasiUjianGuru(r.Context(), db, guruID, ujianID)
-		if err != nil || !boleh {
-			if wantsJSON(r) {
-				writeJSON(w, http.StatusForbidden, map[string]string{"error": "Akses ditolak: Anda bukan pengampu ujian ini"})
-				return
-			}
-			http.Error(w, "Akses ditolak: Anda bukan pengampu ujian ini", http.StatusForbidden)
+		if err != nil {
+			serverError(w, r, err)
+			return
+		}
+		if !boleh {
+			forbidden(w, r)
 			return
 		}
 
@@ -96,14 +92,14 @@ func GuruLogExportHandler(db *sql.DB, sm *scs.SessionManager) http.HandlerFunc {
 
 		list, err := admin.GetLogKecuranganByGuru(r.Context(), db, guruID, ujianID, "")
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			serverError(w, r, err)
 			return
 		}
 
 		items := admin.ConvertToExcelLogItems(list)
 		buf, err := excel.BuatEksporLogKecurangan(u.NamaUjian, items)
 		if err != nil {
-			http.Error(w, "Gagal membuat berkas Excel: "+err.Error(), http.StatusInternalServerError)
+			serverError(w, r, fmt.Errorf("buat excel log guru: %w", err))
 			return
 		}
 

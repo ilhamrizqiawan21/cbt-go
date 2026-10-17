@@ -18,6 +18,24 @@ var FS embed.FS
 
 var funcMap = template.FuncMap{
 	"add": func(a, b int) int { return a + b },
+	"sub": func(a, b int) int { return a - b },
+	// persen menghitung a/b×100 dibulatkan ke bawah; 0 bila b = 0 (hindari bagi nol).
+	"persen": func(a, b int) int {
+		if b <= 0 {
+			return 0
+		}
+		return a * 100 / b
+	},
+	"lower": strings.ToLower,
+	// list membentuk slice di template, mis. {{range list "A" "B"}}.
+	"list": func(items ...string) []string { return items },
+	// deref membaca *string yang boleh nil (kolom NULL) sebagai string kosong.
+	"deref": func(s *string) string {
+		if s == nil {
+			return ""
+		}
+		return *s
+	},
 }
 
 var tmpl = template.Must(template.New("").Funcs(funcMap).ParseFS(FS, "templates/*.gohtml"))

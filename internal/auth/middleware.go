@@ -68,7 +68,15 @@ func RequireSiswaAPI(sm *scs.SessionManager, db *sql.DB) func(http.Handler) http
 
 				if err == nil {
 					if status == "keluar_paksa" {
-						writeJSONError(w, http.StatusForbidden, "Akses ujian Anda telah dicabut karena pelanggaran")
+						// Field status membedakan "terkunci" dari 403 lain, sehingga ujian.js menampilkan
+						// layar terkunci dan tidak menghapus antrean jawaban lokal.
+						w.Header().Set("Content-Type", "application/json; charset=utf-8")
+						w.WriteHeader(http.StatusForbidden)
+						_ = json.NewEncoder(w).Encode(map[string]any{
+							"error":  "Akses ujian Anda telah dicabut karena pelanggaran",
+							"code":   http.StatusForbidden,
+							"status": "keluar_paksa",
+						})
 						return
 					}
 					if status == "selesai" {

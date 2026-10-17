@@ -78,4 +78,3 @@ func TestProductionEnvConfig(t *testing.T) {
 		}
 	})
 }
-

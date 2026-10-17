@@ -1,89 +1,87 @@
 <!DOCTYPE html>
 <html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kelola Siswa — CBT Admin</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-</head>
+<head>{{template "app_head" "Kelola Siswa"}}</head>
 <body class="bg-light">
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-    <div class="container-fluid">
-        <a class="navbar-brand" href="/admin/dashboard">CBT Admin</a>
-        <span class="navbar-text">{{.Username}}</span>
-    </div>
-</nav>
+{{template "admin_navbar" .}}
 
-<div class="container my-4">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h2>Daftar Siswa</h2>
+<div class="container py-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
         <div>
-            <a href="/admin/siswa/template" class="btn btn-outline-success btn-sm me-2">
-                <i class="bi bi-file-earmark-excel"></i> Unduh Template Excel
-            </a>
-            <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalTambah">
-                <i class="bi bi-plus-lg"></i> Tambah Siswa
-            </button>
+            <h3 class="page-title mb-1"><i class="bi bi-people text-primary me-2"></i>Data Siswa</h3>
+            <p class="text-muted mb-0">{{len .SiswaList}} siswa{{if .Filter}} di kelas <strong>{{.Filter}}</strong>{{end}}. PIN disimpan terenkripsi dan tidak dapat ditampilkan.</p>
+        </div>
+        <div class="page-actions d-flex flex-wrap gap-2">
+            <a href="/admin/siswa/template" class="btn btn-outline-success"><i class="bi bi-file-earmark-excel me-1"></i> Template Excel</a>
+            <button type="button" class="btn btn-primary" id="btnTambahSiswa"><i class="bi bi-plus-lg me-1"></i> Tambah Siswa</button>
         </div>
     </div>
 
-    {{if .Error}}
-    <div class="alert alert-danger alert-dismissible fade show" role="alert">
-        {{.Error}}
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    </div>
-    {{end}}
-    {{if .Success}}
-    <div class="alert alert-success alert-dismissible fade show" role="alert">
-        {{.Success}}
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    </div>
-    {{end}}
+    {{template "app_flash" .}}
 
-    <div class="card mb-4">
-        <div class="card-header bg-white">Import Siswa dari Excel</div>
+    <div class="card border-0 shadow-sm mb-3">
         <div class="card-body">
-            <form action="/admin/siswa/import" method="POST" enctype="multipart/form-data" class="row g-3">
-                <div class="col-auto">
-                    <input type="file" name="file" class="form-control form-control-sm" accept=".xlsx" required>
+            <form action="/admin/siswa/import" method="POST" enctype="multipart/form-data" class="row g-2 align-items-center">
+                <div class="col-12 col-md-auto fw-semibold"><i class="bi bi-upload me-1"></i>Impor dari Excel</div>
+                <div class="col-12 col-md">
+                    <input type="file" name="file" class="form-control" accept=".xlsx" required aria-label="Berkas Excel siswa">
                 </div>
-                <div class="col-auto">
-                    <button type="submit" class="btn btn-success btn-sm">Unggah & Import</button>
+                <div class="col-12 col-md-auto">
+                    <button type="submit" class="btn btn-success w-100">Unggah &amp; Impor</button>
                 </div>
+                <div class="col-12 form-text mt-1">Format .xlsx, maks. 2 MB. Unduh template untuk melihat kolom yang dibutuhkan.</div>
             </form>
         </div>
     </div>
 
-    <div class="card">
+    <div class="card border-0 shadow-sm">
+        <div class="card-body py-2 border-bottom">
+            <div class="row g-2">
+                <div class="col-md-4">
+                    <form method="GET" action="/admin/siswa">
+                        <select name="kelas" class="form-select form-select-sm" aria-label="Filter kelas" onchange="this.form.submit()">
+                            <option value="">Semua kelas</option>
+                            {{range .KelasList}}
+                            <option value="{{.NamaKelas}}" {{if eq .NamaKelas $.Filter}}selected{{end}}>{{.NamaKelas}}</option>
+                            {{end}}
+                        </select>
+                    </form>
+                </div>
+                <div class="col-md-5">
+                    <input type="search" id="cariSiswa" class="form-control form-control-sm" placeholder="Cari NIS atau nama..." aria-label="Cari siswa">
+                </div>
+            </div>
+        </div>
         <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
+            <table class="table table-hover mb-0">
                 <thead class="table-light">
                     <tr>
-                        <th>#</th>
+                        <th class="text-center" style="width:60px">No</th>
                         <th>NIS</th>
                         <th>Nama</th>
                         <th>Kelas</th>
-                        <th>Aksi</th>
+                        <th class="text-end" style="width:120px">Aksi</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody id="tabelSiswa">
                     {{range $i, $s := .SiswaList}}
-                    <tr>
-                        <td>{{$s.ID}}</td>
-                        <td>{{$s.NIS}}</td>
-                        <td>{{$s.Nama}}</td>
-                        <td><span class="badge bg-secondary">{{$s.Kelas}}</span></td>
-                        <td>
-                            <form action="/admin/siswa/hapus/{{$s.ID}}" method="POST" class="d-inline" onsubmit="return confirm('Hapus siswa ini?')">
-                                <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i> Hapus</button>
+                    <tr data-cari="{{$s.NIS}} {{$s.Nama}}">
+                        <td class="text-center text-muted">{{add $i 1}}</td>
+                        <td class="font-monospace">{{$s.NIS}}</td>
+                        <td class="fw-semibold">{{$s.Nama}}</td>
+                        <td>{{if $s.Kelas}}<span class="badge bg-secondary">{{$s.Kelas}}</span>{{else}}<span class="text-muted">-</span>{{end}}</td>
+                        <td class="text-end text-nowrap">
+                            <button type="button" class="btn btn-sm btn-outline-primary btn-edit-siswa" title="Edit"
+                                    data-id="{{$s.ID}}" data-nis="{{$s.NIS}}" data-nama="{{$s.Nama}}" data-kelas="{{$s.Kelas}}">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <form action="/admin/siswa/hapus/{{$s.ID}}" method="POST" class="d-inline"
+                                  data-confirm="Hapus siswa {{$s.NIS}} – {{$s.Nama}}? Seluruh sesi, jawaban, dan nilainya ikut terhapus.">
+                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Hapus"><i class="bi bi-trash"></i></button>
                             </form>
                         </td>
                     </tr>
                     {{else}}
-                    <tr>
-                        <td colspan="5" class="text-center py-4 text-muted">Belum ada data siswa.</td>
-                    </tr>
+                    <tr><td colspan="5" class="text-center py-4 text-muted">Belum ada data siswa.</td></tr>
                     {{end}}
                 </tbody>
             </table>
@@ -91,7 +89,77 @@
     </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<!-- Modal Tambah/Edit Siswa -->
+<div class="modal fade" id="modalSiswa" tabindex="-1" aria-labelledby="modalSiswaLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <form method="POST" action="/admin/siswa/tambah" class="modal-content" id="formSiswa">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold" id="modalSiswaLabel">Tambah Siswa</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="s_nis" class="form-label fw-semibold">NIS</label>
+                    <input type="text" class="form-control" id="s_nis" name="nis" maxlength="30" required>
+                </div>
+                <div class="mb-3">
+                    <label for="s_nama" class="form-label fw-semibold">Nama lengkap</label>
+                    <input type="text" class="form-control" id="s_nama" name="nama" maxlength="100" required>
+                </div>
+                <div class="mb-3">
+                    <label for="s_kelas" class="form-label fw-semibold">Kelas</label>
+                    <select class="form-select" id="s_kelas" name="kelas" required>
+                        <option value="">-- Pilih kelas --</option>
+                        {{range .KelasList}}
+                        <option value="{{.NamaKelas}}">{{.NamaKelas}}</option>
+                        {{end}}
+                    </select>
+                </div>
+                <div class="mb-1">
+                    <label for="s_pin" class="form-label fw-semibold" id="s_pin_label">PIN ujian</label>
+                    <input type="password" class="form-control" id="s_pin" name="pin" maxlength="20" autocomplete="new-password">
+                    <div class="form-text" id="s_pin_help">PIN dipakai siswa untuk login ujian.</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                <button type="submit" class="btn btn-primary"><i class="bi bi-save me-1"></i> Simpan</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{{template "app_scripts"}}
+<script>
+    (() => {
+        const modal = new bootstrap.Modal(document.getElementById('modalSiswa'));
+        const form = document.getElementById('formSiswa');
+        const $ = (id) => document.getElementById(id);
+
+        const buka = (mode, d) => {
+            const edit = mode === 'edit';
+            form.action = edit ? '/admin/siswa/edit/' + d.id : '/admin/siswa/tambah';
+            $('modalSiswaLabel').textContent = edit ? 'Edit Siswa' : 'Tambah Siswa';
+            $('s_nis').value = d.nis || '';
+            $('s_nama').value = d.nama || '';
+            $('s_kelas').value = d.kelas || '';
+            $('s_pin').value = '';
+            $('s_pin').required = !edit;
+            $('s_pin_label').textContent = edit ? 'PIN baru (opsional)' : 'PIN ujian';
+            $('s_pin_help').textContent = edit ? 'Kosongkan bila PIN tidak diubah.' : 'PIN dipakai siswa untuk login ujian.';
+            modal.show();
+        };
+
+        $('btnTambahSiswa').addEventListener('click', () => buka('tambah', {}));
+        document.querySelectorAll('.btn-edit-siswa').forEach((b) => b.addEventListener('click', () => buka('edit', b.dataset)));
+
+        $('cariSiswa').addEventListener('input', (e) => {
+            const q = e.target.value.toLowerCase().trim();
+            document.querySelectorAll('#tabelSiswa tr[data-cari]').forEach((tr) => {
+                tr.style.display = !q || tr.dataset.cari.toLowerCase().includes(q) ? '' : 'none';
+            });
+        });
+    })();
+</script>
 </body>
 </html>
-

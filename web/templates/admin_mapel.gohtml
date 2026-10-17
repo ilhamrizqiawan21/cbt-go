@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>{{template "app_head" "Mata Pelajaran"}}</head>
+<body class="bg-light">
+{{template "admin_navbar" .}}
+
+<div class="container py-4" style="max-width:900px">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+        <div>
+            <h3 class="page-title mb-1"><i class="bi bi-journal-bookmark text-primary me-2"></i>Mata Pelajaran</h3>
+            <p class="text-muted mb-0">Mapel yang diujikan; dihubungkan ke guru dan kelas lewat menu Pengajaran.</p>
+        </div>
+        <div class="page-actions d-flex gap-2">
+            <button type="button" class="btn btn-primary" id="btnTambah"><i class="bi bi-plus-lg me-1"></i> Tambah Mapel</button>
+        </div>
+    </div>
+
+    {{template "app_flash" .}}
+
+    <div class="card border-0 shadow-sm">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="text-center" style="width:60px">No</th>
+                        <th>Nama mata pelajaran</th>
+                        <th class="text-end" style="width:120px">Aksi</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{range $i, $m := .MapelList}}
+                    <tr>
+                        <td class="text-center text-muted">{{add $i 1}}</td>
+                        <td class="fw-semibold" dir="auto">{{$m.NamaMapel}}</td>
+                        <td class="text-end text-nowrap">
+                            <button type="button" class="btn btn-sm btn-outline-primary btn-edit" data-id="{{$m.ID}}" data-nama="{{$m.NamaMapel}}" title="Edit"><i class="bi bi-pencil"></i></button>
+                            <form method="POST" action="/admin/mapel/hapus/{{$m.ID}}" class="d-inline"
+                                  data-confirm="Hapus mapel {{$m.NamaMapel}}? Pengajaran dan SEMUA ujian mapel ini (beserta soal, jawaban, nilai) ikut terhapus.">
+                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Hapus"><i class="bi bi-trash"></i></button>
+                            </form>
+                        </td>
+                    </tr>
+                    {{else}}
+                    <tr><td colspan="3" class="text-center py-4 text-muted">Belum ada data mata pelajaran.</td></tr>
+                    {{end}}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalMapel" tabindex="-1" aria-labelledby="modalMapelLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <form method="POST" action="/admin/mapel/tambah" class="modal-content" id="formMapel">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold" id="modalMapelLabel">Tambah Mata Pelajaran</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+            </div>
+            <div class="modal-body">
+                <label for="m_nama" class="form-label fw-semibold">Nama mata pelajaran</label>
+                <input type="text" name="nama_mapel" id="m_nama" class="form-control" maxlength="100" dir="auto" required placeholder="Contoh: Fiqih">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                <button type="submit" class="btn btn-primary"><i class="bi bi-save me-1"></i> Simpan</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{{template "app_scripts"}}
+<script>
+    (() => {
+        const modal = new bootstrap.Modal(document.getElementById('modalMapel'));
+        const form = document.getElementById('formMapel');
+        const buka = (id, nama) => {
+            form.action = id ? '/admin/mapel/edit/' + id : '/admin/mapel/tambah';
+            document.getElementById('modalMapelLabel').textContent = id ? 'Edit Mata Pelajaran' : 'Tambah Mata Pelajaran';
+            document.getElementById('m_nama').value = nama || '';
+            modal.show();
+        };
+        document.getElementById('btnTambah').addEventListener('click', () => buka('', ''));
+        document.querySelectorAll('.btn-edit').forEach((b) => b.addEventListener('click', () => buka(b.dataset.id, b.dataset.nama)));
+    })();
+</script>
+</body>
+</html>

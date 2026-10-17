@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>{{template "app_head" "Pengajaran"}}</head>
+<body class="bg-light">
+{{template "admin_navbar" .}}
+
+<div class="container py-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+        <div>
+            <h3 class="page-title mb-1"><i class="bi bi-link-45deg text-primary me-2"></i>Pengajaran</h3>
+            <p class="text-muted mb-0">Menghubungkan guru, mata pelajaran, dan kelas. Ujian dibuat per pengajaran; guru hanya mengakses soal pengajarannya.</p>
+        </div>
+        <div class="page-actions d-flex gap-2">
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalPengajaran"
+                    {{if or (not .GuruList) (not .MapelList) (not .KelasList)}}disabled title="Lengkapi data guru, mapel, dan kelas dahulu"{{end}}>
+                <i class="bi bi-plus-lg me-1"></i> Tambah Pengajaran
+            </button>
+        </div>
+    </div>
+
+    {{template "app_flash" .}}
+
+    {{if or (not .GuruList) (not .MapelList) (not .KelasList)}}
+    <div class="alert alert-warning">
+        <i class="bi bi-info-circle me-1"></i> Untuk membuat pengajaran, isi dahulu
+        {{if not .GuruList}}<a href="/admin/guru" class="alert-link">data guru</a> {{end}}
+        {{if not .MapelList}}<a href="/admin/mapel" class="alert-link">mata pelajaran</a> {{end}}
+        {{if not .KelasList}}<a href="/admin/kelas" class="alert-link">data kelas</a>{{end}}.
+    </div>
+    {{end}}
+
+    <div class="card border-0 shadow-sm">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="text-center" style="width:60px">No</th>
+                        <th>Guru</th>
+                        <th>Mata pelajaran</th>
+                        <th>Kelas</th>
+                        <th class="text-end" style="width:100px">Aksi</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{range $i, $p := .PengajaranList}}
+                    <tr>
+                        <td class="text-center text-muted">{{add $i 1}}</td>
+                        <td class="fw-semibold">{{$p.NamaGuru}}</td>
+                        <td dir="auto">{{$p.NamaMapel}}</td>
+                        <td><span class="badge bg-secondary">{{$p.NamaKelas}}</span></td>
+                        <td class="text-end">
+                            <form method="POST" action="/admin/pengajaran/hapus/{{$p.ID}}" class="d-inline"
+                                  data-confirm="Hapus pengajaran {{$p.NamaMapel}} – {{$p.NamaKelas}} ({{$p.NamaGuru}})? SEMUA ujian pengajaran ini beserta soal, jawaban, dan nilai ikut terhapus.">
+                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Hapus"><i class="bi bi-trash"></i></button>
+                            </form>
+                        </td>
+                    </tr>
+                    {{else}}
+                    <tr><td colspan="5" class="text-center py-5 text-muted"><i class="bi bi-inbox fs-1 d-block mb-2"></i>Belum ada data pengajaran.</td></tr>
+                    {{end}}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalPengajaran" tabindex="-1" aria-labelledby="modalPengajaranLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <form method="POST" action="/admin/pengajaran/tambah" class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold" id="modalPengajaranLabel">Tambah Pengajaran</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="p_guru" class="form-label fw-semibold">Guru</label>
+                    <select class="form-select" id="p_guru" name="guru_id" required>
+                        <option value="">-- Pilih guru --</option>
+                        {{range .GuruList}}<option value="{{.ID}}">{{.Nama}}{{if .NIP}} ({{.NIP}}){{end}}</option>{{end}}
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label for="p_mapel" class="form-label fw-semibold">Mata pelajaran</label>
+                    <select class="form-select" id="p_mapel" name="mapel_id" required>
+                        <option value="">-- Pilih mapel --</option>
+                        {{range .MapelList}}<option value="{{.ID}}">{{.NamaMapel}}</option>{{end}}
+                    </select>
+                </div>
+                <div class="mb-1">
+                    <label for="p_kelas" class="form-label fw-semibold">Kelas</label>
+                    <select class="form-select" id="p_kelas" name="kelas_id" required>
+                        <option value="">-- Pilih kelas --</option>
+                        {{range .KelasList}}<option value="{{.ID}}">{{.NamaKelas}}</option>{{end}}
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                <button type="submit" class="btn btn-primary"><i class="bi bi-save me-1"></i> Simpan</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{{template "app_scripts"}}
+</body>
+</html>

@@ -11,7 +11,6 @@ import (
 	"github.com/alexedwards/scs/v2"
 
 	"cbt-go/internal/soal"
-	"cbt-go/web"
 )
 
 // RegisterAdminSoalRoutes mendaftarkan seluruh rute pengelolaan soal untuk admin.
@@ -36,7 +35,7 @@ func SoalListHandler(db *sql.DB, sm *scs.SessionManager) http.HandlerFunc {
 		if ujianID > 0 {
 			list, err = soal.ListSoalByUjian(r.Context(), db, ujianID)
 			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
+				serverError(w, r, err)
 				return
 			}
 		}
@@ -46,14 +45,32 @@ func SoalListHandler(db *sql.DB, sm *scs.SessionManager) http.HandlerFunc {
 			return
 		}
 
+		ujianList, err := ListUjian(r.Context(), db)
+		if err != nil {
+			serverError(w, r, err)
+			return
+		}
+		if ujianID <= 0 && len(ujianList) > 0 {
+			ujianID = ujianList[0].ID
+			list, err = soal.ListSoalByUjian(r.Context(), db, ujianID)
+			if err != nil {
+				serverError(w, r, err)
+				return
+			}
+		}
+
 		flashError := getFlash(sm, r, "error")
 		flashSuccess := getFlash(sm, r, "success")
-		_ = web.Render(w, "admin_soal.gohtml", map[string]any{
-			"SoalList": list,
-			"UjianID":  ujianID,
-			"Error":    flashError,
-			"Success":  flashSuccess,
-			"Username": sm.GetString(r.Context(), "username"),
+		render(w, r, "admin_soal.gohtml", map[string]any{
+			"SoalList":   list,
+			"UjianList":  ujianList,
+			"UjianID":    ujianID,
+			"SoalBase":   "/admin/soal",
+			"SoalPage":   "/admin/soal",
+			"Error":      flashError,
+			"Success":    flashSuccess,
+			"Username":   sm.GetString(r.Context(), "username"),
+			"ActiveMenu": "soal",
 		})
 	}
 }
@@ -74,7 +91,7 @@ func SoalGetHandler(db *sql.DB, sm *scs.SessionManager) http.HandlerFunc {
 				http.Error(w, "Soal tidak ditemukan", http.StatusNotFound)
 				return
 			}
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			serverError(w, r, err)
 			return
 		}
 
@@ -169,7 +186,7 @@ func SoalEditHandler(db *sql.DB, sm *scs.SessionManager) http.HandlerFunc {
 				return
 			}
 			setFlash(sm, r, "error", err.Error())
-			http.Redirect(w, r, "/admin/soal", http.StatusFound)
+			http.Redirect(w, r, soalURL(r.FormValue("ujian_id")), http.StatusFound)
 			return
 		}
 
@@ -178,7 +195,7 @@ func SoalEditHandler(db *sql.DB, sm *scs.SessionManager) http.HandlerFunc {
 			return
 		}
 		setFlash(sm, r, "success", "Soal berhasil diperbarui")
-		http.Redirect(w, r, "/admin/soal", http.StatusFound)
+		http.Redirect(w, r, soalURL(r.FormValue("ujian_id")), http.StatusFound)
 	}
 }
 
@@ -195,11 +212,11 @@ func SoalHapusHandler(db *sql.DB, sm *scs.SessionManager) http.HandlerFunc {
 		err = soal.HapusSoal(r.Context(), db, id)
 		if err != nil {
 			if wantsJSON(r) {
-				writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+				serverError(w, r, err)
 				return
 			}
 			setFlash(sm, r, "error", err.Error())
-			http.Redirect(w, r, "/admin/soal", http.StatusFound)
+			http.Redirect(w, r, soalURL(r.FormValue("ujian_id")), http.StatusFound)
 			return
 		}
 
@@ -208,19 +225,15 @@ func SoalHapusHandler(db *sql.DB, sm *scs.SessionManager) http.HandlerFunc {
 			return
 		}
 		setFlash(sm, r, "success", "Soal berhasil dihapus")
-		http.Redirect(w, r, "/admin/soal", http.StatusFound)
+		http.Redirect(w, r, soalURL(r.FormValue("ujian_id")), http.StatusFound)
 	}
 }
 
-// SoalBatchPageHandler menampilkan halaman penambahan batch soal.
+// SoalBatchPageHandler: rute Node dipertahankan, tetapi form tambah soal kini ada di halaman
+// Bank Soal (modal), sehingga diarahkan ke sana. Batch via API tetap di POST /admin/soal/batch-tambah.
 func SoalBatchPageHandler(db *sql.DB, sm *scs.SessionManager) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		ujianList, _ := ListUjian(r.Context(), db)
-		_ = web.Render(w, "admin_soal.gohtml", map[string]any{
-			"UjianList": ujianList,
-			"BatchMode": true,
-			"Username":  sm.GetString(r.Context(), "username"),
-		})
+		http.Redirect(w, r, soalURL(r.URL.Query().Get("ujian_id")), http.StatusFound)
 	}
 }
 
@@ -279,4 +292,12 @@ func stringPtr(s string) *string {
 		return nil
 	}
 	return &trimmed
+}
+
+// soalURL membangun alamat kembali ke daftar soal satu ujian; id tidak valid → daftar umum.
+func soalURL(ujianID string) string {
+	if id, err := strconv.Atoi(ujianID); err == nil && id > 0 {
+		return "/admin/soal?ujian_id=" + strconv.Itoa(id)
+	}
+	return "/admin/soal"
 }

@@ -46,8 +46,9 @@ Panduan operasional ringkas untuk **Admin / Tim Teknis** MTs Al-Ihsan Batujajar 
   - Siswa cukup login kembali pada perangkat baru dengan NIS, Kelas, PIN, dan Token yang sama.
   - Sistem Go akan secara otomatis melakukan **Takeover Sesi**: menerbitkan token perangkat baru, membatalkan token perangkat lama (409 Conflict), dan melanjutkan sisa waktu serta jawaban yang telah tersimpan.
 - **Siswa Terkunci karena Pelanggaran (`keluar_paksa`)**:
-  - Jika siswa keluar tab atau fullscreen melebihi toleransi (3 kali pada HP, 5 kali pada laptop), status menjadi `keluar_paksa`.
-  - Admin/Proktor dapat membuka kunci pada monitor ujian dengan mengklik tombol **"Buka Kunci"**. Sesi siswa akan kembali menjadi `sedang_ujian` tanpa kehilangan data jawaban.
+  - Jika jumlah pelanggaran (pindah tab/aplikasi, copy-paste; keluar fullscreen khusus laptop) mencapai **batas pelanggaran ujian** (diatur per ujian, default 3), status menjadi `keluar_paksa` dan layar siswa menampilkan "Ujian Dikunci". Ujian **tidak** dikumpulkan dan jawaban tetap tersimpan.
+  - Admin/Proktor membuka kunci di Monitor dengan tombol **"Buka kunci"**. Sesi kembali `sedang_ujian`, hitungan pelanggaran mulai dari nol. **Minta siswa login ulang** (NIS + PIN, sebaiknya di perangkat yang sama agar jawaban yang belum terkirim ikut terkirim). Waktu tetap berjalan selama terkunci; gunakan "Waktu" untuk menambah bila perlu.
+  - Bila tidak dibuka sampai waktu habis, sesi dinilai otomatis dengan jawaban yang sudah tersimpan. Admin juga dapat menekan "Selesaikan".
 - **Perpanjangan Waktu Khusus**:
   - Klik tombol **"Tambah Waktu"** pada baris siswa di monitor admin untuk menambahkan waktu pengerjaan (misal 10 menit). Server secara instan mengirimkan sinyal websocket ke browser siswa untuk memperbarui hitung mundur.
 

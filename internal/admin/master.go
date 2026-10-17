@@ -262,6 +262,9 @@ func TambahKelas(ctx context.Context, db *sql.DB, namaKelas string) (int, error)
 	return int(id), nil
 }
 
+// EditKelas mengganti nama kelas. Karena siswa.kelas menyimpan NAMA kelas (G-016),
+// nama di tabel siswa ikut diganti dalam transaksi yang sama agar siswa tetap terhubung
+// ke pengajaran/ujian kelasnya.
 func EditKelas(ctx context.Context, db *sql.DB, id int, namaKelas string) error {
 	namaKelas = strings.TrimSpace(namaKelas)
 	if id <= 0 || namaKelas == "" {
@@ -271,12 +274,34 @@ func EditKelas(ctx context.Context, db *sql.DB, id int, namaKelas string) error 
 		return errors.New("database tidak tersedia")
 	}
 
-	_, err := db.ExecContext(ctx, "UPDATE kelas SET nama_kelas = ? WHERE id = ?", namaKelas, id)
+	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
+		return fmt.Errorf("edit kelas begin tx: %w", err)
+	}
+	defer tx.Rollback()
+
+	var namaLama string
+	err = tx.QueryRowContext(ctx, "SELECT nama_kelas FROM kelas WHERE id = ? FOR UPDATE", id).Scan(&namaLama)
+	if errors.Is(err, sql.ErrNoRows) {
+		return ErrNotFound
+	}
+	if err != nil {
+		return fmt.Errorf("ambil kelas: %w", err)
+	}
+
+	if _, err := tx.ExecContext(ctx, "UPDATE kelas SET nama_kelas = ? WHERE id = ?", namaKelas, id); err != nil {
 		if isDuplicateError(err) {
 			return ErrDuplicateKelas
 		}
 		return fmt.Errorf("update kelas: %w", err)
+	}
+	if namaLama != namaKelas {
+		if _, err := tx.ExecContext(ctx, "UPDATE siswa SET kelas = ? WHERE kelas = ?", namaKelas, namaLama); err != nil {
+			return fmt.Errorf("update nama kelas siswa: %w", err)
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("edit kelas commit: %w", err)
 	}
 	return nil
 }

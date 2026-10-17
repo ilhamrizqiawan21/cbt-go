@@ -17,11 +17,11 @@ var (
 )
 
 type Siswa struct {
-	ID       int    `json:"id"`
-	NIS      string `json:"nis"`
-	Nama     string `json:"nama"`
-	Kelas    string `json:"kelas"`
-	PINUjian string `json:"pin_ujian,omitempty"`
+	ID    int    `json:"id"`
+	NIS   string `json:"nis"`
+	Nama  string `json:"nama"`
+	Kelas string `json:"kelas"`
+	// Hash PIN sengaja tidak dimuat: tidak pernah dibutuhkan tampilan/JSON admin.
 }
 
 func ListSiswa(ctx context.Context, db *sql.DB, kelasFilter string) ([]Siswa, error) {
@@ -29,7 +29,7 @@ func ListSiswa(ctx context.Context, db *sql.DB, kelasFilter string) ([]Siswa, er
 		return nil, errors.New("database tidak tersedia")
 	}
 
-	query := "SELECT id, nis, nama, kelas, pin_ujian FROM siswa"
+	query := "SELECT id, nis, nama, COALESCE(kelas, '') FROM siswa"
 	var args []any
 	if strings.TrimSpace(kelasFilter) != "" {
 		query += " WHERE kelas = ?"
@@ -46,7 +46,7 @@ func ListSiswa(ctx context.Context, db *sql.DB, kelasFilter string) ([]Siswa, er
 	var res []Siswa
 	for rows.Next() {
 		var s Siswa
-		if err := rows.Scan(&s.ID, &s.NIS, &s.Nama, &s.Kelas, &s.PINUjian); err != nil {
+		if err := rows.Scan(&s.ID, &s.NIS, &s.Nama, &s.Kelas); err != nil {
 			return nil, fmt.Errorf("scan siswa: %w", err)
 		}
 		res = append(res, s)
@@ -66,10 +66,10 @@ func GetSiswaByID(ctx context.Context, db *sql.DB, id int) (*Siswa, error) {
 	}
 	var s Siswa
 	err := db.QueryRowContext(ctx, `
-		SELECT id, nis, nama, kelas, pin_ujian
+		SELECT id, nis, nama, COALESCE(kelas, '')
 		FROM siswa
 		WHERE id = ?
-	`, id).Scan(&s.ID, &s.NIS, &s.Nama, &s.Kelas, &s.PINUjian)
+	`, id).Scan(&s.ID, &s.NIS, &s.Nama, &s.Kelas)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrNotFound

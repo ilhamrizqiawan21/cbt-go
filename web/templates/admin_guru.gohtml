@@ -1,27 +1,117 @@
 <!DOCTYPE html>
 <html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kelola Guru — CBT Admin</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-</head>
+<head>{{template "app_head" "Data Guru"}}</head>
 <body class="bg-light">
-<div class="container my-4">
-    <h2>Daftar Guru</h2>
-    {{if .Error}}<div class="alert alert-danger">{{.Error}}</div>{{end}}
-    {{if .Success}}<div class="alert alert-success">{{.Success}}</div>{{end}}
-    <table class="table">
-        <thead><tr><th>ID</th><th>NIP</th><th>Nama</th><th>Username</th></tr></thead>
-        <tbody>
-            {{range .GuruList}}
-            <tr><td>{{.ID}}</td><td>{{.NIP}}</td><td>{{.Nama}}</td><td>{{.Username}}</td></tr>
-            {{else}}
-            <tr><td colspan="4">Belum ada data guru.</td></tr>
-            {{end}}
-        </tbody>
-    </table>
+{{template "admin_navbar" .}}
+
+<div class="container py-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+        <div>
+            <h3 class="page-title mb-1"><i class="bi bi-person-badge text-primary me-2"></i>Data Guru</h3>
+            <p class="text-muted mb-0">Akun guru untuk mengelola soal dan menilai essay sesuai pengajarannya.</p>
+        </div>
+        <div class="page-actions d-flex gap-2">
+            <button type="button" class="btn btn-primary" id="btnTambahGuru"><i class="bi bi-plus-lg me-1"></i> Tambah Guru</button>
+        </div>
+    </div>
+
+    {{template "app_flash" .}}
+
+    <div class="card border-0 shadow-sm">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="text-center" style="width:60px">No</th>
+                        <th>NIP</th>
+                        <th>Nama</th>
+                        <th>Username</th>
+                        <th class="text-end" style="width:120px">Aksi</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{range $i, $g := .GuruList}}
+                    <tr>
+                        <td class="text-center text-muted">{{add $i 1}}</td>
+                        <td class="font-monospace">{{if $g.NIP}}{{$g.NIP}}{{else}}<span class="text-muted">-</span>{{end}}</td>
+                        <td class="fw-semibold">{{$g.Nama}}</td>
+                        <td><code>{{$g.Username}}</code></td>
+                        <td class="text-end text-nowrap">
+                            <button type="button" class="btn btn-sm btn-outline-primary btn-edit-guru" title="Edit"
+                                    data-id="{{$g.ID}}" data-nip="{{$g.NIP}}" data-nama="{{$g.Nama}}" data-username="{{$g.Username}}">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <form method="POST" action="/admin/guru/hapus/{{$g.ID}}" class="d-inline"
+                                  data-confirm="Hapus guru {{$g.Nama}}? Semua pengajaran, ujian, soal, dan nilai yang terkait guru ini ikut terhapus.">
+                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Hapus"><i class="bi bi-trash"></i></button>
+                            </form>
+                        </td>
+                    </tr>
+                    {{else}}
+                    <tr><td colspan="5" class="text-center py-5 text-muted"><i class="bi bi-inbox fs-1 d-block mb-2"></i>Belum ada data guru.</td></tr>
+                    {{end}}
+                </tbody>
+            </table>
+        </div>
+    </div>
 </div>
+
+<!-- Modal Tambah/Edit Guru -->
+<div class="modal fade" id="modalGuru" tabindex="-1" aria-labelledby="modalGuruLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <form method="POST" action="/admin/guru/tambah" class="modal-content" id="formGuru">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold" id="modalGuruLabel">Tambah Guru</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="g_nip" class="form-label fw-semibold">NIP</label>
+                    <input type="text" class="form-control" id="g_nip" name="nip" maxlength="30">
+                </div>
+                <div class="mb-3">
+                    <label for="g_nama" class="form-label fw-semibold">Nama lengkap</label>
+                    <input type="text" class="form-control" id="g_nama" name="nama" maxlength="100" required>
+                </div>
+                <div class="mb-3">
+                    <label for="g_username" class="form-label fw-semibold">Username login</label>
+                    <input type="text" class="form-control" id="g_username" name="username" maxlength="50" autocomplete="off" required>
+                </div>
+                <div class="mb-1">
+                    <label for="g_password" class="form-label fw-semibold" id="g_password_label">Password</label>
+                    <input type="password" class="form-control" id="g_password" name="password" autocomplete="new-password">
+                    <div class="form-text" id="g_password_help">Password disimpan terenkripsi (bcrypt).</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                <button type="submit" class="btn btn-primary"><i class="bi bi-save me-1"></i> Simpan</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{{template "app_scripts"}}
+<script>
+    (() => {
+        const modal = new bootstrap.Modal(document.getElementById('modalGuru'));
+        const form = document.getElementById('formGuru');
+        const $ = (id) => document.getElementById(id);
+        const buka = (edit, d) => {
+            form.action = edit ? '/admin/guru/edit/' + d.id : '/admin/guru/tambah';
+            $('modalGuruLabel').textContent = edit ? 'Edit Guru' : 'Tambah Guru';
+            $('g_nip').value = d.nip || '';
+            $('g_nama').value = d.nama || '';
+            $('g_username').value = d.username || '';
+            $('g_password').value = '';
+            $('g_password').required = !edit;
+            $('g_password_label').textContent = edit ? 'Password baru (opsional)' : 'Password';
+            $('g_password_help').textContent = edit ? 'Kosongkan bila password tidak diubah.' : 'Password disimpan terenkripsi (bcrypt).';
+            modal.show();
+        };
+        $('btnTambahGuru').addEventListener('click', () => buka(false, {}));
+        document.querySelectorAll('.btn-edit-guru').forEach((b) => b.addEventListener('click', () => buka(true, b.dataset)));
+    })();
+</script>
 </body>
 </html>
-

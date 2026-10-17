@@ -5,10 +5,9 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/alexedwards/scs/v2"
-
-	"cbt-go/web"
 )
 
 // RegisterAdminLogResetRoutes mendaftarkan rute pemantauan log pelanggaran dan aksi reset ujian untuk admin.
@@ -27,7 +26,7 @@ func LogKecuranganListHandler(db *sql.DB, sm *scs.SessionManager) http.HandlerFu
 
 		list, err := GetLogKecurangan(r.Context(), db, ujianID, jenisFilter)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			serverError(w, r, err)
 			return
 		}
 
@@ -36,18 +35,23 @@ func LogKecuranganListHandler(db *sql.DB, sm *scs.SessionManager) http.HandlerFu
 			return
 		}
 
-		ujianList, _ := ListUjian(r.Context(), db)
+		ujianList, err := ListUjian(r.Context(), db)
+		if err != nil {
+			serverError(w, r, err)
+			return
+		}
 		flashError := getFlash(sm, r, "error")
 		flashSuccess := getFlash(sm, r, "success")
 
-		_ = web.Render(w, "admin_log.gohtml", map[string]any{
-			"LogList":   list,
-			"UjianList": ujianList,
-			"UjianID":   ujianID,
-			"Filter":    jenisFilter,
-			"Error":     flashError,
-			"Success":   flashSuccess,
-			"Username":  sm.GetString(r.Context(), "username"),
+		render(w, r, "admin_log.gohtml", map[string]any{
+			"LogList":    list,
+			"UjianList":  ujianList,
+			"UjianID":    ujianID,
+			"Filter":     jenisFilter,
+			"Error":      flashError,
+			"Success":    flashSuccess,
+			"Username":   sm.GetString(r.Context(), "username"),
+			"ActiveMenu": "log",
 		})
 	}
 }
@@ -82,7 +86,7 @@ func ResetUjianHandler(db *sql.DB, sm *scs.SessionManager) http.HandlerFunc {
 				return
 			}
 			setFlash(sm, r, "error", err.Error())
-			http.Redirect(w, r, "/admin/dashboard", http.StatusFound)
+			http.Redirect(w, r, kembaliKe(r, "/admin/log-kecurangan"), http.StatusFound)
 			return
 		}
 
@@ -91,7 +95,7 @@ func ResetUjianHandler(db *sql.DB, sm *scs.SessionManager) http.HandlerFunc {
 			return
 		}
 		setFlash(sm, r, "success", "Ujian siswa berhasil direset")
-		http.Redirect(w, r, "/admin/dashboard", http.StatusFound)
+		http.Redirect(w, r, kembaliKe(r, "/admin/log-kecurangan"), http.StatusFound)
 	}
 }
 
@@ -122,7 +126,7 @@ func ResetUjianSemuaHandler(db *sql.DB, sm *scs.SessionManager) http.HandlerFunc
 				return
 			}
 			setFlash(sm, r, "error", err.Error())
-			http.Redirect(w, r, "/admin/dashboard", http.StatusFound)
+			http.Redirect(w, r, kembaliKe(r, "/admin/log-kecurangan"), http.StatusFound)
 			return
 		}
 
@@ -131,6 +135,16 @@ func ResetUjianSemuaHandler(db *sql.DB, sm *scs.SessionManager) http.HandlerFunc
 			return
 		}
 		setFlash(sm, r, "success", "Seluruh peserta ujian berhasil direset")
-		http.Redirect(w, r, "/admin/dashboard", http.StatusFound)
+		http.Redirect(w, r, kembaliKe(r, "/admin/log-kecurangan"), http.StatusFound)
 	}
+}
+
+// kembaliKe membaca field form "kembali" agar admin diarahkan ke halaman asal
+// (log atau hasil). Hanya path internal /admin/ yang diterima untuk mencegah open redirect.
+func kembaliKe(r *http.Request, fallback string) string {
+	p := r.FormValue("kembali")
+	if strings.HasPrefix(p, "/admin/") && !strings.Contains(p, "//") && !strings.Contains(p, "\\") {
+		return p
+	}
+	return fallback
 }

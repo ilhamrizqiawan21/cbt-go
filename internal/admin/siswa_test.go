@@ -107,18 +107,18 @@ func (c *mockSiswaConn) QueryContext(ctx context.Context, query string, args []d
 	}
 	if strings.Contains(query, "FROM siswa WHERE id = ?") {
 		return &sliceRows{
-			columns: []string{"id", "nis", "nama", "kelas", "pin_ujian"},
+			columns: []string{"id", "nis", "nama", "kelas"},
 			rows: [][]driver.Value{
-				{int64(1), "1001", "Budi Santoso", "VII-A", "$2a$10$xyz"},
+				{int64(1), "1001", "Budi Santoso", "VII-A"},
 			},
 		}, nil
 	}
 	if strings.Contains(query, "FROM siswa") {
 		return &sliceRows{
-			columns: []string{"id", "nis", "nama", "kelas", "pin_ujian"},
+			columns: []string{"id", "nis", "nama", "kelas"},
 			rows: [][]driver.Value{
-				{int64(1), "1001", "Budi Santoso", "VII-A", "$2a$10$xyz"},
-				{int64(2), "1002", "Siti Aminah", "VII-A", "$2a$10$abc"},
+				{int64(1), "1001", "Budi Santoso", "VII-A"},
+				{int64(2), "1002", "Siti Aminah", "VII-A"},
 			},
 		}, nil
 	}

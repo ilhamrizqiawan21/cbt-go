@@ -154,12 +154,38 @@ func HitungUlangNilai(ctx context.Context, db DBTX, siswaID, ujianID int) (*peni
 // Finalize memfinalisasi sesi ujian siswa: menghitung nilai, menyimpannya ke tabel nilai_ujian,
 // dan menandai status sesi_ujian menjadi 'selesai' dengan waktu selesai_pada.
 // Dijalankan dalam satu transaksi database atomik dan bersifat idempoten.
+// Dipakai admin (paksa selesai) dan job penutupan otomatis, termasuk untuk sesi keluar_paksa.
 func Finalize(ctx context.Context, db *sql.DB, siswaID, ujianID int) (*penilaian.Hasil, error) {
+	return finalize(ctx, db, siswaID, ujianID, false)
+}
+
+// FinalizeOlehSiswa dipanggil saat siswa sendiri mengumpulkan ujian. Sesi keluar_paksa ditolak
+// (ErrKeluarPaksa) agar admin masih bisa membuka kunci tanpa kehilangan data (PRD FR-12);
+// status diperiksa di dalam transaksi yang sama (FOR UPDATE) supaya tidak balapan dengan penguncian.
+func FinalizeOlehSiswa(ctx context.Context, db *sql.DB, siswaID, ujianID int) (*penilaian.Hasil, error) {
+	return finalize(ctx, db, siswaID, ujianID, true)
+}
+
+func finalize(ctx context.Context, db *sql.DB, siswaID, ujianID int, tolakTerkunci bool) (*penilaian.Hasil, error) {
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, fmt.Errorf("finalize begin tx: %w", err)
 	}
 	defer tx.Rollback()
+
+	var status string
+	err = tx.QueryRowContext(ctx, `
+		SELECT status FROM sesi_ujian WHERE siswa_id = ? AND ujian_id = ? FOR UPDATE
+	`, siswaID, ujianID).Scan(&status)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrSesiNotFound
+	}
+	if err != nil {
+		return nil, fmt.Errorf("finalize kunci baris sesi: %w", err)
+	}
+	if tolakTerkunci && status == StatusKeluarPaksa {
+		return nil, ErrKeluarPaksa
+	}
 
 	// Hitung dan simpan nilai dalam transaksi
 	hasil, err := HitungUlangNilai(ctx, tx, siswaID, ujianID)
@@ -168,27 +194,13 @@ func Finalize(ctx context.Context, db *sql.DB, siswaID, ujianID int) (*penilaian
 	}
 
 	// Ubah status sesi menjadi selesai
-	res, err := tx.ExecContext(ctx, `
+	if _, err := tx.ExecContext(ctx, `
 		UPDATE sesi_ujian
 		SET status = 'selesai',
 		    selesai_pada = COALESCE(selesai_pada, NOW())
 		WHERE siswa_id = ? AND ujian_id = ?
-	`, siswaID, ujianID)
-	if err != nil {
+	`, siswaID, ujianID); err != nil {
 		return nil, fmt.Errorf("finalize update sesi_ujian: %w", err)
-	}
-
-	affected, err := res.RowsAffected()
-	if err != nil {
-		return nil, fmt.Errorf("finalize rows affected: %w", err)
-	}
-	if affected == 0 {
-		// Periksa apakah baris sesi ada
-		var exists bool
-		errScan := tx.QueryRowContext(ctx, "SELECT 1 FROM sesi_ujian WHERE siswa_id = ? AND ujian_id = ?", siswaID, ujianID).Scan(&exists)
-		if errors.Is(errScan, sql.ErrNoRows) {
-			return nil, ErrSesiNotFound
-		}
 	}
 
 	if err := tx.Commit(); err != nil {

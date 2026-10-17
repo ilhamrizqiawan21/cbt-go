@@ -103,7 +103,11 @@ func registerPublicRoutes(mux *http.ServeMux, db any, sm *scs.SessionManager) {
 		mux.Handle("GET /js/", staticH)
 		mux.Handle("GET /fonts/", staticH)
 		mux.Handle("GET /images/", staticH)
-		mux.Handle("GET /favicon.ico", staticH)
+		mux.Handle("GET /favicon.ico", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			r2 := r.Clone(r.Context())
+			r2.URL.Path = "/images/favicon.ico"
+			staticH.ServeHTTP(w, r2)
+		}))
 	}
 
 	// 404 Handler untuk rute yang tidak dikenal

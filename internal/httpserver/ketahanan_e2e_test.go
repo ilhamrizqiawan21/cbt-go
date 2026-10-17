@@ -394,6 +394,21 @@ func TestKetahananE2E(t *testing.T) {
 			t.Fatalf("sinkron saat keluar_paksa status = %d, ingin 403", recBlocked.Code)
 		}
 
+		// Siswa mengumpulkan saat terkunci → ditolak dan TIDAK membuat nilai_ujian,
+		// supaya kunci masih bisa dibuka tanpa kehilangan data (FR-12).
+		reqTerkunci := httptest.NewRequest(http.MethodPost, "/api/selesai-ujian", nil)
+		reqTerkunci.AddCookie(cookie)
+		recTerkunci := httptest.NewRecorder()
+		app.ServeHTTP(recTerkunci, reqTerkunci)
+		if recTerkunci.Code != http.StatusForbidden || !strings.Contains(recTerkunci.Body.String(), `"status":"keluar_paksa"`) {
+			t.Fatalf("selesai saat terkunci = %d %s, ingin 403 status keluar_paksa", recTerkunci.Code, recTerkunci.Body.String())
+		}
+		var jumlahNilai int
+		_ = db.QueryRow(`SELECT COUNT(*) FROM nilai_ujian WHERE siswa_id = ? AND ujian_id = ?`, siswaID, ujianID).Scan(&jumlahNilai)
+		if jumlahNilai != 0 {
+			t.Fatalf("nilai_ujian terbentuk saat terkunci (%d baris)", jumlahNilai)
+		}
+
 		// Buka kunci kembali ke sedang_ujian (tanpa menghapus jawaban)
 		_, _ = db.Exec(`UPDATE sesi_ujian SET status = 'sedang_ujian' WHERE siswa_id = ? AND ujian_id = ?`, siswaID, ujianID)
 

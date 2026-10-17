@@ -11,7 +11,6 @@ import (
 	"cbt-go/internal/admin"
 	"cbt-go/internal/excel"
 	"cbt-go/internal/soal"
-	"cbt-go/web"
 )
 
 // RegisterGuruHasilRoutes mendaftarkan rute laporan hasil siswa untuk guru yang mengampu ujian.
@@ -24,27 +23,33 @@ func RegisterGuruHasilRoutes(mux *http.ServeMux, db *sql.DB, sm *scs.SessionMana
 func GuruHasilListHandler(db *sql.DB, sm *scs.SessionManager) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		guruID := sm.GetInt(r.Context(), "guruId")
-		ujianStr := r.URL.Query().Get("ujian_id")
-		ujianID, _ := strconv.Atoi(ujianStr)
+		ujianID, _ := strconv.Atoi(r.URL.Query().Get("ujian_id"))
 		kelasFilter := r.URL.Query().Get("kelas")
 
-		var list []admin.HasilUjianRow
-		var err error
+		listUjianGuru, err := soal.ListUjianByGuru(r.Context(), db, guruID)
+		if err != nil {
+			serverError(w, r, err)
+			return
+		}
+		// Halaman HTML langsung menampilkan ujian terbaru bila belum dipilih.
+		if ujianID <= 0 && !wantsJSON(r) && len(listUjianGuru) > 0 {
+			ujianID = listUjianGuru[0].ID
+		}
 
+		var list []admin.HasilUjianRow
 		if ujianID > 0 {
-			boleh, cErr := soal.CekOtorisasiUjianGuru(r.Context(), db, guruID, ujianID)
-			if cErr != nil || !boleh {
-				if wantsJSON(r) {
-					writeJSON(w, http.StatusForbidden, map[string]string{"error": "Akses ditolak: Anda bukan pengampu ujian ini"})
-					return
-				}
-				http.Error(w, "Akses ditolak: Anda bukan pengampu ujian ini", http.StatusForbidden)
+			boleh, err := soal.CekOtorisasiUjianGuru(r.Context(), db, guruID, ujianID)
+			if err != nil {
+				serverError(w, r, err)
 				return
 			}
-
+			if !boleh {
+				forbidden(w, r)
+				return
+			}
 			list, err = admin.GetHasilByUjian(r.Context(), db, ujianID, kelasFilter)
 			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
+				serverError(w, r, err)
 				return
 			}
 		}
@@ -54,19 +59,12 @@ func GuruHasilListHandler(db *sql.DB, sm *scs.SessionManager) http.HandlerFunc {
 			return
 		}
 
-		listUjianGuru, _ := soal.ListUjianByGuru(r.Context(), db, guruID)
-		flashError := getFlash(sm, r, "error")
-		flashSuccess := getFlash(sm, r, "success")
-
-		_ = web.Render(w, "guru_hasil.gohtml", map[string]any{
-			"HasilList": list,
-			"UjianList": listUjianGuru,
-			"UjianID":   ujianID,
-			"Filter":    kelasFilter,
-			"Error":     flashError,
-			"Success":   flashSuccess,
-			"Username":  sm.GetString(r.Context(), "username"),
-		})
+		data := dataHalaman(sm, r, "hasil")
+		data["HasilList"] = list
+		data["UjianList"] = listUjianGuru
+		data["UjianID"] = ujianID
+		data["Filter"] = kelasFilter
+		render(w, r, "guru_hasil.gohtml", data)
 	}
 }
 
@@ -81,19 +79,19 @@ func GuruHasilExportHandler(db *sql.DB, sm *scs.SessionManager) http.HandlerFunc
 			return
 		}
 
-		boleh, cErr := soal.CekOtorisasiUjianGuru(r.Context(), db, guruID, ujianID)
-		if cErr != nil || !boleh {
-			if wantsJSON(r) {
-				writeJSON(w, http.StatusForbidden, map[string]string{"error": "Akses ditolak: Anda bukan pengampu ujian ini"})
-				return
-			}
-			http.Error(w, "Akses ditolak: Anda bukan pengampu ujian ini", http.StatusForbidden)
+		boleh, err := soal.CekOtorisasiUjianGuru(r.Context(), db, guruID, ujianID)
+		if err != nil {
+			serverError(w, r, err)
+			return
+		}
+		if !boleh {
+			forbidden(w, r)
 			return
 		}
 
 		list, err := admin.GetHasilByUjian(r.Context(), db, ujianID, "")
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			serverError(w, r, err)
 			return
 		}
 
@@ -106,7 +104,7 @@ func GuruHasilExportHandler(db *sql.DB, sm *scs.SessionManager) http.HandlerFunc
 		items := admin.ConvertToExcelItems(list)
 		buf, err := excel.BuatEksporHasilUjian(u.NamaUjian, u.NamaMapel, items)
 		if err != nil {
-			http.Error(w, "Gagal membuat berkas Excel: "+err.Error(), http.StatusInternalServerError)
+			serverError(w, r, fmt.Errorf("buat excel hasil guru: %w", err))
 			return
 		}
 

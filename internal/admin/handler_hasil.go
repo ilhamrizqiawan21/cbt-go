@@ -10,7 +10,6 @@ import (
 	"github.com/alexedwards/scs/v2"
 
 	"cbt-go/internal/excel"
-	"cbt-go/web"
 )
 
 // RegisterAdminHasilRoutes mendaftarkan seluruh rute laporan hasil ujian, ekspor Excel, dan cetak untuk admin.
@@ -27,12 +26,21 @@ func HasilListHandler(db *sql.DB, sm *scs.SessionManager) http.HandlerFunc {
 		ujianID, _ := strconv.Atoi(ujianStr)
 		kelasFilter := r.URL.Query().Get("kelas")
 
+		ujianList, err := ListUjian(r.Context(), db)
+		if err != nil {
+			serverError(w, r, err)
+			return
+		}
+		// Halaman HTML langsung menampilkan ujian terbaru bila belum dipilih (sama dengan Bank Soal).
+		if ujianID <= 0 && !wantsJSON(r) && len(ujianList) > 0 {
+			ujianID = ujianList[0].ID
+		}
+
 		var list []HasilUjianRow
-		var err error
 		if ujianID > 0 {
 			list, err = GetHasilByUjian(r.Context(), db, ujianID, kelasFilter)
 			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
+				serverError(w, r, err)
 				return
 			}
 		}
@@ -42,18 +50,24 @@ func HasilListHandler(db *sql.DB, sm *scs.SessionManager) http.HandlerFunc {
 			return
 		}
 
-		ujianList, _ := ListUjian(r.Context(), db)
+		kelasList, err := ListKelas(r.Context(), db)
+		if err != nil {
+			serverError(w, r, err)
+			return
+		}
 		flashError := getFlash(sm, r, "error")
 		flashSuccess := getFlash(sm, r, "success")
 
-		_ = web.Render(w, "admin_hasil.gohtml", map[string]any{
-			"HasilList": list,
-			"UjianList": ujianList,
-			"UjianID":   ujianID,
-			"Filter":    kelasFilter,
-			"Error":     flashError,
-			"Success":   flashSuccess,
-			"Username":  sm.GetString(r.Context(), "username"),
+		render(w, r, "admin_hasil.gohtml", map[string]any{
+			"HasilList":  list,
+			"UjianList":  ujianList,
+			"UjianID":    ujianID,
+			"KelasList":  kelasList,
+			"Filter":     kelasFilter,
+			"Error":      flashError,
+			"Success":    flashSuccess,
+			"Username":   sm.GetString(r.Context(), "username"),
+			"ActiveMenu": "hasil",
 		})
 	}
 }
@@ -70,7 +84,7 @@ func HasilExportHandler(db *sql.DB) http.HandlerFunc {
 
 		list, err := GetHasilByUjian(r.Context(), db, ujianID, "")
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			serverError(w, r, err)
 			return
 		}
 
@@ -83,7 +97,7 @@ func HasilExportHandler(db *sql.DB) http.HandlerFunc {
 		items := ConvertToExcelItems(list)
 		buf, err := excel.BuatEksporHasilUjian(u.NamaUjian, u.NamaMapel, items)
 		if err != nil {
-			http.Error(w, "Gagal membuat berkas Excel: "+err.Error(), http.StatusInternalServerError)
+			serverError(w, r, fmt.Errorf("buat excel hasil: %w", err))
 			return
 		}
 
@@ -113,11 +127,11 @@ func HasilCetakHandler(db *sql.DB) http.HandlerFunc {
 
 		list, err := GetHasilByUjian(r.Context(), db, ujianID, "")
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			serverError(w, r, err)
 			return
 		}
 
-		_ = web.Render(w, "admin_hasil_cetak.gohtml", map[string]any{
+		render(w, r, "admin_hasil_cetak.gohtml", map[string]any{
 			"Ujian":        u,
 			"HasilList":    list,
 			"TanggalCetak": time.Now().Format("02 January 2006"),

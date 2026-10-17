@@ -15,7 +15,6 @@ import (
 	"cbt-go/internal/admin"
 	"cbt-go/internal/excel"
 	"cbt-go/internal/soal"
-	"cbt-go/web"
 )
 
 // RegisterGuruEssayRoutes mendaftarkan seluruh rute penilaian essay guru.
@@ -27,57 +26,62 @@ func RegisterGuruEssayRoutes(mux *http.ServeMux, db *sql.DB, sm *scs.SessionMana
 	mux.Handle("POST /guru/essay/{ujianId}/import", requireGuru(GuruEssayImportHandler(db, sm)))
 }
 
-// GuruEssayListPageHandler menampilkan daftar ujian guru yang memiliki soal essay untuk dinilai.
+// GuruEssayListPageHandler menampilkan ujian milik guru beserta progres koreksi essay.
 func GuruEssayListPageHandler(db *sql.DB, sm *scs.SessionManager) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		guruID := sm.GetInt(r.Context(), "guruId")
-		listUjian, err := soal.ListUjianByGuru(r.Context(), db, guruID)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
 		if wantsJSON(r) {
+			listUjian, err := soal.ListUjianByGuru(r.Context(), db, guruID)
+			if err != nil {
+				serverError(w, r, err)
+				return
+			}
 			writeJSON(w, http.StatusOK, listUjian)
 			return
 		}
 
-		flashError := getFlash(sm, r, "error")
-		flashSuccess := getFlash(sm, r, "success")
-		_ = web.Render(w, "guru_essay.gohtml", map[string]any{
-			"UjianList": listUjian,
-			"Error":     flashError,
-			"Success":   flashSuccess,
-			"Username":  sm.GetString(r.Context(), "username"),
-		})
+		list, err := ListRingkasanUjianGuru(r.Context(), db, guruID)
+		if err != nil {
+			serverError(w, r, err)
+			return
+		}
+		data := dataHalaman(sm, r, "essay")
+		data["UjianList"] = list
+		render(w, r, "guru_essay_list.gohtml", data)
 	}
 }
 
-// GuruEssayDetailHandler menampilkan daftar jawaban essay siswa untuk ujian tertentu.
+// SoalEssayRingkas dipakai halaman koreksi untuk filter dan judul per soal.
+type SoalEssayRingkas struct {
+	ID       int
+	Nomor    int
+	TeksSoal string
+	PoinMaks int
+}
+
+// GuruEssayDetailHandler menampilkan lembar koreksi essay satu ujian (siswa yang sudah selesai).
 func GuruEssayDetailHandler(db *sql.DB, sm *scs.SessionManager) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		guruID := sm.GetInt(r.Context(), "guruId")
-		ujianStr := r.PathValue("ujianId")
-		ujianID, err := strconv.Atoi(ujianStr)
+		ujianID, err := strconv.Atoi(r.PathValue("ujianId"))
 		if err != nil || ujianID <= 0 {
 			http.Error(w, "ID ujian tidak valid", http.StatusBadRequest)
 			return
 		}
 
-		// Validasi otorisasi guru
 		boleh, err := soal.CekOtorisasiUjianGuru(r.Context(), db, guruID, ujianID)
-		if err != nil || !boleh {
-			if wantsJSON(r) {
-				writeJSON(w, http.StatusForbidden, map[string]string{"error": "Akses ditolak: Anda bukan pengampu ujian ini"})
-				return
-			}
-			http.Error(w, "Akses ditolak: Anda bukan pengampu ujian ini", http.StatusForbidden)
+		if err != nil {
+			serverError(w, r, err)
+			return
+		}
+		if !boleh {
+			forbidden(w, r)
 			return
 		}
 
 		list, err := GetJawabanEssayUjian(r.Context(), db, ujianID)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			serverError(w, r, err)
 			return
 		}
 
@@ -86,15 +90,36 @@ func GuruEssayDetailHandler(db *sql.DB, sm *scs.SessionManager) http.HandlerFunc
 			return
 		}
 
-		flashError := getFlash(sm, r, "error")
-		flashSuccess := getFlash(sm, r, "success")
-		_ = web.Render(w, "guru_essay.gohtml", map[string]any{
-			"UjianID":     ujianID,
-			"JawabanList": list,
-			"Error":       flashError,
-			"Success":     flashSuccess,
-			"Username":    sm.GetString(r.Context(), "username"),
-		})
+		u, err := admin.GetUjianByID(r.Context(), db, ujianID)
+		if err != nil {
+			serverError(w, r, err)
+			return
+		}
+
+		// Daftar soal essay unik (urutan sesuai id) dan hitungan yang belum dinilai.
+		var daftarSoal []SoalEssayRingkas
+		dilihat := map[int]bool{}
+		siswa := map[int]bool{}
+		belum := 0
+		for _, row := range list {
+			if !dilihat[row.SoalID] {
+				dilihat[row.SoalID] = true
+				daftarSoal = append(daftarSoal, SoalEssayRingkas{ID: row.SoalID, Nomor: len(daftarSoal) + 1, TeksSoal: row.TeksSoal, PoinMaks: row.PoinMaks})
+			}
+			siswa[row.SiswaID] = true
+			if row.Skor == nil {
+				belum++
+			}
+		}
+
+		data := dataHalaman(sm, r, "essay")
+		data["Ujian"] = u
+		data["UjianID"] = ujianID
+		data["JawabanList"] = list
+		data["SoalList"] = daftarSoal
+		data["JumlahSiswa"] = len(siswa)
+		data["BelumDinilai"] = belum
+		render(w, r, "guru_essay.gohtml", data)
 	}
 }
 
@@ -132,9 +157,15 @@ func GuruEssayNilaiHandler(db *sql.DB, sm *scs.SessionManager) http.HandlerFunc 
 
 		hasil, err := SimpanNilaiEssay(r.Context(), db, guruID, ujianID, payload.SiswaID, payload.SoalID, payload.Skor)
 		if err != nil {
-			status := http.StatusBadRequest
-			if errors.Is(err, soal.ErrForbiddenGuru) {
+			var status int
+			switch {
+			case errors.Is(err, soal.ErrForbiddenGuru):
 				status = http.StatusForbidden
+			case errors.Is(err, ErrSkorInvalid), errors.Is(err, ErrSesiBelumSelesai), errors.Is(err, ErrSoalEssayTidakAda):
+				status = http.StatusBadRequest
+			default:
+				serverError(w, r, err)
+				return
 			}
 			if wantsJSON(r) || isJSONBody(r) {
 				writeJSON(w, status, map[string]string{"error": err.Error()})
@@ -173,8 +204,12 @@ func GuruEssayExportHandler(db *sql.DB, sm *scs.SessionManager) http.HandlerFunc
 		}
 
 		boleh, err := soal.CekOtorisasiUjianGuru(r.Context(), db, guruID, ujianID)
-		if err != nil || !boleh {
-			http.Error(w, "Akses ditolak: Anda bukan pengampu ujian ini", http.StatusForbidden)
+		if err != nil {
+			serverError(w, r, err)
+			return
+		}
+		if !boleh {
+			forbidden(w, r)
 			return
 		}
 
@@ -186,13 +221,13 @@ func GuruEssayExportHandler(db *sql.DB, sm *scs.SessionManager) http.HandlerFunc
 
 		rows, err := GetJawabanEssayUjian(r.Context(), db, ujianID)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			serverError(w, r, err)
 			return
 		}
 
 		buf, err := excel.BuatTemplateEssay(u.NamaUjian, rows)
 		if err != nil {
-			http.Error(w, "Gagal membuat berkas Excel: "+err.Error(), http.StatusInternalServerError)
+			serverError(w, r, fmt.Errorf("buat template essay: %w", err))
 			return
 		}
 
@@ -218,8 +253,12 @@ func GuruEssayImportHandler(db *sql.DB, sm *scs.SessionManager) http.HandlerFunc
 		}
 
 		boleh, err := soal.CekOtorisasiUjianGuru(r.Context(), db, guruID, ujianID)
-		if err != nil || !boleh {
-			http.Error(w, "Akses ditolak: Anda bukan pengampu ujian ini", http.StatusForbidden)
+		if err != nil {
+			serverError(w, r, err)
+			return
+		}
+		if !boleh {
+			forbidden(w, r)
 			return
 		}
 
@@ -276,13 +315,7 @@ func GuruEssayImportHandler(db *sql.DB, sm *scs.SessionManager) http.HandlerFunc
 
 		sukses, dbErrs, err := BatchSimpanNilaiEssay(r.Context(), db, guruID, ujianID, items)
 		if err != nil {
-			msg := fmt.Sprintf("Gagal menyimpan batch nilai essay: %v", err)
-			if wantsJSON(r) {
-				writeJSON(w, http.StatusInternalServerError, map[string]string{"error": msg})
-				return
-			}
-			setFlash(sm, r, "error", msg)
-			http.Redirect(w, r, fmt.Sprintf("/guru/essay/%d", ujianID), http.StatusFound)
+			serverError(w, r, fmt.Errorf("simpan batch nilai essay: %w", err))
 			return
 		}
 
@@ -299,10 +332,27 @@ func GuruEssayImportHandler(db *sql.DB, sm *scs.SessionManager) http.HandlerFunc
 		}
 
 		if len(semuaErrs) > 0 {
-			setFlash(sm, r, "error", fmt.Sprintf("Berhasil %d baris. Terdapat %d baris bermasalah.", sukses, len(semuaErrs)))
+			setFlash(sm, r, "error", ringkasErrorImpor(sukses, semuaErrs))
 		} else {
 			setFlash(sm, r, "success", fmt.Sprintf("Berhasil mengimpor %d nilai essay.", sukses))
 		}
 		http.Redirect(w, r, fmt.Sprintf("/guru/essay/%d", ujianID), http.StatusFound)
 	}
+}
+
+// ringkasErrorImpor menyusun pesan flash: jumlah sukses + maksimal 5 baris bermasalah pertama.
+func ringkasErrorImpor(sukses int, errs []excel.ImportError) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "Berhasil %d baris; %d baris bermasalah: ", sukses, len(errs))
+	for i, e := range errs {
+		if i == 5 {
+			fmt.Fprintf(&b, " … (+%d lainnya)", len(errs)-5)
+			break
+		}
+		if i > 0 {
+			b.WriteString("; ")
+		}
+		fmt.Fprintf(&b, "baris %d: %s", e.Baris, e.Pesan)
+	}
+	return b.String()
 }

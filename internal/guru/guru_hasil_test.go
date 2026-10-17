@@ -73,14 +73,14 @@ func (s *mockGuruHasilStmt) QueryContext(ctx context.Context, args []driver.Name
 				"id", "nis", "nama", "kelas",
 				"poin_otomatis", "poin_essay", "poin_maks", "nilai",
 				"benar", "salah", "kosong", "status_koreksi", "selesai_pada",
-				"id", "nama_ujian", "nama_mapel", "nama", "nama_kelas",
+				"id", "nama_ujian", "nama_mapel", "nama", "nama_kelas", "siswa_id",
 			},
 			rows: [][]driver.Value{
 				{
 					int64(1), "1001", "Budi Santoso", "VII-A",
 					int64(16), int64(14), int64(40), int64(75),
 					int64(8), int64(2), int64(0), "selesai", now,
-					int64(10), "PTS Matematika", "Matematika", "Guru A", "VII-A",
+					int64(10), "PTS Matematika", "Matematika", "Guru A", "VII-A", int64(5),
 				},
 			},
 		}, nil

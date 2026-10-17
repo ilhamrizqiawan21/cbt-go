@@ -3,6 +3,7 @@ package guru
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strconv"
 	"strings"
@@ -10,7 +11,6 @@ import (
 	"github.com/alexedwards/scs/v2"
 
 	"cbt-go/internal/soal"
-	"cbt-go/web"
 )
 
 // RegisterGuruRoutes mendaftarkan seluruh rute kelola soal khusus guru dengan otorisasi mapel/pengajaran ketat.
@@ -30,13 +30,13 @@ func RegisterGuruRoutes(mux *http.ServeMux, db *sql.DB, sm *scs.SessionManager, 
 	mux.Handle("POST /guru/soal/batch-tambah", requireGuru(GuruSoalBatchTambahHandler(db, sm)))
 }
 
-// KelolaSoalPageHandler menampilkan halaman kelola soal untuk guru yang sedang aktif login.
+// KelolaSoalPageHandler menampilkan bank soal satu ujian milik guru aktif (?ujian_id=, default ujian terbaru).
 func KelolaSoalPageHandler(db *sql.DB, sm *scs.SessionManager) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		guruID := sm.GetInt(r.Context(), "guruId")
 		listUjian, err := soal.ListUjianByGuru(r.Context(), db, guruID)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			serverError(w, r, err)
 			return
 		}
 
@@ -45,29 +45,45 @@ func KelolaSoalPageHandler(db *sql.DB, sm *scs.SessionManager) http.HandlerFunc 
 			return
 		}
 
-		flashError := getFlash(sm, r, "error")
-		flashSuccess := getFlash(sm, r, "success")
-		_ = web.Render(w, "guru_soal.gohtml", map[string]any{
-			"UjianList": listUjian,
-			"Error":     flashError,
-			"Success":   flashSuccess,
-			"NamaGuru":  sm.GetString(r.Context(), "namaGuru"),
-			"Username":  sm.GetString(r.Context(), "username"),
-		})
+		ujianID, _ := strconv.Atoi(r.URL.Query().Get("ujian_id"))
+		if ujianID <= 0 && len(listUjian) > 0 {
+			ujianID = listUjian[0].ID
+		}
+
+		var listSoal []soal.SoalKelola
+		if ujianID > 0 {
+			boleh, err := soal.CekOtorisasiUjianGuru(r.Context(), db, guruID, ujianID)
+			if err != nil {
+				serverError(w, r, err)
+				return
+			}
+			if !boleh {
+				forbidden(w, r)
+				return
+			}
+			listSoal, err = soal.ListSoalByUjian(r.Context(), db, ujianID)
+			if err != nil {
+				serverError(w, r, err)
+				return
+			}
+		}
+
+		data := dataHalaman(sm, r, "soal")
+		data["UjianList"] = listUjian
+		data["UjianID"] = ujianID
+		data["SoalList"] = listSoal
+		// Partial soal_bank dipakai bersama admin; rute guru /guru/soal/* memeriksa kepemilikan.
+		data["SoalBase"] = "/guru/soal"
+		data["SoalPage"] = "/guru/kelola-soal"
+		render(w, r, "guru_soal.gohtml", data)
 	}
 }
 
-// KelolaSoalBatchPageHandler menampilkan halaman penambahan batch soal untuk guru.
+// KelolaSoalBatchPageHandler: rute Node dipertahankan; form tambah soal ada di halaman Kelola Soal (modal).
 func KelolaSoalBatchPageHandler(db *sql.DB, sm *scs.SessionManager) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		guruID := sm.GetInt(r.Context(), "guruId")
-		listUjian, _ := soal.ListUjianByGuru(r.Context(), db, guruID)
-		_ = web.Render(w, "guru_soal.gohtml", map[string]any{
-			"UjianList": listUjian,
-			"BatchMode": true,
-			"NamaGuru":  sm.GetString(r.Context(), "namaGuru"),
-			"Username":  sm.GetString(r.Context(), "username"),
-		})
+		ujianID, _ := strconv.Atoi(r.URL.Query().Get("ujian_id"))
+		http.Redirect(w, r, kelolaSoalURL(ujianID), http.StatusFound)
 	}
 }
 
@@ -77,7 +93,7 @@ func UjianByGuruAPIHandler(db *sql.DB, sm *scs.SessionManager) http.HandlerFunc 
 		guruID := sm.GetInt(r.Context(), "guruId")
 		list, err := soal.ListUjianByGuru(r.Context(), db, guruID)
 		if err != nil {
-			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+			serverError(w, r, err)
 			return
 		}
 		writeJSON(w, http.StatusOK, list)
@@ -98,7 +114,7 @@ func SoalByUjianAPIHandler(db *sql.DB, sm *scs.SessionManager) http.HandlerFunc 
 		// Validasi Otorisasi Guru atas Ujian
 		boleh, err := soal.CekOtorisasiUjianGuru(r.Context(), db, guruID, ujianID)
 		if err != nil {
-			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+			serverError(w, r, err)
 			return
 		}
 		if !boleh {
@@ -108,7 +124,7 @@ func SoalByUjianAPIHandler(db *sql.DB, sm *scs.SessionManager) http.HandlerFunc 
 
 		list, err := soal.ListSoalByUjian(r.Context(), db, ujianID)
 		if err != nil {
-			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+			serverError(w, r, err)
 			return
 		}
 		writeJSON(w, http.StatusOK, list)
@@ -152,7 +168,7 @@ func GuruSoalTambahHandler(db *sql.DB, sm *scs.SessionManager) http.HandlerFunc 
 				return
 			}
 			setFlash(sm, r, "error", msg)
-			http.Redirect(w, r, "/guru/kelola-soal", http.StatusFound)
+			http.Redirect(w, r, kelolaSoalURL(0), http.StatusFound)
 			return
 		}
 
@@ -163,7 +179,7 @@ func GuruSoalTambahHandler(db *sql.DB, sm *scs.SessionManager) http.HandlerFunc 
 				return
 			}
 			setFlash(sm, r, "error", err.Error())
-			http.Redirect(w, r, "/guru/kelola-soal", http.StatusFound)
+			http.Redirect(w, r, kelolaSoalURL(s.UjianID), http.StatusFound)
 			return
 		}
 
@@ -172,7 +188,7 @@ func GuruSoalTambahHandler(db *sql.DB, sm *scs.SessionManager) http.HandlerFunc 
 			return
 		}
 		setFlash(sm, r, "success", "Soal berhasil ditambahkan")
-		http.Redirect(w, r, "/guru/kelola-soal", http.StatusFound)
+		http.Redirect(w, r, kelolaSoalURL(s.UjianID), http.StatusFound)
 	}
 }
 
@@ -194,8 +210,12 @@ func GuruSoalGetHandler(db *sql.DB, sm *scs.SessionManager) http.HandlerFunc {
 		}
 
 		s, err := soal.GetSoalByID(r.Context(), db, id)
+		if errors.Is(err, soal.ErrSoalNotFound) {
+			writeJSON(w, http.StatusNotFound, map[string]string{"error": "Soal tidak ditemukan"})
+			return
+		}
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			serverError(w, r, err)
 			return
 		}
 
@@ -222,7 +242,7 @@ func GuruSoalEditHandler(db *sql.DB, sm *scs.SessionManager) http.HandlerFunc {
 				return
 			}
 			setFlash(sm, r, "error", msg)
-			http.Redirect(w, r, "/guru/kelola-soal", http.StatusFound)
+			http.Redirect(w, r, kelolaSoalURL(0), http.StatusFound)
 			return
 		}
 
@@ -256,7 +276,7 @@ func GuruSoalEditHandler(db *sql.DB, sm *scs.SessionManager) http.HandlerFunc {
 				return
 			}
 			setFlash(sm, r, "error", err.Error())
-			http.Redirect(w, r, "/guru/kelola-soal", http.StatusFound)
+			http.Redirect(w, r, kelolaSoalURL(formInt(r, "ujian_id")), http.StatusFound)
 			return
 		}
 
@@ -265,7 +285,7 @@ func GuruSoalEditHandler(db *sql.DB, sm *scs.SessionManager) http.HandlerFunc {
 			return
 		}
 		setFlash(sm, r, "success", "Soal berhasil diperbarui")
-		http.Redirect(w, r, "/guru/kelola-soal", http.StatusFound)
+		http.Redirect(w, r, kelolaSoalURL(formInt(r, "ujian_id")), http.StatusFound)
 	}
 }
 
@@ -288,18 +308,18 @@ func GuruSoalHapusHandler(db *sql.DB, sm *scs.SessionManager) http.HandlerFunc {
 				return
 			}
 			setFlash(sm, r, "error", msg)
-			http.Redirect(w, r, "/guru/kelola-soal", http.StatusFound)
+			http.Redirect(w, r, kelolaSoalURL(0), http.StatusFound)
 			return
 		}
 
 		err = soal.HapusSoal(r.Context(), db, id)
 		if err != nil {
 			if wantsJSON(r) {
-				writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+				serverError(w, r, err)
 				return
 			}
 			setFlash(sm, r, "error", err.Error())
-			http.Redirect(w, r, "/guru/kelola-soal", http.StatusFound)
+			http.Redirect(w, r, kelolaSoalURL(formInt(r, "ujian_id")), http.StatusFound)
 			return
 		}
 
@@ -308,7 +328,7 @@ func GuruSoalHapusHandler(db *sql.DB, sm *scs.SessionManager) http.HandlerFunc {
 			return
 		}
 		setFlash(sm, r, "success", "Soal berhasil dihapus")
-		http.Redirect(w, r, "/guru/kelola-soal", http.StatusFound)
+		http.Redirect(w, r, kelolaSoalURL(formInt(r, "ujian_id")), http.StatusFound)
 	}
 }
 
@@ -346,7 +366,7 @@ func GuruSoalBatchTambahHandler(db *sql.DB, sm *scs.SessionManager) http.Handler
 				return
 			}
 			setFlash(sm, r, "error", msg)
-			http.Redirect(w, r, "/guru/kelola-soal", http.StatusFound)
+			http.Redirect(w, r, kelolaSoalURL(0), http.StatusFound)
 			return
 		}
 
@@ -357,7 +377,7 @@ func GuruSoalBatchTambahHandler(db *sql.DB, sm *scs.SessionManager) http.Handler
 				return
 			}
 			setFlash(sm, r, "error", err.Error())
-			http.Redirect(w, r, "/guru/kelola-soal", http.StatusFound)
+			http.Redirect(w, r, kelolaSoalURL(payload.UjianID), http.StatusFound)
 			return
 		}
 
@@ -369,7 +389,7 @@ func GuruSoalBatchTambahHandler(db *sql.DB, sm *scs.SessionManager) http.Handler
 			return
 		}
 		setFlash(sm, r, "success", "Berhasil menambahkan "+strconv.Itoa(total)+" soal")
-		http.Redirect(w, r, "/guru/kelola-soal", http.StatusFound)
+		http.Redirect(w, r, kelolaSoalURL(payload.UjianID), http.StatusFound)
 	}
 }
 
@@ -401,6 +421,12 @@ func getFlash(sm *scs.SessionManager, r *http.Request, key string) string {
 		return ""
 	}
 	return sm.PopString(r.Context(), "flash_"+key)
+}
+
+// formInt membaca field form bilangan bulat; nilai tidak valid menjadi 0.
+func formInt(r *http.Request, key string) int {
+	n, _ := strconv.Atoi(r.FormValue(key))
+	return n
 }
 
 func stringPtr(s string) *string {

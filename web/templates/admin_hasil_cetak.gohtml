@@ -74,7 +74,7 @@
             <td class="text-center">{{$h.Salah}}</td>
             <td class="text-center">{{$h.Kosong}}</td>
             <td class="text-center"><strong>{{$h.NilaiAkhir}}</strong></td>
-            <td class="text-center">{{$h.StatusKoreksi}}</td>
+            <td class="text-center">{{if eq $h.StatusKoreksi "selesai"}}Selesai{{else}}Menunggu essay{{end}}</td>
         </tr>
         {{else}}
         <tr>

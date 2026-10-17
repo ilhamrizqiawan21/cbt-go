@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    {{template "app_head" "Monitor Realtime"}}
+    <style>
+        .st-online { background:#d3f9d8; color:#2b8a3e; }
+        .st-offline { background:#e9ecef; color:#495057; }
+        .st-terkunci { background:#ffe3e3; color:#c92a2a; }
+        .st-selesai { background:#e7f5ff; color:#1c7ed6; }
+        .st-belum_masuk { background:#fff3bf; color:#a15c00; }
+        .stat-card { cursor:pointer; border-left:4px solid transparent; }
+        .stat-card.aktif { outline:2px solid var(--bs-primary); }
+        #tabel-monitor td { white-space: nowrap; }
+    </style>
+</head>
+<body class="bg-light">
+{{template "admin_navbar" .}}
+
+<div class="container-fluid px-lg-4 py-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+        <div>
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+                <h3 class="page-title mb-0"><i class="bi bi-display text-primary me-2"></i>Monitor Realtime Ujian</h3>
+                <span id="ws-badge" class="badge bg-secondary">Menghubungkan…</span>
+            </div>
+            <p class="text-muted mb-0 small">Online = aktif &lt; 45 detik terakhir. Data diperbarui otomatis.</p>
+        </div>
+        <form method="GET" action="/admin/monitor" class="page-actions">
+            <select name="ujian_id" class="form-select" style="min-width:260px" aria-label="Pilih ujian" onchange="this.form.submit()">
+                {{range .UjianList}}
+                <option value="{{.ID}}" {{if eq .ID $.UjianID}}selected{{end}}>{{.NamaUjian}} — {{.NamaKelas}}</option>
+                {{else}}
+                <option value="">Belum ada ujian</option>
+                {{end}}
+            </select>
+        </form>
+    </div>
+
+    {{template "app_flash" .}}
+
+    {{if not .UjianID}}
+    <div class="alert alert-info text-center py-4"><i class="bi bi-info-circle fs-2 d-block mb-2"></i>Belum ada ujian. <a href="/admin/ujian" class="alert-link">Buat ujian</a> terlebih dahulu.</div>
+    {{else}}
+    <div class="row g-2 mb-3" id="kartu-stat">
+        <div class="col-6 col-md-4 col-xl-2"><div class="card stat-card border-0 shadow-sm p-3 text-center" data-filter="">
+            <div class="small text-muted fw-semibold text-uppercase">Total</div><div class="fs-3 fw-bold" id="stat-total_siswa">0</div></div></div>
+        <div class="col-6 col-md-4 col-xl-2"><div class="card stat-card border-0 shadow-sm p-3 text-center st-online" data-filter="online">
+            <div class="small fw-semibold text-uppercase">Online</div><div class="fs-3 fw-bold" id="stat-online">0</div></div></div>
+        <div class="col-6 col-md-4 col-xl-2"><div class="card stat-card border-0 shadow-sm p-3 text-center st-offline" data-filter="offline">
+            <div class="small fw-semibold text-uppercase">Offline</div><div class="fs-3 fw-bold" id="stat-offline">0</div></div></div>
+        <div class="col-6 col-md-4 col-xl-2"><div class="card stat-card border-0 shadow-sm p-3 text-center st-terkunci" data-filter="terkunci">
+            <div class="small fw-semibold text-uppercase">Terkunci</div><div class="fs-3 fw-bold" id="stat-terkunci">0</div></div></div>
+        <div class="col-6 col-md-4 col-xl-2"><div class="card stat-card border-0 shadow-sm p-3 text-center st-selesai" data-filter="selesai">
+            <div class="small fw-semibold text-uppercase">Selesai</div><div class="fs-3 fw-bold" id="stat-selesai">0</div></div></div>
+        <div class="col-6 col-md-4 col-xl-2"><div class="card stat-card border-0 shadow-sm p-3 text-center st-belum_masuk" data-filter="belum_masuk">
+            <div class="small fw-semibold text-uppercase">Belum masuk</div><div class="fs-3 fw-bold" id="stat-belum_masuk">0</div></div></div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="card-body py-2 row g-2 align-items-center">
+            <div class="col-md-4"><input type="search" id="cari" class="form-control form-control-sm" placeholder="Cari nama atau NIS…" aria-label="Cari siswa"></div>
+            <div class="col-md-3"><select id="filter-kelas" class="form-select form-select-sm" aria-label="Filter kelas"><option value="">Semua kelas</option></select></div>
+            <div class="col-md-3">
+                <select id="filter-status" class="form-select form-select-sm" aria-label="Filter status">
+                    <option value="">Semua status</option>
+                    <option value="online">Online</option>
+                    <option value="offline">Offline</option>
+                    <option value="terkunci">Terkunci</option>
+                    <option value="selesai">Selesai</option>
+                    <option value="belum_masuk">Belum masuk</option>
+                </select>
+            </div>
+            <div class="col-md-2 text-md-end small text-muted" id="jumlah-tampil"></div>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0" id="tabel-monitor">
+                <thead class="table-light">
+                    <tr>
+                        <th class="text-center">No</th>
+                        <th>NIS</th>
+                        <th>Nama</th>
+                        <th>Kelas</th>
+                        <th class="text-center">Status</th>
+                        <th style="min-width:150px">Progres</th>
+                        <th class="text-center">Sisa waktu</th>
+                        <th class="text-center">Pelanggaran</th>
+                        <th class="text-center">Perangkat</th>
+                        <th class="text-end">Aksi</th>
+                    </tr>
+                </thead>
+                <tbody id="tabel-body">
+                    <tr><td colspan="10" class="text-center py-4 text-muted">Memuat data…</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {{end}}
+</div>
+
+{{if .UjianID}}
+<!-- Modal Tambah Waktu -->
+<div class="modal fade" id="modalTambahWaktu" tabindex="-1" aria-labelledby="modalTambahWaktuLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold" id="modalTambahWaktuLabel"><i class="bi bi-clock-history text-primary me-2"></i>Tambah Waktu</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-3">Tambah waktu untuk <strong id="tw-nama"></strong>:</p>
+                <div class="d-flex flex-wrap justify-content-center gap-2 mb-3">
+                    {{range $m := list "5" "10" "15" "30"}}
+                    <button type="button" class="btn btn-outline-primary tw-preset" data-menit="{{$m}}">+{{$m}} menit</button>
+                    {{end}}
+                </div>
+                <div class="input-group">
+                    <input type="number" id="tw-menit" class="form-control text-center fs-5 fw-bold" value="10" min="1" max="180" aria-label="Jumlah menit">
+                    <span class="input-group-text">menit</span>
+                </div>
+                <div class="form-text">1–180 menit. Boleh melewati jadwal selesai ujian.</div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                <button type="button" class="btn btn-primary" id="tw-kirim"><i class="bi bi-check-lg me-1"></i> Tambahkan</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Form reset (dipakai bersama; nilai diisi JS sebelum submit) -->
+<form method="POST" action="/admin/reset-ujian" id="form-reset" class="d-none">
+    <input type="hidden" name="siswa_id" id="reset-siswa">
+    <input type="hidden" name="ujian_id" value="{{.UjianID}}">
+    <input type="hidden" name="kembali" value="/admin/monitor/{{.UjianID}}">
+</form>
+
+<div class="toast-container position-fixed bottom-0 end-0 p-3">
+    <div id="toast" class="toast align-items-center border-0" role="status" aria-live="polite" aria-atomic="true">
+        <div class="d-flex"><div class="toast-body" id="toast-body"></div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Tutup"></button></div>
+    </div>
+</div>
+{{end}}
+
+{{template "app_scripts"}}
+{{if .UjianID}}
+<script>
+(() => {
+    const UJIAN_ID = {{.UjianID}};
+    // Snapshot awal dari server (html/template meng-encode JSON dengan aman di konteks JS).
+    let snapshot = {{.Snapshot}};
+    let diterimaPada = Date.now();
+
+    const LABEL_STATUS = { online: 'Online', offline: 'Offline', terkunci: 'Terkunci', selesai: 'Selesai', belum_masuk: 'Belum masuk' };
+    const $ = (id) => document.getElementById(id);
+    const el = (tag, attrs = {}, ...children) => {
+        const e = document.createElement(tag);
+        for (const [k, v] of Object.entries(attrs)) {
+            if (k === 'class') e.className = v;
+            else if (k === 'text') e.textContent = v;
+            else e.setAttribute(k, v);
+        }
+        children.forEach((c) => c && e.appendChild(typeof c === 'string' ? document.createTextNode(c) : c));
+        return e;
+    };
+    const ikon = (cls) => el('i', { class: 'bi ' + cls });
+
+    // ---------- Notifikasi ----------
+    const toast = new bootstrap.Toast($('toast'), { delay: 3500 });
+    const beriTahu = (pesan, ok = true) => {
+        $('toast').className = 'toast align-items-center border-0 text-white ' + (ok ? 'bg-success' : 'bg-danger');
+        $('toast-body').textContent = pesan;
+        toast.show();
+    };
+
+    // ---------- Render ----------
+    const formatSisa = (detik) => {
+        if (detik <= 0) return '00:00';
+        const j = Math.floor(detik / 3600), m = Math.floor((detik % 3600) / 60), d = detik % 60;
+        const pad = (n) => String(n).padStart(2, '0');
+        return (j ? j + ':' : '') + pad(m) + ':' + pad(d);
+    };
+
+    const tombol = (cls, ikonCls, teks, aksi, s) => {
+        const b = el('button', { type: 'button', class: 'btn btn-sm ' + cls, 'data-aksi': aksi, 'data-sesi': s.sesi_id || '', 'data-siswa': s.siswa_id, 'data-nama': s.nama });
+        b.append(ikon(ikonCls), ' ' + teks);
+        return b;
+    };
+
+    const barisSiswa = (s) => {
+        const tr = el('tr', { 'data-status': s.status, 'data-kelas': s.kelas || '', 'data-cari': (s.nis + ' ' + s.nama).toLowerCase() });
+        const pct = Math.max(0, Math.min(100, s.persentase || 0));
+        const bar = el('div', { class: 'progress-bar ' + (pct === 100 ? 'bg-primary' : 'bg-success'), style: 'width:' + pct + '%' });
+        const progres = el('div', { class: 'd-flex align-items-center gap-2' },
+            el('div', { class: 'progress flex-grow-1', style: 'height:12px' }, bar),
+            el('span', { class: 'small text-muted', text: (s.soal_dijawab || 0) + '/' + (s.total_soal || 0) }));
+
+        const sisa = el('span', { class: 'font-monospace sisa', 'data-sisa': s.status_sesi === 'sedang_ujian' ? s.sisa_detik : '' },
+            s.status_sesi === 'sedang_ujian' ? formatSisa(s.sisa_detik) : '-');
+
+        const pel = s.jumlah_pelanggaran > 0
+            ? el('span', { class: 'badge bg-danger rounded-pill', text: s.jumlah_pelanggaran + '×' })
+            : el('span', { class: 'text-muted', text: '0' });
+
+        let perangkat = el('span', { class: 'text-muted', text: '-' });
+        if (s.device_type === 'hp') { perangkat = el('span'); perangkat.append(ikon('bi-phone'), ' HP'); }
+        else if (s.device_type === 'laptop') { perangkat = el('span'); perangkat.append(ikon('bi-laptop'), ' Laptop'); }
+
+        const aksi = el('div', { class: 'd-inline-flex gap-1' });
+        if (s.sesi_id) {
+            if (s.status === 'terkunci') aksi.append(tombol('btn-warning', 'bi-unlock', 'Buka kunci', 'buka-kunci', s));
+            if (s.status !== 'selesai') {
+                aksi.append(tombol('btn-outline-primary', 'bi-clock-history', 'Waktu', 'tambah-waktu', s));
+                aksi.append(tombol('btn-outline-danger', 'bi-check2-all', 'Selesaikan', 'paksa-selesai', s));
+            }
+            aksi.append(tombol('btn-outline-secondary', 'bi-arrow-counterclockwise', 'Reset', 'reset', s));
+        } else {
+            aksi.append(el('span', { class: 'text-muted small fst-italic', text: 'Belum mulai' }));
+        }
+
+        tr.append(
+            el('td', { class: 'text-center text-muted col-no' }),
+            el('td', { class: 'font-monospace', text: s.nis }),
+            el('td', { class: 'fw-semibold', dir: 'auto', text: s.nama }),
+            el('td', {}, el('span', { class: 'badge bg-secondary-subtle text-secondary-emphasis', text: s.kelas || '-' })),
+            el('td', { class: 'text-center' }, el('span', { class: 'badge st-' + s.status, text: LABEL_STATUS[s.status] || s.status })),
+            el('td', {}, progres),
+            el('td', { class: 'text-center' }, sisa),
+            el('td', { class: 'text-center' }, pel),
+            el('td', { class: 'text-center' }, perangkat),
+            el('td', { class: 'text-end' }, aksi),
+        );
+        return tr;
+    };
+
+    const terapkanFilter = () => {
+        const q = $('cari').value.toLowerCase().trim();
+        const kelas = $('filter-kelas').value;
+        const status = $('filter-status').value;
+        let n = 0, total = 0;
+        document.querySelectorAll('#tabel-body tr[data-status]').forEach((tr) => {
+            total++;
+            const cocok = (!q || tr.dataset.cari.includes(q)) && (!kelas || tr.dataset.kelas === kelas) && (!status || tr.dataset.status === status);
+            tr.style.display = cocok ? '' : 'none';
+            if (cocok) tr.querySelector('.col-no').textContent = ++n;
+        });
+        $('jumlah-tampil').textContent = `${n} dari ${total} siswa`;
+        document.querySelectorAll('.stat-card').forEach((c) => c.classList.toggle('aktif', c.dataset.filter === status && status !== ''));
+    };
+
+    const render = (snap) => {
+        const tbody = $('tabel-body');
+        if (!snap) {
+            tbody.replaceChildren(el('tr', {}, el('td', { colspan: '10', class: 'text-center py-4 text-danger', text: 'Data monitor gagal dimuat. Mencoba lagi…' })));
+            return;
+        }
+        snapshot = snap;
+        diterimaPada = Date.now();
+        const r = snap.ringkasan || {};
+        ['total_siswa', 'online', 'offline', 'terkunci', 'selesai', 'belum_masuk'].forEach((k) => { $('stat-' + k).textContent = r[k] ?? 0; });
+
+        const siswa = Array.isArray(snap.siswa) ? snap.siswa : [];
+        if (!siswa.length) {
+            tbody.replaceChildren(el('tr', {}, el('td', { colspan: '10', class: 'text-center py-4 text-muted', text: 'Tidak ada siswa pada kelas ujian ini.' })));
+        } else {
+            tbody.replaceChildren(...siswa.map(barisSiswa));
+        }
+
+        const sel = $('filter-kelas');
+        const pilihan = sel.value;
+        const daftarKelas = [...new Set(siswa.map((s) => s.kelas).filter(Boolean))].sort();
+        sel.replaceChildren(el('option', { value: '', text: 'Semua kelas' }), ...daftarKelas.map((k) => el('option', { value: k, text: k })));
+        sel.value = daftarKelas.includes(pilihan) ? pilihan : '';
+        terapkanFilter();
+    };
+
+    // Hitung mundur lokal antar-snapshot; nilai otoritatif tetap dari server.
+    setInterval(() => {
+        const lewat = Math.floor((Date.now() - diterimaPada) / 1000);
+        document.querySelectorAll('.sisa[data-sisa]').forEach((s) => {
+            if (s.dataset.sisa === '') return;
+            s.textContent = formatSisa(Math.max(0, parseInt(s.dataset.sisa, 10) - lewat));
+        });
+    }, 1000);
+
+    // ---------- Data ----------
+    let sedangMuat = false;
+    const muatSnapshot = async () => {
+        if (sedangMuat) return;
+        sedangMuat = true;
+        try {
+            const res = await fetch('/admin/api/monitor/' + UJIAN_ID, { headers: { 'Accept': 'application/json' } });
+            if (res.status === 401 || res.status === 403) { window.location.href = '/login-admin'; return; }
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            render(await res.json());
+        } catch (e) {
+            console.error('muat snapshot monitor:', e);
+        } finally {
+            sedangMuat = false;
+        }
+    };
+    // Status online/offline bergantung waktu, jadi tetap disegarkan berkala walau tanpa event.
+    setInterval(() => { if (!document.hidden) muatSnapshot(); }, 20000);
+
+    // ---------- WebSocket ----------
+    const badge = $('ws-badge');
+    const setBadge = (cls, teks) => { badge.className = 'badge ' + cls; badge.textContent = teks; };
+    let jeda = 1000;
+    const sambung = () => {
+        setBadge('bg-warning text-dark', 'Menghubungkan…');
+        const ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws/admin');
+        ws.onopen = () => {
+            jeda = 1000;
+            ws.send(JSON.stringify({ event: 'admin:join', data: { ujian_id: UJIAN_ID } }));
+        };
+        ws.onmessage = (ev) => {
+            let msg;
+            try { msg = JSON.parse(ev.data); } catch (e) { return; }
+            if (msg.event === 'admin:joined') { setBadge('bg-success', 'Realtime aktif'); muatSnapshot(); }
+            else if (msg.event === 'monitor:update' && msg.data) render(msg.data);
+            else if (msg.event === 'admin:error') setBadge('bg-danger', 'Gagal bergabung: ' + ((msg.data && msg.data.message) || 'error'));
+        };
+        ws.onclose = () => {
+            setBadge('bg-danger', 'Terputus — menyambung ulang…');
+            setTimeout(sambung, jeda);
+            jeda = Math.min(jeda * 2, 30000);
+        };
+        ws.onerror = () => ws.close();
+    };
+
+    // ---------- Aksi ----------
+    const kirimAksi = async (sesiId, aksi, body) => {
+        const opt = { method: 'POST', headers: { 'Accept': 'application/json' } };
+        if (body) { opt.headers['Content-Type'] = 'application/json'; opt.body = JSON.stringify(body); }
+        const res = await fetch(`/admin/api/sesi/${sesiId}/${aksi}`, opt);
+        let data = {};
+        try { data = await res.json(); } catch (e) { /* respons non-JSON */ }
+        if (!res.ok) throw new Error(data.error || ('Gagal (' + res.status + ')'));
+        return data;
+    };
+
+    const modalWaktu = new bootstrap.Modal($('modalTambahWaktu'));
+    let sesiWaktu = null;
+    document.querySelectorAll('.tw-preset').forEach((b) => b.addEventListener('click', () => { $('tw-menit').value = b.dataset.menit; }));
+    $('tw-kirim').addEventListener('click', async () => {
+        const menit = parseInt($('tw-menit').value, 10);
+        if (!(menit >= 1 && menit <= 180)) { beriTahu('Jumlah menit harus 1–180.', false); return; }
+        try {
+            await kirimAksi(sesiWaktu.id, 'tambah-waktu', { menit });
+            modalWaktu.hide();
+            beriTahu(`Waktu ${sesiWaktu.nama} ditambah ${menit} menit.`);
+            muatSnapshot();
+        } catch (e) { beriTahu(e.message, false); }
+    });
+
+    $('tabel-body').addEventListener('click', async (e) => {
+        const b = e.target.closest('button[data-aksi]');
+        if (!b) return;
+        const { aksi, sesi, siswa, nama } = b.dataset;
+        try {
+            if (aksi === 'tambah-waktu') {
+                sesiWaktu = { id: sesi, nama };
+                $('tw-nama').textContent = nama;
+                $('tw-menit').value = 10;
+                modalWaktu.show();
+                return;
+            }
+            if (aksi === 'reset') {
+                if (!confirm(`Reset ujian ${nama}? Jawaban, nilai, log, dan sesinya dihapus sehingga siswa dapat mengulang.`)) return;
+                $('reset-siswa').value = siswa;
+                $('form-reset').submit();
+                return;
+            }
+            if (aksi === 'buka-kunci') {
+                if (!confirm(`Buka kunci ${nama}? Jawaban tetap tersimpan, hitungan pelanggaran mulai dari nol. Siswa login ulang (NIS + PIN) untuk melanjutkan.`)) return;
+                await kirimAksi(sesi, 'buka-kunci');
+                beriTahu(`Kunci ${nama} dibuka. Minta siswa login ulang.`);
+            }
+            if (aksi === 'paksa-selesai') {
+                if (!confirm(`Selesaikan ujian ${nama} sekarang? Jawaban tersimpan langsung dinilai.`)) return;
+                const d = await kirimAksi(sesi, 'paksa-selesai');
+                beriTahu(`Ujian ${nama} diselesaikan. Nilai: ${d.nilai ?? '-'}`);
+            }
+            muatSnapshot();
+        } catch (err) { beriTahu(err.message, false); }
+    });
+
+    ['cari', 'filter-kelas', 'filter-status'].forEach((id) => $(id).addEventListener('input', terapkanFilter));
+    document.querySelectorAll('.stat-card').forEach((c) => c.addEventListener('click', () => {
+        $('filter-status').value = $('filter-status').value === c.dataset.filter ? '' : c.dataset.filter;
+        terapkanFilter();
+    }));
+
+    if (snapshot) render(snapshot); else muatSnapshot();
+    sambung();
+})();
+</script>
+{{end}}
+</body>
+</html>

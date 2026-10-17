@@ -9,6 +9,9 @@ import (
 	"time"
 )
 
+// ErrUjianNotFound dikembalikan Snapshot bila ujian tidak ada.
+var ErrUjianNotFound = errors.New("ujian tidak ditemukan")
+
 // StatusMonitor adalah status turunan siswa yang ditampilkan pada dashboard admin.
 type StatusMonitor string
 
@@ -154,35 +157,56 @@ func (s *Service) Snapshot(ctx context.Context, ujianID int) (*SnapshotData, err
 	`, ujianID).Scan(&namaUjian, &totalSoal)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, fmt.Errorf("ujian dengan id %d tidak ditemukan: %w", ujianID, err)
+			return nil, ErrUjianNotFound
 		}
 		return nil, fmt.Errorf("ambil info ujian: %w", err)
 	}
 
-	// 2. Ambil seluruh siswa beserta sesi dan agregasi jawaban tersimpan (Kueri 2 - JOIN tanpa N+1)
+	// 2. Ambil seluruh siswa beserta sesi, jumlah jawaban, dan pelanggaran aktif (Kueri 2).
+	// Agregasi dilakukan di tabel turunan (derived table) per siswa sehingga tetap satu
+	// round-trip tanpa N+1. Pelanggaran dihitung dengan aturan yang sama seperti
+	// sesi.HitungPelanggaran: hanya jenis pelanggaran nyata setelah penanda 'buka_kunci' terakhir.
 	rows, err := s.db.QueryContext(ctx, `
-		SELECT 
+		SELECT
 			s.id AS siswa_id,
 			s.nis,
 			s.nama,
-			s.kelas,
+			COALESCE(s.kelas, '') AS kelas,
 			su.id AS sesi_id,
 			COALESCE(su.status, '') AS status_sesi,
 			COALESCE(su.device_type, '') AS device_type,
 			su.last_seen,
 			su.batas_waktu,
-			COALESCE(su.jumlah_pelanggaran, 0) AS jumlah_pelanggaran,
-			COALESCE(COUNT(js.id), 0) AS soal_dijawab
-		FROM siswa s
-		JOIN kelas k ON k.nama_kelas = s.kelas
-		JOIN pengajaran p ON p.kelas_id = k.id
-		JOIN ujian u ON u.pengajaran_id = p.id
+			COALESCE(pl.jumlah, 0) AS jumlah_pelanggaran,
+			COALESCE(jw.jumlah, 0) AS soal_dijawab
+		FROM ujian u
+		JOIN pengajaran p ON p.id = u.pengajaran_id
+		JOIN kelas k ON k.id = p.kelas_id
+		JOIN siswa s ON s.kelas = k.nama_kelas
 		LEFT JOIN sesi_ujian su ON su.siswa_id = s.id AND su.ujian_id = u.id
-		LEFT JOIN jawaban_siswa js ON js.sesi_id = su.id
+		LEFT JOIN (
+			SELECT siswa_id, COUNT(*) AS jumlah
+			FROM jawaban_siswa
+			WHERE ujian_id = ? AND jawaban_dipilih IS NOT NULL AND jawaban_dipilih <> ''
+			GROUP BY siswa_id
+		) jw ON jw.siswa_id = s.id
+		LEFT JOIN (
+			SELECT l.siswa_id, COUNT(*) AS jumlah
+			FROM log_kecurangan l
+			LEFT JOIN (
+				SELECT siswa_id, MAX(id) AS id_buka
+				FROM log_kecurangan
+				WHERE ujian_id = ? AND jenis_kecurangan = 'buka_kunci'
+				GROUP BY siswa_id
+			) bk ON bk.siswa_id = l.siswa_id
+			WHERE l.ujian_id = ?
+			  AND l.jenis_kecurangan IN ('pindah_tab', 'keluar_fullscreen', 'copy_paste')
+			  AND l.id > COALESCE(bk.id_buka, 0)
+			GROUP BY l.siswa_id
+		) pl ON pl.siswa_id = s.id
 		WHERE u.id = ?
-		GROUP BY s.id, s.nis, s.nama, s.kelas, su.id, su.status, su.device_type, su.last_seen, su.batas_waktu, su.jumlah_pelanggaran
-		ORDER BY s.nama ASC
-	`, ujianID)
+		ORDER BY s.kelas ASC, s.nama ASC
+	`, ujianID, ujianID, ujianID, ujianID)
 	if err != nil {
 		return nil, fmt.Errorf("ambil daftar siswa monitor: %w", err)
 	}

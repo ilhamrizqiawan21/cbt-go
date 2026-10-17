@@ -110,6 +110,11 @@ func (c *mockEssayConn) QueryContext(ctx context.Context, query string, args []d
 		return &sliceRows{columns: []string{"poin", "tipe_soal"}, rows: [][]driver.Value{{int64(4), "essay"}}}, nil
 	}
 
+	// 2b. Status sesi siswa: essay hanya boleh dinilai setelah sesi selesai
+	if strings.Contains(query, "SELECT status FROM sesi_ujian") {
+		return &sliceRows{columns: []string{"status"}, rows: [][]driver.Value{{"selesai"}}}, nil
+	}
+
 	// 3. Query seluruh soal untuk HitungUlangNilai
 	if strings.Contains(query, "SELECT id, tipe_soal, poin") && strings.Contains(query, "FROM soal") {
 		return &sliceRows{

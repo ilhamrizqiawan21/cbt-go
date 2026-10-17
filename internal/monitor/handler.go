@@ -2,6 +2,8 @@ package monitor
 
 import (
 	"encoding/json"
+	"errors"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
@@ -29,11 +31,17 @@ func GetMonitorHandler(svc *Service) http.HandlerFunc {
 
 		snap, err := svc.Snapshot(r.Context(), ujianID)
 		if err != nil {
+			// Detail error hanya ke log server; klien menerima pesan generik.
+			code, msg := http.StatusNotFound, "Ujian tidak ditemukan"
+			if !errors.Is(err, ErrUjianNotFound) {
+				slog.ErrorContext(r.Context(), "snapshot monitor gagal", "ujian_id", ujianID, "err", err)
+				code, msg = http.StatusInternalServerError, "Gagal memuat data monitor"
+			}
 			w.Header().Set("Content-Type", "application/json; charset=utf-8")
-			w.WriteHeader(http.StatusNotFound)
+			w.WriteHeader(code)
 			_ = json.NewEncoder(w).Encode(map[string]any{
-				"error": err.Error(),
-				"code":  http.StatusNotFound,
+				"error": msg,
+				"code":  code,
 			})
 			return
 		}

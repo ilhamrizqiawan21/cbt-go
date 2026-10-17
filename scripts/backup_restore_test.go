@@ -102,4 +102,3 @@ func TestSystemdUnitSyntax(t *testing.T) {
 		t.Errorf("docs/DEPLOYMENT.md harus memuat LimitNOFILE=65535")
 	}
 }
-

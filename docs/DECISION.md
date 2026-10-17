@@ -43,3 +43,12 @@ Tidak diwarisi: D-010 (express-mysql-session → digantikan G-005), D-012 (tetap
 | G-014 | Final | Jalur panas (login, sesi, sinkron jawaban, heartbeat, selesai, WebSocket) dikerjakan **lebih dulu** (Fase 1–2) agar uji beban 500 klien bisa dijalankan lebih awal sebelum CRUD admin/guru |
 | G-015 | Final | Deployment: **binary tunggal** (template dan aset di-embed) dijalankan **systemd**; tidak memakai PM2/Node di server |
 | G-016 | Usulan | Pertahankan `siswa.kelas` sebagai nama kelas (bukan FK) demi paritas data dan kemudahan import Excel. Perbaikan ke FK ditunda ke setelah paritas |
+
+### Keputusan 2026-10-17 (diputuskan Claude atas delegasi user; dapat ditinjau ulang user)
+| ID | Status | Keputusan |
+|----|--------|-----------|
+| G-017 | Final | **Sesi terkunci dapat dilanjutkan** (PRD FR-12, PANDUAN_HARI_H): melewati batas pelanggaran → `keluar_paksa` + event `paksa-submit` dengan `terkunci: true`; klien menampilkan layar terkunci **tanpa mengumpulkan** dan tanpa menghapus antrean jawaban lokal. Siswa tidak dapat memfinalisasi sesi terkunci (`sesi.FinalizeOlehSiswa` → `ErrKeluarPaksa`; HTTP 403 `status: keluar_paksa`; event WS `selesai-ujian` diabaikan). Admin membuka kunci → siswa login ulang dan melanjutkan. Admin tetap bisa "paksa selesai"; job penutupan otomatis menilai sesi terkunci yang melewati `batas_waktu` + grace |
+| G-018 | Final | **Validasi soal di server diperketat** (`soal.ValidasiDanNormalisasi`, berlaku admin, guru, dan batch): PG ≥2 pilihan + kunci A–D yang pilihannya terisi; menjodohkan ≥2 pasangan lengkap dengan sisi kiri unik, `jawaban_benar` selalu diturunkan server dari `opsi_tambahan.pasangan`; essay membersihkan pilihan/kunci. Alasan: soal cacat sebelumnya tersimpan diam-diam dan membuat semua siswa dinilai salah |
+| G-019 | Final | **Bootstrap 5.3.3 dan Bootstrap Icons 1.11.3 disajikan lokal** (di-embed, `web/static/{css,js}/vendor`, hash diverifikasi terhadap jsDelivr). CSP tidak lagi mengizinkan `cdn.jsdelivr.net`. Google Fonts (Sora/DM Sans) tetap opsional dengan fallback font sistem. Alasan: D-001/G-015 — tampilan tidak boleh rusak saat internet sekolah putus |
+| G-020 | Final | Mengganti nama kelas ikut memperbarui `siswa.kelas` dalam satu transaksi (konsekuensi G-016) |
+| G-021 | Final | Nilai essay hanya dapat diberikan setelah sesi siswa `selesai`; lembar koreksi hanya memuat siswa tersebut. Alasan: menilai lebih awal membuat `nilai_ujian` yang memblokir login siswa |

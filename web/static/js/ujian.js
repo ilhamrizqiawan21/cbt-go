@@ -298,6 +298,15 @@ async function kirimAntrian() {
             return;
         }
 
+        if (res.status === 403) {
+            // Sesi terkunci/selesai: berhenti mencoba, antrean tetap di localStorage untuk dikirim
+            // ulang setelah kunci dibuka dan siswa login kembali.
+            isSyncing = false;
+            updateSyncIndicator('offline', 'Ditahan');
+            cekStatusUjianDariServer();
+            return;
+        }
+
         if (res.ok) {
             // Berhasil: hapus item yang terkirim dari antrean
             const currentQueue = getSyncQueue();
@@ -392,8 +401,7 @@ async function cekStatusUjianDariServer() {
         if (!data.valid) {
             stopPolling();
             if (data.reason === 'keluar_paksa') {
-                showWarning('⚠️ Akses ujian Anda dicabut karena pelanggaran. Ujian akan dikumpulkan.');
-                setTimeout(() => selesaiUjian(), 1500);
+                tampilkanTerkunci('⚠️ Ujian Anda dikunci karena pelanggaran.');
             } else if (data.reason === 'waktu_habis') {
                 showWarning('⚠️ Waktu ujian telah habis. Jawaban dikumpulkan otomatis.');
                 setTimeout(() => selesaiUjian(), 1500);
@@ -654,6 +662,42 @@ function detectCopyPaste() {
 detectCopyPaste();
 
 // ── Selesai & Finalisasi Ujian ──
+// ── Layar terkunci (keluar_paksa) ──
+// Menghentikan ujian di perangkat ini tanpa mengumpulkan jawaban. Antrean jawaban di localStorage
+// dipertahankan; setelah pengawas membuka kunci, siswa login ulang dan antrean dikirim kembali.
+function tampilkanTerkunci(pesan) {
+    if (document.getElementById('lock-overlay')) return;
+    ujianSudahSelesai = true;
+    if (timerInterval) clearInterval(timerInterval);
+    if (heartbeatInterval) clearInterval(heartbeatInterval);
+    if (resyncTimerInterval) clearInterval(resyncTimerInterval);
+    stopPolling();
+
+    const ov = document.createElement('div');
+    ov.id = 'lock-overlay';
+    ov.setAttribute('role', 'alertdialog');
+    ov.style.cssText = 'position:fixed;inset:0;z-index:100000;background:rgba(127,29,29,.97);color:#fff;' +
+        'display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;';
+    const ikon = document.createElement('div');
+    ikon.style.cssText = 'font-size:3.5rem;margin-bottom:1rem;';
+    ikon.textContent = '🔒';
+    const judul = document.createElement('h2');
+    judul.style.cssText = 'font-size:1.4rem;font-weight:700;margin-bottom:.75rem;';
+    judul.textContent = 'Ujian Dikunci';
+    const isi = document.createElement('p');
+    isi.style.cssText = 'max-width:420px;line-height:1.6;margin-bottom:.5rem;';
+    isi.textContent = pesan || 'Ujian Anda dikunci karena pelanggaran.';
+    const info = document.createElement('p');
+    info.style.cssText = 'max-width:420px;line-height:1.6;opacity:.85;font-size:.9rem;margin-bottom:1.5rem;';
+    info.textContent = 'Jawaban Anda tetap tersimpan. Hubungi pengawas; setelah kunci dibuka, login ulang dengan NIS dan PIN untuk melanjutkan.';
+    const tombol = document.createElement('a');
+    tombol.href = '/logout';
+    tombol.textContent = 'Kembali ke halaman login';
+    tombol.style.cssText = 'background:#fff;color:#7f1d1d;padding:12px 22px;border-radius:10px;font-weight:700;text-decoration:none;min-height:44px;';
+    ov.append(ikon, judul, isi, info, tombol);
+    document.body.appendChild(ov);
+}
+
 async function selesaiUjian() {
     if (ujianSudahSelesai) return;
     ujianSudahSelesai = true;
@@ -678,12 +722,15 @@ async function selesaiUjian() {
             credentials: 'same-origin'
         });
 
-        if (!res.ok) {
-            const errData = await res.json().catch(() => ({}));
-            console.warn('selesai-ujian API error:', errData.error);
-        }
-
         const data = await res.json().catch(() => ({}));
+        if (res.status === 403 && data.status === 'keluar_paksa') {
+            // Server menolak mengumpulkan sesi terkunci; jangan hapus antrean jawaban lokal.
+            tampilkanTerkunci(data.error);
+            return;
+        }
+        if (!res.ok) {
+            console.warn('selesai-ujian API error:', data.error);
+        }
 
         // Bersihkan data ujian ini dari storage
         localStorage.removeItem(KEY_LOCAL_ANSWERS);
@@ -733,7 +780,13 @@ socket.on('mulai-ujian', ({ durasi, sisa_detik }) => {
 });
 
 socket.on('paksa-submit', (data) => {
-    showWarning((data && data.message) || '⚠️ Anda telah melanggar aturan! Ujian akan diakhiri.');
+    // terkunci=true: batas pelanggaran terlampaui. Ujian TIDAK dikumpulkan agar pengawas dapat
+    // membuka kunci dan siswa melanjutkan dengan jawaban yang sama (PRD FR-12).
+    if (data && data.terkunci) {
+        tampilkanTerkunci(data.message);
+        return;
+    }
+    showWarning((data && data.message) || '⚠️ Ujian Anda diakhiri oleh pengawas.');
     setTimeout(() => selesaiUjian(), 1000);
 });
 

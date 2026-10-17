@@ -1,0 +1,319 @@
+{{/*
+  Bank soal bersama admin & guru. Data yang dibutuhkan:
+    SoalBase  prefix aksi ("/admin/soal" atau "/guru/soal"): {base}/tambah, /edit/{id}, /hapus/{id}
+    SoalPage  alamat halaman daftar untuk pemilih ujian
+    UjianList (punya ID, NamaUjian, NamaKelas), UjianID, SoalList ([]soal.SoalKelola)
+*/}}
+{{define "soal_bank_style"}}
+    <style>
+        @font-face { font-family: 'Amiri'; src: url('/fonts/amiri-v30-arabic-regular.woff2') format('woff2'); font-display: swap; }
+        .opsi-benar { font-weight: 600; color: var(--bs-success-text-emphasis); }
+    </style>
+{{end}}
+
+{{define "soal_bank"}}
+<div class="container py-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+        <div>
+            <h3 class="page-title mb-1"><i class="bi bi-question-square text-primary me-2"></i>Bank Soal</h3>
+            <p class="text-muted mb-0">Pilihan ganda (2 poin), menjodohkan (2 poin, benar bila semua pasangan tepat), essay (4 poin, dijawab di kertas).</p>
+        </div>
+        <div class="page-actions d-flex flex-wrap gap-2">
+            <form method="GET" action="{{.SoalPage}}" class="flex-grow-1">
+                <select name="ujian_id" class="form-select" style="min-width:260px" aria-label="Pilih ujian" onchange="this.form.submit()">
+                    {{range .UjianList}}
+                    <option value="{{.ID}}" {{if eq .ID $.UjianID}}selected{{end}}>{{.NamaUjian}} — {{.NamaKelas}}</option>
+                    {{else}}
+                    <option value="">Belum ada ujian</option>
+                    {{end}}
+                </select>
+            </form>
+            {{if .UjianID}}
+            <button type="button" class="btn btn-primary text-nowrap" id="btnTambahSoal"><i class="bi bi-plus-lg me-1"></i> Tambah Soal</button>
+            {{end}}
+        </div>
+    </div>
+
+    {{template "app_flash" .}}
+
+    {{if not .UjianID}}
+    <div class="alert alert-info text-center py-4">
+        <i class="bi bi-info-circle fs-2 d-block mb-2"></i>
+        {{if eq .SoalBase "/admin/soal"}}Belum ada ujian. <a href="/admin/ujian" class="alert-link">Buat ujian</a> terlebih dahulu.{{else}}Belum ada ujian pada pengajaran Anda. Hubungi admin untuk membuat ujian.{{end}}
+    </div>
+    {{else}}
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white small text-muted">
+            {{len .SoalList}} soal · total poin maksimum
+            <strong id="totalPoin">-</strong>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="text-center" style="width:50px">No</th>
+                        <th style="width:120px">Tipe</th>
+                        <th>Soal</th>
+                        <th class="text-center" style="width:70px">Poin</th>
+                        <th class="text-end" style="width:110px">Aksi</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{range $i, $s := .SoalList}}
+                    <tr data-poin="{{$s.Poin}}">
+                        <td class="text-center text-muted">{{add $i 1}}</td>
+                        <td>
+                            {{if eq $s.TipeSoal "pg"}}<span class="badge bg-primary-subtle text-primary-emphasis">Pilihan ganda</span>
+                            {{else if eq $s.TipeSoal "menjodohkan"}}<span class="badge bg-info-subtle text-info-emphasis">Menjodohkan</span>
+                            {{else}}<span class="badge bg-warning-subtle text-warning-emphasis">Essay</span>{{end}}
+                        </td>
+                        <td>
+                            <div class="fw-semibold text-break" dir="auto" style="white-space:pre-line">{{$s.TeksSoal}}</div>
+                            {{if eq $s.TipeSoal "pg"}}
+                            <ol type="A" class="small mb-0 mt-1 ps-4">
+                                <li dir="auto" {{if eq (deref $s.JawabanBenar) "A"}}class="opsi-benar"{{end}}>{{if $s.PilihanA}}{{$s.PilihanA}}{{end}}</li>
+                                <li dir="auto" {{if eq (deref $s.JawabanBenar) "B"}}class="opsi-benar"{{end}}>{{if $s.PilihanB}}{{$s.PilihanB}}{{end}}</li>
+                                <li dir="auto" {{if eq (deref $s.JawabanBenar) "C"}}class="opsi-benar"{{end}}>{{if $s.PilihanC}}{{$s.PilihanC}}{{end}}</li>
+                                <li dir="auto" {{if eq (deref $s.JawabanBenar) "D"}}class="opsi-benar"{{end}}>{{if $s.PilihanD}}{{$s.PilihanD}}{{end}}</li>
+                            </ol>
+                            <div class="small mt-1">{{if $s.JawabanBenar}}<span class="text-success"><i class="bi bi-check-circle-fill me-1"></i>Kunci: {{$s.JawabanBenar}}</span>{{else}}<span class="text-danger"><i class="bi bi-exclamation-circle me-1"></i>Kunci belum diisi</span>{{end}}</div>
+                            {{else if eq $s.TipeSoal "menjodohkan"}}
+                            <ul class="small mb-0 mt-1 ps-3 daftar-pasangan" data-opsi="{{if $s.OpsiTambahan}}{{$s.OpsiTambahan}}{{end}}"></ul>
+                            {{else}}
+                            <div class="small text-muted mt-1"><i class="bi bi-pencil-square me-1"></i>Dijawab di lembar kertas; dinilai guru 0–{{$s.Poin}}.</div>
+                            {{end}}
+                        </td>
+                        <td class="text-center"><span class="badge bg-light text-dark border">{{$s.Poin}}</span></td>
+                        <td class="text-end text-nowrap">
+                            <button type="button" class="btn btn-sm btn-outline-primary btn-edit-soal" data-id="{{$s.ID}}" title="Edit"><i class="bi bi-pencil"></i></button>
+                            <form method="POST" action="{{$.SoalBase}}/hapus/{{$s.ID}}" class="d-inline" data-confirm="Hapus soal nomor {{add $i 1}}? Jawaban siswa untuk soal ini ikut terhapus.">
+                                <input type="hidden" name="ujian_id" value="{{$.UjianID}}">
+                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Hapus"><i class="bi bi-trash"></i></button>
+                            </form>
+                        </td>
+                    </tr>
+                    {{else}}
+                    <tr><td colspan="5" class="text-center py-5 text-muted"><i class="bi bi-inbox fs-1 d-block mb-2"></i>Belum ada soal pada ujian ini.</td></tr>
+                    {{end}}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {{end}}
+</div>
+
+{{if .UjianID}}
+<!-- Modal Tambah/Edit Soal -->
+<div class="modal fade" id="modalSoal" tabindex="-1" aria-labelledby="modalSoalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <form method="POST" action="{{.SoalBase}}/tambah" class="modal-content" id="formSoal" novalidate data-base="{{.SoalBase}}">
+            <input type="hidden" name="ujian_id" value="{{.UjianID}}">
+            <input type="hidden" name="jawaban_benar" id="q_jawaban_hidden">
+            <input type="hidden" name="opsi_tambahan" id="q_opsi_hidden">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold" id="modalSoalLabel">Tambah Soal</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-danger d-none" id="q_error" role="alert"></div>
+                <div class="row g-3 mb-3">
+                    <div class="col-md-8">
+                        <label for="q_tipe" class="form-label fw-semibold">Tipe soal</label>
+                        <select class="form-select" id="q_tipe" name="tipe_soal">
+                            <option value="pg">Pilihan ganda</option>
+                            <option value="menjodohkan">Menjodohkan</option>
+                            <option value="essay">Essay (dijawab di kertas)</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="q_poin" class="form-label fw-semibold">Poin</label>
+                        <input type="number" class="form-control" id="q_poin" name="poin" min="1" max="100" value="2" required>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label for="q_teks" class="form-label fw-semibold">Teks soal</label>
+                    <textarea class="form-control" id="q_teks" name="teks_soal" rows="3" dir="auto" required></textarea>
+                    <div class="form-text">Teks Arab otomatis ditampilkan kanan-ke-kiri.</div>
+                </div>
+
+                <div id="sec_pg">
+                    <label class="form-label fw-semibold">Pilihan jawaban &amp; kunci</label>
+                    {{range $h := list "A" "B" "C" "D"}}
+                    <div class="input-group mb-2">
+                        <span class="input-group-text">
+                            <input class="form-check-input mt-0 me-2" type="radio" name="kunci_pg" value="{{$h}}" aria-label="Kunci {{$h}}">
+                            <strong>{{$h}}</strong>
+                        </span>
+                        <input type="text" class="form-control q-pilihan" name="pilihan_{{lower $h}}" data-huruf="{{$h}}" dir="auto" placeholder="Pilihan {{$h}}">
+                    </div>
+                    {{end}}
+                    <div class="form-text">Pilih tombol bulat di samping huruf sebagai kunci jawaban.</div>
+                </div>
+
+                <div id="sec_jodoh" class="d-none">
+                    <label class="form-label fw-semibold">Pasangan yang benar</label>
+                    <div id="q_pasangan"></div>
+                    <button type="button" class="btn btn-sm btn-outline-primary mb-3" id="q_tambah_pasangan"><i class="bi bi-plus"></i> Tambah pasangan</button>
+                    <div>
+                        <label for="q_pengecoh" class="form-label fw-semibold">Pengecoh (opsional)</label>
+                        <input type="text" class="form-control" id="q_pengecoh" dir="auto" placeholder="Pisahkan dengan titik koma, mis: 6; 7">
+                        <div class="form-text">Pilihan kanan tambahan yang tidak punya pasangan.</div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                <button type="submit" class="btn btn-primary"><i class="bi bi-save me-1"></i> Simpan</button>
+            </div>
+        </form>
+    </div>
+</div>
+{{end}}
+{{end}}
+
+{{define "soal_bank_script"}}
+<script>
+    (() => {
+        // Ringkasan total poin & tampilan pasangan menjodohkan (dirender via textContent, aman dari XSS).
+        let total = 0;
+        document.querySelectorAll('tr[data-poin]').forEach((tr) => { total += parseInt(tr.dataset.poin, 10) || 0; });
+        const tp = document.getElementById('totalPoin');
+        if (tp) tp.textContent = total;
+
+        const parseOpsi = (raw) => {
+            try { const o = JSON.parse(raw || '{}'); return { pasangan: o.pasangan || [], pengecoh: o.pengecoh || [] }; }
+            catch (e) { return { pasangan: [], pengecoh: [] }; }
+        };
+        document.querySelectorAll('.daftar-pasangan').forEach((ul) => {
+            const o = parseOpsi(ul.dataset.opsi);
+            if (!o.pasangan.length) {
+                const li = document.createElement('li'); li.className = 'text-danger'; li.textContent = 'Pasangan belum diisi'; ul.appendChild(li);
+            }
+            o.pasangan.forEach((p) => {
+                const li = document.createElement('li'); li.dir = 'auto'; li.textContent = `${p.kiri} → ${p.kanan}`; ul.appendChild(li);
+            });
+            if (o.pengecoh.length) {
+                const li = document.createElement('li'); li.className = 'text-muted'; li.textContent = 'Pengecoh: ' + o.pengecoh.join(', '); ul.appendChild(li);
+            }
+        });
+
+        const modalEl = document.getElementById('modalSoal');
+        if (!modalEl) return;
+        const modal = new bootstrap.Modal(modalEl);
+        const form = document.getElementById('formSoal');
+        const BASE = form.dataset.base; // /admin/soal atau /guru/soal (rute identik, otorisasi berbeda)
+        const $ = (id) => document.getElementById(id);
+        const POIN_DEFAULT = { pg: 2, menjodohkan: 2, essay: 4 };
+        let poinDiubah = false;
+
+        const barisPasangan = (kiri = '', kanan = '') => {
+            const row = document.createElement('div');
+            row.className = 'input-group mb-2 q-pasang';
+            row.innerHTML = '<input type="text" class="form-control q-kiri" dir="auto" placeholder="Kiri">' +
+                '<span class="input-group-text"><i class="bi bi-arrow-right"></i></span>' +
+                '<input type="text" class="form-control q-kanan" dir="auto" placeholder="Kanan">' +
+                '<button type="button" class="btn btn-outline-danger" aria-label="Hapus pasangan"><i class="bi bi-x-lg"></i></button>';
+            row.querySelector('.q-kiri').value = kiri;
+            row.querySelector('.q-kanan').value = kanan;
+            row.querySelector('button').addEventListener('click', () => row.remove());
+            $('q_pasangan').appendChild(row);
+        };
+        $('q_tambah_pasangan').addEventListener('click', () => barisPasangan());
+
+        const aturTipe = (tipe, setPoin) => {
+            $('sec_pg').classList.toggle('d-none', tipe !== 'pg');
+            $('sec_jodoh').classList.toggle('d-none', tipe !== 'menjodohkan');
+            if (setPoin && !poinDiubah) $('q_poin').value = POIN_DEFAULT[tipe];
+        };
+        $('q_tipe').addEventListener('change', (e) => aturTipe(e.target.value, true));
+        $('q_poin').addEventListener('input', () => { poinDiubah = true; });
+
+        const isi = (s) => {
+            $('q_error').classList.add('d-none');
+            $('q_tipe').value = s.tipe_soal || 'pg';
+            $('q_poin').value = s.poin || POIN_DEFAULT[$('q_tipe').value];
+            $('q_teks').value = s.teks_soal || '';
+            document.querySelectorAll('.q-pilihan').forEach((inp) => {
+                inp.value = s['pilihan_' + inp.dataset.huruf.toLowerCase()] || '';
+            });
+            document.querySelectorAll('input[name="kunci_pg"]').forEach((r) => {
+                r.checked = s.tipe_soal === 'pg' && (s.jawaban_benar || '').toUpperCase() === r.value;
+            });
+            $('q_pasangan').innerHTML = '';
+            const o = parseOpsi(s.opsi_tambahan);
+            if (o.pasangan.length) o.pasangan.forEach((p) => barisPasangan(p.kiri, p.kanan));
+            else { barisPasangan(); barisPasangan(); barisPasangan(); }
+            $('q_pengecoh').value = o.pengecoh.join('; ');
+            poinDiubah = !!s.id;
+            aturTipe($('q_tipe').value, false);
+        };
+
+        $('btnTambahSoal').addEventListener('click', () => {
+            form.action = BASE + '/tambah';
+            $('modalSoalLabel').textContent = 'Tambah Soal';
+            isi({});
+            modal.show();
+        });
+
+        document.querySelectorAll('.btn-edit-soal').forEach((btn) => {
+            btn.addEventListener('click', async () => {
+                try {
+                    const res = await fetch(BASE + '/edit/' + btn.dataset.id, { headers: { 'Accept': 'application/json' } });
+                    if (!res.ok) throw new Error('Gagal memuat soal (' + res.status + ')');
+                    const s = await res.json();
+                    form.action = BASE + '/edit/' + s.id;
+                    $('modalSoalLabel').textContent = 'Edit Soal';
+                    isi(s);
+                    modal.show();
+                } catch (err) {
+                    alert(err.message);
+                }
+            });
+        });
+
+        const gagal = (msg) => {
+            const el = $('q_error');
+            el.textContent = msg;
+            el.classList.remove('d-none');
+        };
+
+        form.addEventListener('submit', (e) => {
+            const tipe = $('q_tipe').value;
+            $('q_jawaban_hidden').value = '';
+            $('q_opsi_hidden').value = '';
+            if (!$('q_teks').value.trim()) { e.preventDefault(); return gagal('Teks soal wajib diisi.'); }
+            if (!(parseInt($('q_poin').value, 10) > 0)) { e.preventDefault(); return gagal('Poin harus lebih dari 0.'); }
+
+            if (tipe === 'pg') {
+                const kunci = document.querySelector('input[name="kunci_pg"]:checked');
+                const terisi = [...document.querySelectorAll('.q-pilihan')].filter((i) => i.value.trim());
+                if (terisi.length < 2) { e.preventDefault(); return gagal('Isi minimal dua pilihan jawaban.'); }
+                if (!kunci) { e.preventDefault(); return gagal('Pilih kunci jawaban.'); }
+                const opsiKunci = document.querySelector(`.q-pilihan[data-huruf="${kunci.value}"]`);
+                if (!opsiKunci.value.trim()) { e.preventDefault(); return gagal('Pilihan yang dijadikan kunci masih kosong.'); }
+                $('q_jawaban_hidden').value = kunci.value;
+            } else {
+                // Pilihan A–D tidak dipakai tipe lain; kosongkan agar tidak tersimpan sisa input.
+                document.querySelectorAll('.q-pilihan').forEach((i) => { i.value = ''; });
+            }
+
+            if (tipe === 'menjodohkan') {
+                const pasangan = [];
+                for (const row of document.querySelectorAll('.q-pasang')) {
+                    const kiri = row.querySelector('.q-kiri').value.trim();
+                    const kanan = row.querySelector('.q-kanan').value.trim();
+                    if (!kiri && !kanan) continue;
+                    if (!kiri || !kanan) { e.preventDefault(); return gagal('Setiap pasangan harus memiliki sisi kiri dan kanan.'); }
+                    pasangan.push({ kiri, kanan });
+                }
+                if (pasangan.length < 2) { e.preventDefault(); return gagal('Isi minimal dua pasangan.'); }
+                const pengecoh = $('q_pengecoh').value.split(';').map((x) => x.trim()).filter(Boolean);
+                // Format sama dengan seed & penilaian: jawaban_benar = array pasangan, opsi_tambahan = {pasangan, pengecoh}.
+                $('q_jawaban_hidden').value = JSON.stringify(pasangan);
+                $('q_opsi_hidden').value = JSON.stringify({ pasangan, pengecoh });
+            }
+        });
+    })();
+</script>
+{{end}}

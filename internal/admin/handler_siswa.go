@@ -11,7 +11,6 @@ import (
 	"github.com/alexedwards/scs/v2"
 
 	"cbt-go/internal/excel"
-	"cbt-go/web"
 )
 
 // RegisterAdminSiswaRoutes mendaftarkan seluruh rute CRUD siswa dan impor/template Excel.
@@ -30,7 +29,7 @@ func SiswaListHandler(db *sql.DB, sm *scs.SessionManager) http.HandlerFunc {
 		kelasFilter := r.URL.Query().Get("kelas")
 		list, err := ListSiswa(r.Context(), db, kelasFilter)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			serverError(w, r, err)
 			return
 		}
 
@@ -39,17 +38,22 @@ func SiswaListHandler(db *sql.DB, sm *scs.SessionManager) http.HandlerFunc {
 			return
 		}
 
-		kelasList, _ := ListKelas(r.Context(), db)
+		kelasList, err := ListKelas(r.Context(), db)
+		if err != nil {
+			serverError(w, r, err)
+			return
+		}
 		flashError := getFlash(sm, r, "error")
 		flashSuccess := getFlash(sm, r, "success")
 
-		_ = web.Render(w, "admin_siswa.gohtml", map[string]any{
-			"SiswaList": list,
-			"KelasList": kelasList,
-			"Filter":    kelasFilter,
-			"Error":     flashError,
-			"Success":   flashSuccess,
-			"Username":  sm.GetString(r.Context(), "username"),
+		render(w, r, "admin_siswa.gohtml", map[string]any{
+			"SiswaList":  list,
+			"KelasList":  kelasList,
+			"Filter":     kelasFilter,
+			"Error":      flashError,
+			"Success":    flashSuccess,
+			"Username":   sm.GetString(r.Context(), "username"),
+			"ActiveMenu": "siswa",
 		})
 	}
 }
@@ -138,7 +142,7 @@ func SiswaHapusHandler(db *sql.DB, sm *scs.SessionManager) http.HandlerFunc {
 		err = HapusSiswa(r.Context(), db, id)
 		if err != nil {
 			if wantsJSON(r) {
-				writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+				serverError(w, r, err)
 				return
 			}
 			setFlash(sm, r, "error", err.Error())
@@ -160,7 +164,7 @@ func SiswaTemplateHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		data, err := excel.BuatTemplateSiswa()
 		if err != nil {
-			http.Error(w, "Gagal membuat template Excel: "+err.Error(), http.StatusInternalServerError)
+			serverError(w, r, fmt.Errorf("buat template excel siswa: %w", err))
 			return
 		}
 

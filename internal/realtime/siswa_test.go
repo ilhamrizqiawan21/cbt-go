@@ -318,12 +318,48 @@ func TestKebijakanPerangkatDanPelanggaran(t *testing.T) {
 			t.Fatalf("event 3 = %q, ingin paksa-submit", ev3.Event)
 		}
 
+		var dataKunci struct {
+			Terkunci bool `json:"terkunci"`
+		}
+		if err := json.Unmarshal(ev3.Data, &dataKunci); err != nil || !dataKunci.Terkunci {
+			t.Fatalf("paksa-submit karena pelanggaran harus membawa terkunci=true, dapat %s", ev3.Data)
+		}
+
 		var statusDB string
 		err = db.QueryRowContext(context.Background(), `
 			SELECT status FROM sesi_ujian WHERE siswa_id = ? AND ujian_id = ?
 		`, seeded.SiswaID, seeded.UjianID).Scan(&statusDB)
 		if err != nil || statusDB != sesi.StatusKeluarPaksa {
 			t.Fatalf("status di DB = %q (err=%v), ingin keluar_paksa", statusDB, err)
+		}
+
+		// 5. selesai-ujian lewat WebSocket saat terkunci tidak boleh mengubah status (kunci masih bisa dibuka).
+		sendSiswaEvent(t, conn, "selesai-ujian", map[string]any{})
+		time.Sleep(200 * time.Millisecond)
+		_ = db.QueryRowContext(context.Background(), `SELECT status FROM sesi_ujian WHERE siswa_id = ? AND ujian_id = ?`, seeded.SiswaID, seeded.UjianID).Scan(&statusDB)
+		if statusDB != sesi.StatusKeluarPaksa {
+			t.Fatalf("status setelah selesai-ujian WS saat terkunci = %q, ingin tetap keluar_paksa", statusDB)
+		}
+	})
+
+	t.Run("selesai-ujian lewat WebSocket menghitung nilai (cadangan bila API gagal)", func(t *testing.T) {
+		srv, _, cookie, seeded := setupSiswaEventTestServer(t, db, "laptop")
+		conn := dialSiswaWS(t, srv.URL, cookie)
+		sendSiswaEvent(t, conn, "siswa-siap", map[string]any{})
+		_ = readSiswaEvent(t, conn, 2*time.Second)
+
+		sendSiswaEvent(t, conn, "selesai-ujian", map[string]any{})
+		deadline := time.Now().Add(2 * time.Second)
+		var n int
+		for time.Now().Before(deadline) {
+			_ = db.QueryRowContext(context.Background(), `SELECT COUNT(*) FROM nilai_ujian WHERE siswa_id = ? AND ujian_id = ?`, seeded.SiswaID, seeded.UjianID).Scan(&n)
+			if n == 1 {
+				break
+			}
+			time.Sleep(50 * time.Millisecond)
+		}
+		if n != 1 {
+			t.Fatalf("nilai_ujian tidak terbentuk setelah selesai-ujian via WebSocket")
 		}
 	})
 

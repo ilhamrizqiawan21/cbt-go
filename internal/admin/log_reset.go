@@ -33,7 +33,7 @@ func GetLogKecurangan(ctx context.Context, db *sql.DB, ujianID int, jenisFilter 
 	}
 
 	query := `
-		SELECT lk.id, lk.siswa_id, s.nis, s.nama, s.kelas,
+		SELECT lk.id, lk.siswa_id, s.nis, s.nama, COALESCE(s.kelas, ''),
 		       lk.ujian_id, u.nama_ujian, lk.jenis_kecurangan,
 		       COALESCE(lk.device_type, ''), lk.timestamp
 		FROM log_kecurangan lk
@@ -87,7 +87,7 @@ func GetLogKecuranganByGuru(ctx context.Context, db *sql.DB, guruID, ujianID int
 	}
 
 	query := `
-		SELECT lk.id, lk.siswa_id, s.nis, s.nama, s.kelas,
+		SELECT lk.id, lk.siswa_id, s.nis, s.nama, COALESCE(s.kelas, ''),
 		       lk.ujian_id, u.nama_ujian, lk.jenis_kecurangan,
 		       COALESCE(lk.device_type, ''), lk.timestamp
 		FROM log_kecurangan lk

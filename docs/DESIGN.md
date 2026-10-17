@@ -27,7 +27,7 @@ internal/auth/         login siswa/admin/guru, session, role guard
 internal/sesi/         timer, takeover, grace, sinkron jawaban, finalisasi
 internal/penilaian/    fungsi MURNI penghitung nilai
 internal/soal/         paket soal, acak deterministik, otorisasi guru
-internal/monitor/      snapshot + aksi admin + audit
+internal/monitor/      snapshot pemantauan (aksi admin + audit: internal/admin/aksi_sesi.go)
 internal/realtime/     hub WebSocket (siswa & admin)
 internal/excel/        import siswa, template, ekspor, impor essay
 internal/ratelimit/    limiter per kunci (NIS, IP)
@@ -89,7 +89,7 @@ Job (`time.Ticker`, 30 detik) memanggil `finalizeSesi` untuk sesi `sedang_ujian`
 ### 3.7 Anti-curang per perangkat
 - `device_type` (`hp`/`laptop`) ditentukan klien; server hanya memakainya memilih kebijakan, bukan keamanan.
 - **Laptop**: fullscreen wajib; pindah tab/keluar fullscreen/copy-paste = pelanggaran. **HP**: pindah tab/aplikasi dihitung; copy-paste diblokir.
-- Melewati `ujian.batas_pelanggaran` → `keluar_paksa` + `paksa-submit` ke siswa + notifikasi dashboard.
+- Melewati `ujian.batas_pelanggaran` → `keluar_paksa` + `paksa-submit {terkunci: true}` ke siswa + notifikasi dashboard. Klien menampilkan layar terkunci tanpa mengumpulkan; siswa tidak bisa memfinalisasi sesi terkunci; setelah admin membuka kunci, siswa login ulang dan melanjutkan (G-017). Sesi terkunci yang melewati batas waktu dinilai oleh job penutupan otomatis.
 - Pengunci utama: Exambro (HP) / SEB (laptop) (D-011).
 - Acak soal/pilihan memakai `seed` di DB: `math/rand/v2` dengan sumber `rand.NewPCG(seed, ...)` agar urutan **deterministik** per siswa (urutan tidak harus sama dengan Node, hanya stabil).
 
@@ -132,7 +132,7 @@ Amplop pesan JSON dua arah: `{"event": "<nama>", "data": { ... }}`. Nama event *
 | server→siswa | `mulai-ujian` | `{durasi, sisa_detik}` | |
 | siswa→server | `pindah-tab`, `copy-paste`, `keluar-fullscreen` | `{}` | Catat `log_kecurangan`; lewat batas → `paksa-submit` |
 | siswa→server | `selesai-ujian` | `{}` | Finalisasi |
-| server→siswa | `paksa-submit` | `{...}` | Klien mengirim jawaban terakhir lalu selesai |
+| server→siswa | `paksa-submit` | `{message, terkunci?}` | `terkunci: true` → layar terkunci, tidak mengumpulkan (G-017); tanpa `terkunci` (paksa selesai admin) → klien mengirim jawaban terakhir lalu selesai |
 | server→siswa | `tambah-waktu` | `{...}` | Klien resinkron timer |
 | server→siswa | `peringatan` | `{pesan}` | Tampilkan peringatan |
 | server→siswa | `error` | `{message}` | |
@@ -160,7 +160,7 @@ Aturan:
 - CSRF: `http.CrossOriginProtection` untuk semua POST berbasis session (G-009); izinkan pengecualian eksplisit hanya bila terbukti perlu.
 - Kunci jawaban tidak pernah dikirim ke klien. Otorisasi di server (guru hanya mapel miliknya).
 - Upload Excel: batas 2 MB, hanya `.xlsx`, ukuran dibatasi lewat `http.MaxBytesReader`, file sementara dihapus.
-- Header keamanan dasar (`X-Content-Type-Options`, `Referrer-Policy`, `Content-Security-Policy` yang kompatibel dengan Bootstrap lokal/CDN yang dipakai).
+- Header keamanan dasar (`X-Content-Type-Options`, `Referrer-Policy`, `Content-Security-Policy`). Bootstrap & ikon disajikan lokal dari binary (G-019); CSP hanya mengizinkan Google Fonts sebagai pengecualian eksternal.
 - Tanpa akun/endpoint demo; secret hanya dari environment.
 - Log memakai `log/slog`; jangan mencatat PIN, hash, atau isi cookie.
 
