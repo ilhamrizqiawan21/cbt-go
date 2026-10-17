@@ -17,6 +17,7 @@ func RegisterAdminHasilRoutes(mux *http.ServeMux, db *sql.DB, sm *scs.SessionMan
 	mux.Handle("GET /admin/hasil", requireAdmin(HasilListHandler(db, sm)))
 	mux.Handle("GET /admin/hasil/export", requireAdmin(HasilExportHandler(db)))
 	mux.Handle("GET /admin/hasil/cetak/{ujianId}", requireAdmin(HasilCetakHandler(db)))
+	mux.Handle("GET /admin/hasil/hadir/{ujianId}", requireAdmin(HadirCetakHandler(db)))
 }
 
 // HasilListHandler menampilkan daftar hasil ujian siswa atau mengembalikan data JSON.
@@ -134,6 +135,33 @@ func HasilCetakHandler(db *sql.DB) http.HandlerFunc {
 		render(w, r, "admin_hasil_cetak.gohtml", map[string]any{
 			"Ujian":        u,
 			"HasilList":    list,
+			"TanggalCetak": time.Now().Format("02 January 2006"),
+		})
+	}
+}
+
+// HadirCetakHandler menampilkan daftar hadir dan berita acara ujian siap cetak (G-028b).
+func HadirCetakHandler(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ujianID, err := strconv.Atoi(r.PathValue("ujianId"))
+		if err != nil || ujianID <= 0 {
+			http.Error(w, "ID ujian tidak valid", http.StatusBadRequest)
+			return
+		}
+		u, err := GetUjianByID(r.Context(), db, ujianID)
+		if err != nil {
+			http.Error(w, "Ujian tidak ditemukan", http.StatusNotFound)
+			return
+		}
+		list, rekap, err := GetDaftarHadir(r.Context(), db, ujianID)
+		if err != nil {
+			serverError(w, r, err)
+			return
+		}
+		render(w, r, "admin_hadir_cetak.gohtml", map[string]any{
+			"Ujian":        u,
+			"Baris":        list,
+			"Rekap":        rekap,
 			"TanggalCetak": time.Now().Format("02 January 2006"),
 		})
 	}

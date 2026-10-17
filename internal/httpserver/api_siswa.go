@@ -360,10 +360,10 @@ func CekStatusUjianHandler(db *sql.DB, sm *scs.SessionManager) http.HandlerFunc 
 		// 1. Cek apakah ujian masih berada dalam rentang tanggal_mulai .. tanggal_selesai
 		var batasPelanggaran int
 		err := db.QueryRowContext(r.Context(), `
-			SELECT COALESCE(batas_pelanggaran, 3)
-			FROM ujian
-			WHERE id = ? AND NOW() BETWEEN tanggal_mulai AND tanggal_selesai
-		`, ujianID).Scan(&batasPelanggaran)
+			SELECT COALESCE(u.batas_pelanggaran, 3)
+			FROM ujian u
+			WHERE u.id = ? AND `+sesi.KondisiJendelaSiswa("u")+`
+		`, ujianID, siswaID).Scan(&batasPelanggaran)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				writeJSON(w, http.StatusOK, map[string]any{

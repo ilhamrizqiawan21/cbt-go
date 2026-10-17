@@ -79,10 +79,10 @@ func handleSiswaSiap(
 	// 1. Cek apakah ujian masih dalam rentang waktu aktif menggunakan jam DB (NOW())
 	var durasi int
 	err := db.QueryRowContext(ctx, `
-		SELECT durasi
-		FROM ujian
-		WHERE id = ? AND NOW() BETWEEN tanggal_mulai AND tanggal_selesai
-	`, ujianID).Scan(&durasi)
+		SELECT u.durasi
+		FROM ujian u
+		WHERE u.id = ? AND `+sesi.KondisiJendelaSiswa("u")+`
+	`, ujianID, siswaID).Scan(&durasi)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			client.Send("error", map[string]any{"message": "Ujian sudah berakhir atau belum dimulai"})

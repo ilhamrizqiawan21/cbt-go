@@ -11,6 +11,7 @@ import (
 	"github.com/alexedwards/scs/v2"
 
 	"cbt-go/internal/soal"
+	"cbt-go/internal/soalimport"
 )
 
 // RegisterAdminSoalRoutes mendaftarkan seluruh rute pengelolaan soal untuk admin.
@@ -22,6 +23,15 @@ func RegisterAdminSoalRoutes(mux *http.ServeMux, db *sql.DB, sm *scs.SessionMana
 	mux.Handle("POST /admin/soal/hapus/{id}", requireAdmin(SoalHapusHandler(db, sm)))
 	mux.Handle("GET /admin/soal/tambah-batch", requireAdmin(SoalBatchPageHandler(db, sm)))
 	mux.Handle("POST /admin/soal/batch-tambah", requireAdmin(SoalBatchTambahHandler(db, sm)))
+	mux.Handle("POST /admin/soal/gambar", requireAdmin(soal.UnggahGambarHandler(nil)))
+	mux.Handle("GET /admin/soal/template", requireAdmin(soalimport.TemplateHandler()))
+	opsiImpor := soalimport.Opsi{
+		SM: sm, DB: db,
+		Izin:    func(*http.Request, int) (bool, error) { return true, nil },
+		Kembali: soalURLInt,
+	}
+	mux.Handle("POST /admin/soal/import", requireAdmin(soalimport.ImportHandler(opsiImpor)))
+	mux.Handle("POST /admin/soal/salin", requireAdmin(soalimport.SalinHandler(opsiImpor)))
 }
 
 // SoalListHandler menampilkan daftar soal per ujian atau mengembalikan data JSON.
@@ -123,6 +133,7 @@ func SoalTambahHandler(db *sql.DB, sm *scs.SessionManager) http.HandlerFunc {
 				PilihanD:     stringPtr(r.FormValue("pilihan_d")),
 				JawabanBenar: stringPtr(r.FormValue("jawaban_benar")),
 				OpsiTambahan: stringPtr(r.FormValue("opsi_tambahan")),
+				Gambar:       stringPtr(r.FormValue("gambar")),
 			}
 		}
 
@@ -175,6 +186,7 @@ func SoalEditHandler(db *sql.DB, sm *scs.SessionManager) http.HandlerFunc {
 				PilihanD:     stringPtr(r.FormValue("pilihan_d")),
 				JawabanBenar: stringPtr(r.FormValue("jawaban_benar")),
 				OpsiTambahan: stringPtr(r.FormValue("opsi_tambahan")),
+				Gambar:       stringPtr(r.FormValue("gambar")),
 			}
 		}
 		s.ID = id
@@ -301,3 +313,5 @@ func soalURL(ujianID string) string {
 	}
 	return "/admin/soal"
 }
+
+func soalURLInt(ujianID int) string { return soalURL(strconv.Itoa(ujianID)) }

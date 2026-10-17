@@ -73,7 +73,8 @@ func registerPublicRoutes(mux *http.ServeMux, db any, sm *scs.SessionManager) {
 			FROM ujian u
 			JOIN pengajaran p ON u.pengajaran_id = p.id
 			JOIN kelas k ON p.kelas_id = k.id
-			WHERE u.tanggal_mulai <= NOW() AND u.tanggal_selesai >= NOW()
+			WHERE u.tanggal_mulai <= NOW() AND (u.tanggal_selesai >= NOW() OR EXISTS (
+				SELECT 1 FROM izin_susulan iz WHERE iz.ujian_id = u.id AND iz.tanggal_selesai >= NOW()))
 			ORDER BY u.id ASC
 		`
 		rows, err := q.QueryContext(r.Context(), query)

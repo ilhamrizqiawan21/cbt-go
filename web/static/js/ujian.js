@@ -536,6 +536,10 @@ function renderSoal(soalList) {
             </div>
             <div class="soal-text${soalArClass}" dir="auto">${escapeHtml(soal.teks_soal)}</div>
         `;
+        // Gambar soal (G-023): nama berkas dari server berformat <hex32>.<png|jpg|webp>; dilayani rute berotorisasi.
+        if (soal.gambar && /^[0-9a-f]{32}\.(png|jpg|webp)$/.test(soal.gambar)) {
+            html += `<img class="soal-gambar" src="/uploads/soal/${soal.gambar}" alt="Gambar soal nomor ${idx + 1}" loading="lazy">`;
+        }
 
         const savedValue = local[soal.id];
 

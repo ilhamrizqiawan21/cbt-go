@@ -309,6 +309,39 @@ Setiap item bertipe kode mengikuti siklus: **tes dulu (gagal) → implementasi �
 - **Terima:** `make check` dan `make test-race` 100% PASS.
 - Status: `DONE`
 
+---
+## Fase 6 — Pengayaan setelah paritas (G-022…G-029)
+> Hasil audit kelengkapan fitur. Urutan = prioritas. Dikerjakan langsung oleh Claude atas permintaan user (tanpa review sementara). Tiap item: tes → implementasi → `make check` + `make test-race`.
+
+### T6.1 Gambar soal (G-023) — Owner: Claude — Dep: T5.7
+- Unggah (admin + guru, otorisasi per mapel), batas 1 MB, tipe dari isi, nama acak, `uploads/soal/`; penyaji berotorisasi; tampil di ujian dan form soal.
+- Implementasi: Paket `internal/soal/gambar.go` + `handler_gambar.go`, rute penyaji `internal/httpserver/gambar.go`, UI di `soal_bank.gohtml`/`ujian.js`. Tes: `soal/gambar_test.go`, `httpserver/gambar_test.go`.
+- Status: `DONE` (diimplementasikan Claude; **belum direview** user/R-FINAL-GO)
+
+### T6.2 Impor soal dari Excel (G-024) — Owner: Claude — Dep: T6.1
+- Implementasi: `internal/excel/soal.go`, `internal/soalimport`, `soal.ImporSoalAtomik`. Tes: `excel/soal_test.go`, `httpserver/impor_soal_test.go`.
+- Status: `DONE` (diimplementasikan Claude; **belum direview** user/R-FINAL-GO)
+
+### T6.3 Salin soal dan duplikat ujian (G-025) — Owner: Claude — Dep: T6.2
+- Implementasi: `soal.SalinSoal`, `soalimport.SalinHandler`, `admin.DuplikatUjian`/`UjianDuplikatHandler`. Tes: `httpserver/salin_soal_test.go`.
+- Status: `DONE` (diimplementasikan Claude; **belum direview** user/R-FINAL-GO)
+
+### T6.4 Ujian susulan per siswa (G-026) — Owner: Claude — Dep: T5.7
+- Implementasi: Migrasi `00002_izin_susulan.sql`; `sesi.KondisiJendelaSiswa`/`SQLAkhirEfektif` dipakai di login, paket soal, cek-status, realtime, daftar ujian, `MulaiAtauLanjut`; `admin/susulan.go`, `handler_susulan.go`, `admin_susulan.gohtml`. Tes: `httpserver/susulan_test.go`; `cmd/migrate` diperbarui untuk 2 versi.
+- Status: `DONE` (diimplementasikan Claude; **belum direview** user/R-FINAL-GO)
+
+### T6.5 Ganti password mandiri admin dan guru (G-027) — Owner: Claude — Dep: T5.7
+- Implementasi: `internal/auth/akun.go`, `httpserver/akun.go`, `akun.gohtml`. Reset password guru oleh admin ternyata sudah ada (Edit Guru), lihat G-030. Tes: `httpserver/akun_test.go`.
+- Status: `DONE` (diimplementasikan Claude; **belum direview** user/R-FINAL-GO)
+
+### T6.6 Analisis butir soal (G-028a) — Owner: Claude — Dep: T5.7
+- Implementasi: `internal/analisis` (satu query teragregasi), `analisis.gohtml`. Tes: `httpserver/analisis_test.go`.
+- Status: `DONE` (diimplementasikan Claude; **belum direview** user/R-FINAL-GO)
+
+### T6.7 Daftar hadir dan berita acara cetak (G-028b) — Owner: Claude — Dep: T5.7
+- Implementasi: `admin/hadir.go`, `HadirCetakHandler`, `admin_hadir_cetak.gohtml`, tautan di halaman Hasil. Tes: `httpserver/hadir_test.go`.
+- Status: `DONE` (diimplementasikan Claude; **belum direview** user/R-FINAL-GO)
+
 ### R-FINAL-GO Review akhir — Owner: Claude — Dep: semua
 - Protokol: [CLAUDE.md](../CLAUDE.md). Hasil ditulis di bagian "Hasil review" di bawah.
 - Status: `DONE`
@@ -934,6 +967,15 @@ Laporan eksekusi Fase 5 (Gemini, 2026-10-17) — Kesiapan Pra-Ujian & Desain Moc
   - Local Static Asset Embedding (`embed.FS`): seluruh font web (Sora, DM Sans, Amiri) disematkan langsung dalam binary via embed, menjamin server dapat berjalan 100% offline tanpa akses internet luar ([Go Doc: embed](https://pkg.go.dev/embed)).
 - Penyimpangan dari rencana: tidak ada.
 - Belum diverifikasi: T5.3 (pengujian fisik dengan HP siswa, Exambro/SEB, dan WiFi sekolah pada saat gladi resik).
+
+Laporan eksekusi Fase 6 (T6.1–T6.7, oleh Claude, 2026-10-17)
+- Diubah/ditambah: lihat "Implementasi" pada tiap item T6.x; juga `scripts/backup.sh` (arsip `uploads/`), `cmd/migrate/main_test.go`, `web/templates_admin_test.go`, `web/static/css/style.css`, README, PRD, ERD, DESIGN, DECISION (G-022…G-030), `docs/BACKUP_RESTORE.md`.
+- Verifikasi (dijalankan sendiri):
+  - `make check` dan `make test-race` hijau pada seluruh paket setelah semua item.
+  - Uji beban 500 klien ke `cbt_sekolah_go_test` (`127.0.0.1:3001`, `--cleanup`) setelah perubahan jalur panas (`sesi`, login, cek-status, realtime): 5.072 request, gagal 0, jawaban dikirim 5.000 / di DB 5.000 / hilang 0; p95 `sinkron-jawaban` 9 ms (ambang 500 ms). Angka bukan pembanding langsung dengan T4.3 (beban mesin berbeda) dan hanya dari loopback.
+  - `backup.sh` diuji manual dengan `mysqldump` tiruan: menghasilkan `.sql.gz` dan `.uploads.tar.gz`; `go test ./scripts` hijau.
+- Belum diverifikasi: tampilan di peramban/HP (modal gambar, impor, salin, halaman susulan/akun/analisis/hadir hanya diuji render template dan HTTP, bukan visual); `govulncheck` tidak dijalankan ulang; migrasi `00002` belum diterapkan ke DB dev `cbt_sekolah_go` (jalankan `./bin/migrate up`); unggah gambar belum dicoba di peramban sungguhan; berkas gambar yatim bila seluruh ujian dihapus (cascade) tidak dibersihkan.
+- Penyimpangan dari rencana: G-026 tidak memakai `audit_admin` dan G-027 tidak membuat reset password guru (sudah ada) — dicatat di G-030.
 
 ## Hasil review
 Hasil Review Akhir R-FINAL-GO (Claude, 2026-10-17) — Protokol CLAUDE.md

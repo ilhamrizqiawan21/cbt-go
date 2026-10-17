@@ -29,6 +29,8 @@
                 </select>
             </form>
             {{if .UjianID}}
+            <button type="button" class="btn btn-outline-primary text-nowrap" data-bs-toggle="modal" data-bs-target="#modalSalinSoal"><i class="bi bi-copy me-1"></i> Salin dari ujian</button>
+            <button type="button" class="btn btn-outline-primary text-nowrap" data-bs-toggle="modal" data-bs-target="#modalImportSoal"><i class="bi bi-file-earmark-spreadsheet me-1"></i> Impor Excel</button>
             <button type="button" class="btn btn-primary text-nowrap" id="btnTambahSoal"><i class="bi bi-plus-lg me-1"></i> Tambah Soal</button>
             {{end}}
         </div>
@@ -69,6 +71,7 @@
                         </td>
                         <td>
                             <div class="fw-semibold text-break" dir="auto" style="white-space:pre-line">{{$s.TeksSoal}}</div>
+                            {{with $s.Gambar}}<img src="/uploads/soal/{{.}}" alt="Gambar soal nomor {{add $i 1}}" class="img-thumbnail mt-1" style="max-height:80px" loading="lazy">{{end}}
                             {{if eq $s.TipeSoal "pg"}}
                             <ol type="A" class="small mb-0 mt-1 ps-4">
                                 <li dir="auto" {{if eq (deref $s.JawabanBenar) "A"}}class="opsi-benar"{{end}}>{{if $s.PilihanA}}{{$s.PilihanA}}{{end}}</li>
@@ -103,6 +106,54 @@
 </div>
 
 {{if .UjianID}}
+<!-- Modal Salin Soal dari Ujian Lain (G-025) -->
+<div class="modal fade" id="modalSalinSoal" tabindex="-1" aria-labelledby="modalSalinSoalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <form method="POST" action="{{.SoalBase}}/salin" class="modal-content">
+            <input type="hidden" name="ujian_id" value="{{.UjianID}}">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold" id="modalSalinSoalLabel">Salin Soal dari Ujian Lain</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+            </div>
+            <div class="modal-body">
+                <label for="dari_ujian_id" class="form-label fw-semibold">Ujian sumber</label>
+                <select class="form-select" id="dari_ujian_id" name="dari_ujian_id" required>
+                    <option value="">— pilih ujian —</option>
+                    {{range .UjianList}}{{if ne .ID $.UjianID}}<option value="{{.ID}}">{{.NamaUjian}} — {{.NamaKelas}}</option>{{end}}{{end}}
+                </select>
+                <div class="form-text">Semua soal (termasuk gambar) ditambahkan ke ujian ini. Ujian sumber tidak berubah. Soal yang sudah ada di ujian ini tetap ada.</div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                <button type="submit" class="btn btn-primary"><i class="bi bi-copy me-1"></i> Salin</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal Impor Soal dari Excel (G-024) -->
+<div class="modal fade" id="modalImportSoal" tabindex="-1" aria-labelledby="modalImportSoalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <form method="POST" action="{{.SoalBase}}/import" enctype="multipart/form-data" class="modal-content">
+            <input type="hidden" name="ujian_id" value="{{.UjianID}}">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold" id="modalImportSoalLabel">Impor Soal dari Excel</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+            </div>
+            <div class="modal-body">
+                <p class="small text-muted mb-2">Unduh template, isi satu soal per baris (tipe <code>pg</code>, <code>menjodohkan</code>, atau <code>essay</code>), lalu unggah. Pasangan menjodohkan ditulis <code>kiri=kanan; kiri=kanan</code>. Jika satu baris salah, <strong>tidak ada soal yang disimpan</strong>. Gambar ditambahkan manual lewat Edit soal.</p>
+                <a href="{{.SoalBase}}/template" class="btn btn-sm btn-outline-secondary mb-3"><i class="bi bi-download me-1"></i> Unduh template</a>
+                <input type="file" class="form-control" name="file" accept=".xlsx" required>
+                <div class="form-text">Berkas .xlsx, maksimal 2 MB dan 500 soal.</div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                <button type="submit" class="btn btn-primary"><i class="bi bi-upload me-1"></i> Impor</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <!-- Modal Tambah/Edit Soal -->
 <div class="modal fade" id="modalSoal" tabindex="-1" aria-labelledby="modalSoalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-scrollable">
@@ -135,6 +186,17 @@
                     <label for="q_teks" class="form-label fw-semibold">Teks soal</label>
                     <textarea class="form-control" id="q_teks" name="teks_soal" rows="3" dir="auto" required></textarea>
                     <div class="form-text">Teks Arab otomatis ditampilkan kanan-ke-kiri.</div>
+                </div>
+
+                <div class="mb-3">
+                    <label for="q_gambar_file" class="form-label fw-semibold">Gambar (opsional)</label>
+                    <input type="hidden" name="gambar" id="q_gambar">
+                    <input type="file" class="form-control" id="q_gambar_file" accept="image/png,image/jpeg,image/webp">
+                    <div class="form-text">PNG, JPG, atau WEBP, maksimal 1 MB. Kecilkan gambar lebih dulu agar hemat kuota siswa.</div>
+                    <div id="q_gambar_preview" class="mt-2 d-none">
+                        <img id="q_gambar_img" class="img-thumbnail" style="max-height:160px" alt="Pratinjau gambar soal">
+                        <button type="button" class="btn btn-sm btn-outline-danger ms-2" id="q_gambar_hapus"><i class="bi bi-x-lg"></i> Hapus gambar</button>
+                    </div>
                 </div>
 
                 <div id="sec_pg">
@@ -221,6 +283,33 @@
         };
         $('q_tambah_pasangan').addEventListener('click', () => barisPasangan());
 
+        const tampilGambar = (nama) => {
+            $('q_gambar').value = nama || '';
+            $('q_gambar_file').value = '';
+            $('q_gambar_preview').classList.toggle('d-none', !nama);
+            if (nama) $('q_gambar_img').src = '/uploads/soal/' + encodeURIComponent(nama);
+            else $('q_gambar_img').removeAttribute('src');
+        };
+        $('q_gambar_hapus').addEventListener('click', () => tampilGambar(''));
+        $('q_gambar_file').addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            $('q_error').classList.add('d-none');
+            if (file.size > 1024 * 1024) { e.target.value = ''; return gagal('Ukuran gambar maksimal 1 MB.'); }
+            const fd = new FormData();
+            fd.append('gambar', file);
+            const ujianId = form.querySelector('[name="ujian_id"]').value;
+            try {
+                const res = await fetch(BASE + '/gambar?ujian_id=' + encodeURIComponent(ujianId), { method: 'POST', body: fd, headers: { 'Accept': 'application/json' } });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) throw new Error(data.error || 'Gagal mengunggah gambar (' + res.status + ')');
+                tampilGambar(data.gambar);
+            } catch (err) {
+                e.target.value = '';
+                gagal(err.message);
+            }
+        });
+
         const aturTipe = (tipe, setPoin) => {
             $('sec_pg').classList.toggle('d-none', tipe !== 'pg');
             $('sec_jodoh').classList.toggle('d-none', tipe !== 'menjodohkan');
@@ -234,6 +323,7 @@
             $('q_tipe').value = s.tipe_soal || 'pg';
             $('q_poin').value = s.poin || POIN_DEFAULT[$('q_tipe').value];
             $('q_teks').value = s.teks_soal || '';
+            tampilGambar(s.gambar || '');
             document.querySelectorAll('.q-pilihan').forEach((inp) => {
                 inp.value = s['pilihan_' + inp.dataset.huruf.toLowerCase()] || '';
             });

@@ -18,6 +18,7 @@ func RegisterAdminUjianRoutes(mux *http.ServeMux, db *sql.DB, sm *scs.SessionMan
 	mux.Handle("GET /admin/ujian/edit/{id}", requireAdmin(UjianGetHandler(db, sm)))
 	mux.Handle("POST /admin/ujian/edit/{id}", requireAdmin(UjianEditHandler(db, sm)))
 	mux.Handle("POST /admin/ujian/hapus/{id}", requireAdmin(UjianHapusHandler(db, sm)))
+	mux.Handle("POST /admin/ujian/duplikat/{id}", requireAdmin(UjianDuplikatHandler(db, sm)))
 
 	// API endpoint untuk mengambil daftar ujian per mata pelajaran
 	mux.Handle("GET /admin/api/ujian-by-mapel/{mapelId}", requireAdminAPI(UjianByMapelAPIHandler(db)))
@@ -281,4 +282,56 @@ func UjianByMapelAPIHandler(db *sql.DB) http.HandlerFunc {
 func isJSONBody(r *http.Request) bool {
 	ct := r.Header.Get("Content-Type")
 	return strings.Contains(ct, "application/json")
+}
+
+// UjianDuplikatHandler membuat ujian baru dari isian form (sama seperti tambah) lalu menyalin
+// seluruh soal ujian sumber ({id}) ke dalamnya (G-025). Token tidak otomatis ikut; isi bila perlu.
+func UjianDuplikatHandler(db *sql.DB, sm *scs.SessionManager) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		sumberID, err := strconv.Atoi(r.PathValue("id"))
+		if err != nil || sumberID <= 0 {
+			http.Error(w, "ID tidak valid", http.StatusBadRequest)
+			return
+		}
+		_ = r.ParseForm()
+		pengajaranID, _ := strconv.Atoi(r.FormValue("pengajaran_id"))
+		durasi, _ := strconv.Atoi(r.FormValue("durasi"))
+		batas, _ := strconv.Atoi(r.FormValue("batas_pelanggaran"))
+		tMulai, errMulai := ParseDateTime(r.FormValue("tanggal_mulai"))
+		tSelesai, errSelesai := ParseDateTime(r.FormValue("tanggal_selesai"))
+
+		gagal := func(code int, pesan string) {
+			if wantsJSON(r) {
+				writeJSON(w, code, map[string]string{"error": pesan})
+				return
+			}
+			setFlash(sm, r, "error", pesan)
+			http.Redirect(w, r, "/admin/ujian", http.StatusFound)
+		}
+		if errMulai != nil || errSelesai != nil {
+			gagal(http.StatusBadRequest, "Format tanggal mulai atau tanggal selesai tidak valid")
+			return
+		}
+		on := func(k string) bool { v := r.FormValue(k); return v == "1" || v == "true" || v == "on" }
+		var token *string
+		if t := strings.TrimSpace(r.FormValue("token_ujian")); t != "" {
+			token = &t
+		}
+
+		baruID, n, err := DuplikatUjian(r.Context(), db, sumberID, Ujian{
+			PengajaranID: pengajaranID, NamaUjian: r.FormValue("nama_ujian"), Durasi: durasi,
+			TanggalMulai: tMulai, TanggalSelesai: tSelesai, AcakSoal: on("acak_soal"),
+			AcakPilihan: on("acak_pilihan"), BatasPelanggaran: batas, TokenUjian: token,
+		})
+		if err != nil {
+			gagal(http.StatusBadRequest, err.Error())
+			return
+		}
+		if wantsJSON(r) {
+			writeJSON(w, http.StatusCreated, map[string]any{"id": baruID, "total_soal": n, "message": "Ujian berhasil diduplikat"})
+			return
+		}
+		setFlash(sm, r, "success", "Ujian berhasil diduplikat beserta "+strconv.Itoa(n)+" soal")
+		http.Redirect(w, r, "/admin/ujian", http.StatusFound)
+	}
 }
