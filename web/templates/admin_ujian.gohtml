@@ -61,6 +61,7 @@
                             <a href="/admin/soal?ujian_id={{$u.ID}}" class="btn btn-sm btn-outline-secondary" title="Bank soal"><i class="bi bi-question-square"></i></a>
                             <a href="/admin/monitor/{{$u.ID}}" class="btn btn-sm btn-outline-secondary" title="Monitor"><i class="bi bi-display"></i></a>
                             <a href="/admin/hasil?ujian_id={{$u.ID}}" class="btn btn-sm btn-outline-secondary" title="Hasil"><i class="bi bi-trophy"></i></a>
+                            <a href="/admin/susulan?ujian_id={{$u.ID}}" class="btn btn-sm btn-outline-secondary" title="Ujian susulan"><i class="bi bi-calendar2-plus"></i></a>
                             <button type="button" class="btn btn-sm btn-outline-primary btn-edit-ujian" title="Edit"
                                     data-id="{{$u.ID}}" data-pengajaran="{{$u.PengajaranID}}" data-nama="{{$u.NamaUjian}}"
                                     data-durasi="{{$u.Durasi}}" data-mulai="{{$u.TanggalMulai.Format "2006-01-02T15:04"}}"
@@ -68,6 +69,12 @@
                                     data-acak-soal="{{$u.AcakSoal}}" data-acak-pilihan="{{$u.AcakPilihan}}"
                                     data-batas="{{$u.BatasPelanggaran}}" data-token="{{if $u.TokenUjian}}{{$u.TokenUjian}}{{end}}">
                                 <i class="bi bi-pencil"></i>
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary btn-duplikat-ujian" title="Duplikat ujian beserta soalnya"
+                                    data-id="{{$u.ID}}" data-pengajaran="{{$u.PengajaranID}}" data-nama="{{$u.NamaUjian}} (salinan)"
+                                    data-durasi="{{$u.Durasi}}" data-acak-soal="{{$u.AcakSoal}}" data-acak-pilihan="{{$u.AcakPilihan}}"
+                                    data-batas="{{$u.BatasPelanggaran}}">
+                                <i class="bi bi-copy"></i>
                             </button>
                             <form action="/admin/ujian/hapus/{{$u.ID}}" method="POST" class="d-inline"
                                   data-confirm="Hapus ujian &quot;{{$u.NamaUjian}}&quot;? Seluruh soal, sesi, jawaban, dan nilai ujian ini ikut terhapus.">
@@ -181,6 +188,16 @@
             btn.addEventListener('click', () => {
                 form.action = '/admin/ujian/edit/' + btn.dataset.id;
                 judul.textContent = 'Edit Ujian';
+                isi(btn.dataset);
+                modal.show();
+            });
+        });
+
+        // Duplikat: ujian baru dengan pengaturan sumber; jadwal wajib diisi ulang, token tidak ikut.
+        document.querySelectorAll('.btn-duplikat-ujian').forEach((btn) => {
+            btn.addEventListener('click', () => {
+                form.action = '/admin/ujian/duplikat/' + btn.dataset.id;
+                judul.textContent = 'Duplikat Ujian (soal ikut disalin)';
                 isi(btn.dataset);
                 modal.show();
             });

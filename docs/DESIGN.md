@@ -116,6 +116,15 @@ Job (`time.Ticker`, 30 detik) memanggil `finalizeSesi` untuk sesi `sedang_ujian`
 | POST | `/admin/api/sesi/:id/paksa-selesai` | admin | Finalisasi paksa |
 | * | `/admin/...`, `/guru/...` | admin / guru | Halaman CRUD (rute persis: PORTING_MAP §2) |
 | GET | `/healthz` | publik | Kesehatan proses + DB (baru, tidak ada di Node) |
+| GET | `/uploads/soal/{nama}` | admin/guru; siswa bila punya sesi `sedang_ujian` pada ujian pemilik soal | Gambar soal (G-023, baru) |
+| POST | `/admin/soal/gambar`, `/guru/soal/gambar?ujian_id=` | admin / guru pengampu | Unggah gambar soal, balas `{"gambar": nama}` (baru) |
+| GET/POST | `/{admin,guru}/soal/template`, `/{admin,guru}/soal/import` | admin / guru pengampu | Impor soal Excel atomik (G-024, baru) |
+| POST | `/{admin,guru}/soal/salin` | admin / guru pengampu kedua ujian | Salin soal antar ujian (G-025, baru) |
+| POST | `/admin/ujian/duplikat/{id}` | admin | Duplikat ujian + soal (G-025, baru) |
+| GET/POST | `/admin/susulan`, `/admin/susulan/tambah`, `/admin/susulan/hapus/{id}` | admin | Izin ujian susulan per siswa (G-026, baru) |
+| GET/POST | `/{admin,guru}/akun`, `/{admin,guru}/akun/password` | peran masing-masing | Ganti password sendiri (G-027, baru) |
+| GET | `/{admin,guru}/analisis` | admin / guru pengampu | Analisis butir soal (G-028a, baru) |
+| GET | `/admin/hasil/hadir/{ujianId}` | admin | Daftar hadir + berita acara cetak (G-028b, baru) |
 
 Bentuk JSON, nama field, dan status code **harus sama persis** dengan Node. Cara memastikan: baca handler Node, lalu tulis tes Go yang memeriksa bentuk respons.
 

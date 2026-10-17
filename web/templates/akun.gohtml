@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>{{template "app_head" "Akun Saya"}}</head>
+<body class="bg-light">
+{{if eq .Peran "guru"}}{{template "guru_navbar" .}}{{else}}{{template "admin_navbar" .}}{{end}}
+
+<div class="container py-4" style="max-width:560px">
+    <h3 class="page-title mb-1"><i class="bi bi-person-lock text-primary me-2"></i>Akun Saya</h3>
+    <p class="text-muted">Ganti password untuk <strong>{{.Username}}</strong>. Setelah berhasil, perangkat lain yang sedang masuk dengan akun ini akan dikeluarkan.</p>
+
+    {{template "app_flash" .}}
+
+    <form method="POST" action="/{{.Peran}}/akun/password" class="card border-0 shadow-sm">
+        <div class="card-body">
+            <div class="mb-3">
+                <label for="password_lama" class="form-label fw-semibold">Password lama</label>
+                <input type="password" class="form-control" id="password_lama" name="password_lama" autocomplete="current-password" required>
+            </div>
+            <div class="mb-3">
+                <label for="password_baru" class="form-label fw-semibold">Password baru</label>
+                <input type="password" class="form-control" id="password_baru" name="password_baru" autocomplete="new-password" minlength="{{.MinPanjang}}" required>
+                <div class="form-text">Minimal {{.MinPanjang}} karakter.</div>
+            </div>
+            <div class="mb-3">
+                <label for="konfirmasi" class="form-label fw-semibold">Ulangi password baru</label>
+                <input type="password" class="form-control" id="konfirmasi" name="konfirmasi" autocomplete="new-password" minlength="{{.MinPanjang}}" required>
+            </div>
+            <button type="submit" class="btn btn-primary"><i class="bi bi-save me-1"></i> Simpan password</button>
+        </div>
+    </form>
+</div>
+
+{{template "app_scripts"}}
+</body>
+</html>

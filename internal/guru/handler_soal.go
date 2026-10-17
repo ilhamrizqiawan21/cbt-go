@@ -11,6 +11,7 @@ import (
 	"github.com/alexedwards/scs/v2"
 
 	"cbt-go/internal/soal"
+	"cbt-go/internal/soalimport"
 )
 
 // RegisterGuruRoutes mendaftarkan seluruh rute kelola soal khusus guru dengan otorisasi mapel/pengajaran ketat.
@@ -28,6 +29,21 @@ func RegisterGuruRoutes(mux *http.ServeMux, db *sql.DB, sm *scs.SessionManager, 
 	mux.Handle("POST /guru/soal/edit/{id}", requireGuru(GuruSoalEditHandler(db, sm)))
 	mux.Handle("POST /guru/soal/hapus/{id}", requireGuru(GuruSoalHapusHandler(db, sm)))
 	mux.Handle("POST /guru/soal/batch-tambah", requireGuru(GuruSoalBatchTambahHandler(db, sm)))
+	// Unggah gambar: ujian_id (query) menentukan otorisasi guru per pengajaran.
+	mux.Handle("POST /guru/soal/gambar", requireGuru(soal.UnggahGambarHandler(func(r *http.Request) (bool, error) {
+		ujianID, _ := strconv.Atoi(r.URL.Query().Get("ujian_id"))
+		return soal.CekOtorisasiUjianGuru(r.Context(), db, sm.GetInt(r.Context(), "guruId"), ujianID)
+	})))
+	mux.Handle("GET /guru/soal/template", requireGuru(soalimport.TemplateHandler()))
+	opsiImpor := soalimport.Opsi{
+		SM: sm, DB: db,
+		Izin: func(r *http.Request, ujianID int) (bool, error) {
+			return soal.CekOtorisasiUjianGuru(r.Context(), db, sm.GetInt(r.Context(), "guruId"), ujianID)
+		},
+		Kembali: kelolaSoalURL,
+	}
+	mux.Handle("POST /guru/soal/import", requireGuru(soalimport.ImportHandler(opsiImpor)))
+	mux.Handle("POST /guru/soal/salin", requireGuru(soalimport.SalinHandler(opsiImpor)))
 }
 
 // KelolaSoalPageHandler menampilkan bank soal satu ujian milik guru aktif (?ujian_id=, default ujian terbaru).

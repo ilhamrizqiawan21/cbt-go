@@ -2,7 +2,7 @@
 
 Dokumen terkait: [DESIGN](DESIGN.md), [PRD](PRD.md). **Sumber kebenaran skema: [migrations/](../migrations/)** (baseline `00001_baseline.sql`, G-007). ERD ini harus diperbarui bersama setiap migrasi baru.
 
-Skema ini identik dengan skema akhir proyek Node (baseline + migrasi 001–003), ditambah tabel `sessions` untuk library session Go. Verifikasi baseline: dijalankan pada MySQL 8.4.10 → 15 tabel, 20 foreign key, `Down` bersih.
+Skema ini identik dengan skema akhir proyek Node (baseline + migrasi 001–003), ditambah tabel `sessions` untuk library session Go dan, sejak Fase 6, tabel `izin_susulan` (migrasi `00002`). Verifikasi baseline: dijalankan pada MySQL 8.4.10 → 15 tabel, 20 foreign key, `Down` bersih.
 
 ## 1. Diagram
 ```mermaid
@@ -99,6 +99,12 @@ erDiagram
                   varchar aksi
                   text detail
                   timestamp dibuat_pada }
+    IZIN_SUSULAN { int id PK
+                   int siswa_id FK
+                   int ujian_id FK
+                   datetime tanggal_selesai "izin berlaku sampai"
+                   varchar alasan
+                   int dibuat_oleh FK "admin, SET NULL" }
     SESSIONS { char token PK "scs, 43 char"
                blob data
                timestamp expiry }
@@ -119,6 +125,9 @@ erDiagram
     UJIAN ||--o{ NILAI_UJIAN : menghasilkan
     SISWA ||--o{ LOG_KECURANGAN : melanggar
     UJIAN ||--o{ LOG_KECURANGAN : tercatat
+    SISWA ||--o{ IZIN_SUSULAN : diberi
+    UJIAN ||--o{ IZIN_SUSULAN : untuk
+    ADMIN ||--o{ IZIN_SUSULAN : memberi
     ADMIN ||--o{ AUDIT_ADMIN : melakukan
     SESI_UJIAN ||--o{ AUDIT_ADMIN : dikenai
 ```
@@ -132,6 +141,8 @@ erDiagram
 - `soal.tipe_soal`: `pg | menjodohkan | essay`.
 - `jawaban_siswa.jawaban_dipilih`: PG = huruf `A`–`D`; menjodohkan = JSON array pasangan; essay = tidak dipakai.
 - `nilai_essay.skor` harus `0 ≤ skor ≤ soal.poin` (divalidasi aplikasi).
+- `UNIQUE (siswa_id, ujian_id)` pada `izin_susulan` (migrasi `00002`, G-026). Izin hanya memperpanjang batas akhir bagi siswa itu: login/paket soal/realtime menerima siswa bila jadwal ujian terbuka ATAU izin masih berlaku (`sesi.KondisiJendelaSiswa`), dan `batas_waktu` dibatasi oleh yang lebih akhir antara `ujian.tanggal_selesai` dan izin (`sesi.SQLAkhirEfektif`). Jejak audit (`dibuat_oleh`, `alasan`, `created_at`) ada di tabel ini karena `audit_admin.sesi_id` wajib terisi sedangkan sesi belum ada saat izin diberikan.
+- `soal.gambar` hanya berisi nama berkas `<32 hex>.<png|jpg|webp>` (G-023); berkas ada di `uploads/soal/`, bukan di database.
 - Indeks tambahan khusus Go: `idx_sesi_status_batas (status, batas_waktu)` untuk job penutupan otomatis, `idx_sesi_ujian_status (ujian_id, status)` untuk snapshot monitor.
 
 ## 3. Waktu dan zona waktu

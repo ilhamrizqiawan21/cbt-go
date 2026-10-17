@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"cbt-go/internal/soal"
 )
 
 var (
@@ -317,4 +319,21 @@ func HapusUjian(ctx context.Context, db *sql.DB, id int) error {
 		return ErrNotFound
 	}
 	return nil
+}
+
+// DuplikatUjian membuat ujian baru dari data u lalu menyalin soal dari ujian sumber.
+// Bila penyalinan gagal, ujian baru dibatalkan (dihapus) agar tidak tersisa ujian kosong.
+func DuplikatUjian(ctx context.Context, db *sql.DB, sumberID int, u Ujian) (baruID, jumlahSoal int, err error) {
+	baruID, err = TambahUjian(ctx, db, u)
+	if err != nil {
+		return 0, 0, err
+	}
+	jumlahSoal, err = soal.SalinSoal(ctx, db, sumberID, baruID)
+	if err != nil {
+		if _, delErr := db.ExecContext(ctx, "DELETE FROM ujian WHERE id = ?", baruID); delErr != nil {
+			return 0, 0, fmt.Errorf("batalkan ujian duplikat: %w (penyebab: %v)", delErr, err)
+		}
+		return 0, 0, err
+	}
+	return baruID, jumlahSoal, nil
 }

@@ -2,8 +2,7 @@
 
 Penulisan ulang aplikasi **CBT Sekolah** (Computer Based Test untuk MTs Al-Ihsan Batujajar) dari Node.js ke **Go**. Konsep dan aturan bisnis sama dengan versi Node (`~/Projects/CBT-Sekolah`); teknologi berbeda. Tujuan: paritas perilaku, kapasitas **500 siswa serentak**, dan belajar Go.
 
-> **Status:** kerangka + dokumen perancangan selesai; implementasi fitur belum dimulai. Lihat [docs/TODO.md](docs/TODO.md).
-> **Status:** Implementasi Fase 0 s.d. Fase 5 selesai (100% test passing, race-clean, parity terverifikasi). Siap untuk review akhir dan uji lapangan hari-H. Lihat [docs/TODO.md](docs/TODO.md).
+> **Status:** Fase 0 s.d. Fase 5 selesai (paritas dengan versi Node). Fase 6 (gambar soal, impor Excel, salin soal, ujian susulan, ganti password, analisis butir, daftar hadir) selesai diimplementasikan, **belum direview** (R-FINAL-GO belum dijalankan). Setelah memperbarui kode, jalankan `./bin/migrate up` (migrasi `00002_izin_susulan`). Lihat [docs/TODO.md](docs/TODO.md).
 
 ## Dokumentasi
 | Dokumen | Isi |

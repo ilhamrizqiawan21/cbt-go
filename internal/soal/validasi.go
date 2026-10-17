@@ -27,6 +27,17 @@ type pasanganSoal struct {
 //     ulang dari pasangan (format yang dipakai penilaian) agar keduanya tidak berselisih.
 //   - essay: pilihan, kunci, dan opsi dikosongkan (essay dinilai guru, D-006).
 func ValidasiDanNormalisasi(s *SoalKelola) error {
+	// Gambar hanya boleh berupa nama berkas buatan SimpanGambar (G-023); jalur lain ditolak
+	// agar rute penyaji gambar tidak dapat diarahkan ke berkas sembarang.
+	if s.Gambar != nil {
+		if g := strings.TrimSpace(*s.Gambar); g == "" {
+			s.Gambar = nil
+		} else if !NamaGambarValid(g) {
+			return ErrNamaGambarInvalid
+		} else {
+			s.Gambar = &g
+		}
+	}
 	switch s.TipeSoal {
 	case "pg":
 		pilihan := map[string]*string{"A": s.PilihanA, "B": s.PilihanB, "C": s.PilihanC, "D": s.PilihanD}

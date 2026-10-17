@@ -101,15 +101,27 @@ func TestMigrateIntegration(t *testing.T) {
 		t.Fatalf("migrasi status gagal: %v", err)
 	}
 
-	// 4. Down (satu langkah)
+	// 4. Down satu langkah: hanya migrasi terbaru (00002 izin_susulan) yang dicabut, data lain utuh.
 	if err := runCommand(ctx, pool, config.EnvTest, []string{"down"}); err != nil {
 		t.Fatalf("migrasi down gagal: %v", err)
 	}
+	tabelAda := func(nama string) int {
+		var n int
+		if err := pool.QueryRowContext(ctx, "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = ?", nama).Scan(&n); err != nil {
+			t.Fatalf("cek tabel %s: %v", nama, err)
+		}
+		return n
+	}
+	if tabelAda("izin_susulan") != 0 || tabelAda("siswa") != 1 {
+		t.Fatalf("setelah down satu langkah: izin_susulan=%d (want 0), siswa=%d (want 1)", tabelAda("izin_susulan"), tabelAda("siswa"))
+	}
 
-	// Verifikasi tabel siswa sudah di-drop oleh Down
-	err = pool.QueryRowContext(ctx, "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'siswa'").Scan(&count)
-	if err != nil || count != 0 {
-		t.Fatalf("tabel 'siswa' diharapkan terhapus setelah down, count=%d, err=%v", count, err)
+	// Down sekali lagi mencabut baseline sehingga tabel siswa ikut hilang.
+	if err := runCommand(ctx, pool, config.EnvTest, []string{"down"}); err != nil {
+		t.Fatalf("migrasi down baseline gagal: %v", err)
+	}
+	if tabelAda("siswa") != 0 {
+		t.Fatalf("tabel 'siswa' diharapkan terhapus setelah down baseline")
 	}
 
 	// 5. Up kembali

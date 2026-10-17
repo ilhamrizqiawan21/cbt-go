@@ -71,6 +71,10 @@ while [[ $# -gt 0 ]]; do
             USE_GZIP=false
             shift
             ;;
+        --uploads-dir=*)
+            UPLOADS_DIR="${1#*=}"
+            shift
+            ;;
         --help|-h)
             echo "Penggunaan: $0 [OPSI]"
             echo "Opsi:"
@@ -83,6 +87,7 @@ while [[ $# -gt 0 ]]; do
             echo "  --host=<db_host>     Host database (default: DB_HOST atau 127.0.0.1)"
             echo "  --port=<db_port>     Port database (default: DB_PORT atau 3306)"
             echo "  --no-gzip            Jangan kompres hasil dump dengan gzip"
+            echo "  --uploads-dir=<dir>  Folder gambar soal yang ikut diarsipkan (default: ./uploads)"
             exit 0
             ;;
         *)
@@ -153,6 +158,20 @@ fi
 FILE_SIZE="$(du -h "$OUT_FILE" | cut -f1)"
 echo "[BACKUP] Selesai: $OUT_FILE ($FILE_SIZE)"
 
+# 6b. Arsipkan gambar soal (uploads/). Dump database TIDAK memuat berkas gambar, sehingga tanpa
+# langkah ini pemulihan database akan menyisakan soal bergambar yang gambarnya hilang.
+UPLOADS_DIR="${UPLOADS_DIR:-./uploads}"
+if [ -d "$UPLOADS_DIR" ] && [ -n "$(find "$UPLOADS_DIR" -type f ! -name '.gitignore' -print -quit)" ]; then
+    UPLOADS_OUT="$BACKUP_DIR/${BASE_NAME}.uploads.tar.gz"
+    if tar -czf "$UPLOADS_OUT" --exclude='.gitignore' -C "$(dirname "$UPLOADS_DIR")" "$(basename "$UPLOADS_DIR")"; then
+        echo "[BACKUP] Gambar soal diarsipkan: $UPLOADS_OUT ($(du -h "$UPLOADS_OUT" | cut -f1))"
+    else
+        echo "[ERROR] Gagal mengarsipkan folder gambar: $UPLOADS_DIR" >&2
+        rm -f "$UPLOADS_OUT"
+        exit 1
+    fi
+fi
+
 # 7. Rotasi Berkas Backup Lama
 if [ "$KEEP_COUNT" -gt 0 ]; then
     # Cari semua berkas backup untuk database terkait di direktori backup
@@ -166,6 +185,16 @@ if [ "$KEEP_COUNT" -gt 0 ]; then
             OLD_FILE="${BACKUP_FILES[$i]}"
             rm -f "$OLD_FILE"
             echo "[BACKUP] Menghapus: $(basename "$OLD_FILE")"
+        done
+    fi
+fi
+
+# Arsip gambar soal dirotasi dengan jumlah yang sama (pola berkas berbeda dari dump .sql)
+if [ "$KEEP_COUNT" -gt 0 ]; then
+    UPLOAD_FILES=($(find "$BACKUP_DIR" -maxdepth 1 -type f -name "cbt_${TARGET_DB}_*.uploads.tar.gz" | sort))
+    if [ "${#UPLOAD_FILES[@]}" -gt "$KEEP_COUNT" ]; then
+        for ((i=0; i<${#UPLOAD_FILES[@]}-KEEP_COUNT; i++)); do
+            rm -f "${UPLOAD_FILES[$i]}"
         done
     fi
 fi

@@ -279,10 +279,10 @@ func jalankanMulaiAtauLanjut(ctx context.Context, db *sql.DB, siswaID, ujianID i
 	var ujianDurasi int
 	var ujianTglMulai, ujianTglSelesai time.Time
 	err = tx.QueryRowContext(ctx, `
-		SELECT durasi, tanggal_mulai, tanggal_selesai
+		SELECT durasi, tanggal_mulai, `+SQLAkhirEfektif+`
 		FROM ujian
 		WHERE id = ?
-	`, ujianID).Scan(&ujianDurasi, &ujianTglMulai, &ujianTglSelesai)
+	`, siswaID, ujianID, ujianID).Scan(&ujianDurasi, &ujianTglMulai, &ujianTglSelesai)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrUjianNotFound

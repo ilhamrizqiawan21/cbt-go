@@ -47,7 +47,7 @@ Selama 3 tahun ujian sekolah (SAS kelas 7/8/9, SAT kelas 7/8, dan ujian semester
 - Deteksi HP kedua (tidak mungkin oleh software).
 - Aplikasi native / PWA terpasang.
 - Mengubah aplikasi Node, atau menjalankan keduanya sebagai satu sistem. Dua aplikasi ini **paralel dan independen** (database terpisah).
-- Fitur baru di luar paritas. Ide baru dicatat di TODO "Catatan eksekutor", bukan dikerjakan.
+- Fitur baru di luar paritas, kecuali daftar Fase 6 (DECISION G-022…G-030: gambar soal, impor soal Excel, salin soal/duplikat ujian, ujian susulan per siswa, ganti password mandiri, analisis butir, daftar hadir). Ide lain dicatat di TODO "Catatan eksekutor", bukan dikerjakan.
 
 ## 5. Aturan penilaian (final, identik dengan versi Node)
 - Soal **PG**: benar = **2** poin, salah/kosong = 0.

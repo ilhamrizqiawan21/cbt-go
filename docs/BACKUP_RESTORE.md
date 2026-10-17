@@ -83,6 +83,16 @@ Atau jika menggunakan UNIX socket lokal:
   --yes
 ```
 
+### B2. Memulihkan Gambar Soal
+
+Dump database **tidak** memuat berkas gambar soal. `scripts/backup.sh` mengarsipkannya terpisah sebagai `*.uploads.tar.gz` (folder `uploads/`, dapat diubah dengan `--uploads-dir=`). Pulihkan dari arsip dengan stempel waktu yang sama dengan dump yang dipakai:
+
+```bash
+tar -xzf backups/cbt_cbt_sekolah_go_20261016_211130.uploads.tar.gz -C .
+```
+
+Tanpa langkah ini soal bergambar tetap ada tetapi gambarnya tidak tampil.
+
 ### C. Verifikasi Pasca Restore
 
 1. Periksa jumlah rekaman pada tabel utama:

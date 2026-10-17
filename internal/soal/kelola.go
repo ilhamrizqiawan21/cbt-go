@@ -322,6 +322,9 @@ func EditSoal(ctx context.Context, db *sql.DB, s SoalKelola) error {
 		return err
 	}
 
+	var gambarLama sql.NullString
+	_ = db.QueryRowContext(ctx, "SELECT gambar FROM soal WHERE id = ?", s.ID).Scan(&gambarLama)
+
 	res, err := db.ExecContext(ctx, `
 		UPDATE soal
 		SET tipe_soal = ?, teks_soal = ?, gambar = ?, poin = ?,
@@ -338,7 +341,18 @@ func EditSoal(ctx context.Context, db *sql.DB, s SoalKelola) error {
 	if err == nil && affected == 0 {
 		return ErrSoalNotFound
 	}
+	if gambarLama.Valid && (s.Gambar == nil || *s.Gambar != gambarLama.String) {
+		hapusGambarYatim(ctx, db, gambarLama.String)
+	}
 	return nil
+}
+
+// hapusGambarYatim menghapus berkas gambar bila sudah tidak dipakai soal mana pun.
+func hapusGambarYatim(ctx context.Context, db *sql.DB, nama string) {
+	var n int
+	if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM soal WHERE gambar = ?", nama).Scan(&n); err == nil && n == 0 {
+		HapusBerkasGambar(nama)
+	}
 }
 
 // HapusSoal menghapus satu soal berdasarkan ID.
@@ -346,6 +360,9 @@ func HapusSoal(ctx context.Context, db *sql.DB, id int) error {
 	if db == nil {
 		return errors.New("database tidak tersedia")
 	}
+	var gambar sql.NullString
+	_ = db.QueryRowContext(ctx, "SELECT gambar FROM soal WHERE id = ?", id).Scan(&gambar)
+
 	res, err := db.ExecContext(ctx, "DELETE FROM soal WHERE id = ?", id)
 	if err != nil {
 		return fmt.Errorf("delete soal: %w", err)
@@ -353,6 +370,9 @@ func HapusSoal(ctx context.Context, db *sql.DB, id int) error {
 	affected, err := res.RowsAffected()
 	if err == nil && affected == 0 {
 		return ErrSoalNotFound
+	}
+	if gambar.Valid {
+		hapusGambarYatim(ctx, db, gambar.String)
 	}
 	return nil
 }
@@ -379,4 +399,41 @@ func BatchTambahSoal(ctx context.Context, db *sql.DB, ujianID int, daftarSoal []
 		sukses++
 	}
 	return sukses, nil
+}
+
+// ImporSoalAtomik menyimpan semua soal dalam SATU transaksi: bila satu gagal, tidak ada yang
+// tersimpan (G-024). Berbeda dengan BatchTambahSoal yang menyimpan baris demi baris.
+// Soal diasumsikan sudah lolos ValidasiDanNormalisasi.
+func ImporSoalAtomik(ctx context.Context, db *sql.DB, ujianID int, daftar []SoalKelola) (int, error) {
+	if db == nil {
+		return 0, errors.New("database tidak tersedia")
+	}
+	if ujianID <= 0 {
+		return 0, errors.New("ujian_id tidak valid")
+	}
+	if len(daftar) == 0 {
+		return 0, nil
+	}
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, fmt.Errorf("mulai transaksi impor soal: %w", err)
+	}
+	defer tx.Rollback() //nolint:errcheck // no-op setelah Commit
+
+	for i, s := range daftar {
+		_, err := tx.ExecContext(ctx, `
+			INSERT INTO soal (
+				ujian_id, tipe_soal, teks_soal, gambar, poin,
+				pilihan_a, pilihan_b, pilihan_c, pilihan_d, jawaban_benar, opsi_tambahan
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		`, ujianID, s.TipeSoal, s.TeksSoal, s.Gambar, s.Poin,
+			s.PilihanA, s.PilihanB, s.PilihanC, s.PilihanD, s.JawabanBenar, s.OpsiTambahan)
+		if err != nil {
+			return 0, fmt.Errorf("impor soal ke-%d: %w", i+1, err)
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return 0, fmt.Errorf("commit impor soal: %w", err)
+	}
+	return len(daftar), nil
 }

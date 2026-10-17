@@ -919,3 +919,5 @@ textarea[dir="auto"].ar {
     font-size: 1.25rem;
     line-height: 2;
 }
+/* Gambar soal (G-023): tidak melebihi lebar kartu; teks Arab tetap RTL di atasnya */
+.soal-gambar { display:block; max-width:100%; height:auto; max-height:60vh; margin:.75rem auto; border-radius:8px; }

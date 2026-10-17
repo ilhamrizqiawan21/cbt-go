@@ -69,6 +69,18 @@ func TestAdminTemplates_Render(t *testing.T) {
 				{ID: 4, TipeSoal: "essay", TeksSoal: "Jelaskan", Poin: 4},
 			},
 		}), []string{"Pilihan ganda", "Menjodohkan", "Kunci belum diisi", `class="opsi-benar"`, "pilihan_d", `action="/admin/soal/hapus/1"`, `data-base="/admin/soal"`}},
+		{"soal dengan gambar", "admin_soal.gohtml", base("soal", map[string]any{
+			"UjianList": ujian, "UjianID": 3, "SoalBase": "/admin/soal", "SoalPage": "/admin/soal",
+			"SoalList": []soal.SoalKelola{{ID: 1, TipeSoal: "essay", TeksSoal: "Lihat gambar", Poin: 4, Gambar: strPtr("0123456789abcdef0123456789abcdef.png")}},
+		}), []string{`src="/uploads/soal/0123456789abcdef0123456789abcdef.png"`, `action="/admin/soal/import"`, `action="/admin/soal/salin"`, `id="q_gambar"`}},
+		{"susulan", "admin_susulan.gohtml", base("ujian", map[string]any{
+			"UjianList": ujian, "UjianID": 3, "Ujian": &ujian[0],
+			"Baris": []admin.SusulanRow{
+				{SiswaID: 9, NIS: "1001", Nama: nama, IzinID: 5, IzinSampai: &now, Alasan: "Sakit"},
+				{SiswaID: 10, NIS: "1002", Nama: "Sudah Nilai", SudahNilai: true},
+				{SiswaID: 11, NIS: "1003", Nama: "Belum Masuk"},
+			},
+		}), []string{"Nu&#39;man &lt;b&gt;Uji&lt;/b&gt;", "Sakit", `action="/admin/susulan/hapus/5"`, "Sudah bernilai", "Perbarui", "Beri izin"}},
 		{"soal tanpa ujian", "admin_soal.gohtml", base("soal", map[string]any{"UjianList": []admin.Ujian{}, "UjianID": 0, "SoalBase": "/admin/soal", "SoalPage": "/admin/soal"}), []string{"Belum ada ujian"}},
 		{"hasil", "admin_hasil.gohtml", base("hasil", map[string]any{
 			"UjianList": ujian, "UjianID": 3, "KelasList": kelas,

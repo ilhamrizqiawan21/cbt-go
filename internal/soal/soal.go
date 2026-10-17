@@ -141,14 +141,15 @@ func FormatMenjodohkan(opsiTambahanJSON string, seed int, soalID int) (kiri []st
 	return kiri, opsiKanan, nil
 }
 
-// CekWaktuUjian memeriksa apakah saat ini waktu ujian berada di antara tanggal_mulai dan tanggal_selesai.
-func CekWaktuUjian(ctx context.Context, db *sql.DB, ujianID int) (bool, error) {
+// CekWaktuUjian memeriksa apakah saat ini ujian dapat diakses siswa: di antara tanggal_mulai dan
+// tanggal_selesai, atau siswa memiliki izin susulan yang masih berlaku (G-026).
+func CekWaktuUjian(ctx context.Context, db *sql.DB, siswaID, ujianID int) (bool, error) {
 	var valid bool
 	err := db.QueryRowContext(ctx, `
-		SELECT (tanggal_mulai <= NOW() AND tanggal_selesai >= NOW())
-		FROM ujian
-		WHERE id = ?
-	`, ujianID).Scan(&valid)
+		SELECT `+sesi.KondisiJendelaSiswa("u")+`
+		FROM ujian u
+		WHERE u.id = ?
+	`, siswaID, ujianID).Scan(&valid)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return false, ErrUjianNotFound
@@ -162,7 +163,7 @@ func CekWaktuUjian(ctx context.Context, db *sql.DB, ujianID int) (bool, error) {
 // dan memformatnya tanpa kunci jawaban.
 func AmbilPaketSoal(ctx context.Context, db *sql.DB, siswaID, ujianID int) ([]SoalKlien, error) {
 	// 1. Validasi jendela waktu ujian
-	valid, err := CekWaktuUjian(ctx, db, ujianID)
+	valid, err := CekWaktuUjian(ctx, db, siswaID, ujianID)
 	if err != nil {
 		return nil, err
 	}

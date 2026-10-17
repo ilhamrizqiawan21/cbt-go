@@ -110,8 +110,8 @@ func LoginSiswaHandler(db *sql.DB, sm *scs.SessionManager, cfg config.Config, lo
 			JOIN pengajaran p ON u.pengajaran_id = p.id
 			JOIN kelas k ON p.kelas_id = k.id
 			JOIN mata_pelajaran mp ON p.mapel_id = mp.id
-			WHERE u.id = ? AND u.tanggal_mulai <= NOW() AND u.tanggal_selesai >= NOW()
-		`, ujianID).Scan(&u.ID, &u.NamaUjian, &u.NamaKelas, &u.NamaMapel, &u.TokenUjian)
+			WHERE u.id = ? AND `+sesi.KondisiJendelaSiswa("u")+`
+		`, ujianID, s.ID).Scan(&u.ID, &u.NamaUjian, &u.NamaKelas, &u.NamaMapel, &u.TokenUjian)
 
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {

@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>{{template "app_head" "Analisis Butir Soal"}}</head>
+<body class="bg-light">
+{{if eq .Peran "guru"}}{{template "guru_navbar" .}}{{else}}{{template "admin_navbar" .}}{{end}}
+
+<div class="container py-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+        <div>
+            <h3 class="page-title mb-1"><i class="bi bi-bar-chart-line text-primary me-2"></i>Analisis Butir Soal</h3>
+            <p class="text-muted mb-0">Persentase benar dan sebaran pilihan jawaban per soal, dari siswa yang sudah menyelesaikan ujian.</p>
+        </div>
+        <form method="GET" action="/{{.Peran}}/analisis" class="flex-grow-1" style="max-width:420px">
+            <select name="ujian_id" class="form-select" aria-label="Pilih ujian" onchange="this.form.submit()">
+                {{range .UjianList}}<option value="{{.ID}}" {{if eq .ID $.UjianID}}selected{{end}}>{{.NamaUjian}} — {{.NamaKelas}}</option>
+                {{else}}<option value="">Belum ada ujian</option>{{end}}
+            </select>
+        </form>
+    </div>
+
+    {{if .Hasil}}
+    {{if eq .Hasil.Peserta 0}}
+    <div class="alert alert-info"><i class="bi bi-info-circle me-1"></i>Belum ada siswa yang menyelesaikan ujian ini.</div>
+    {{end}}
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white small text-muted">
+            {{.Hasil.Peserta}} peserta selesai · rata-rata nilai <strong>{{printf "%.1f" .Hasil.RataNilai}}</strong>
+            · <span class="text-danger">sulit</span> = benar &lt; 30%, <span class="text-success">mudah</span> = benar &gt; 90%. Soal kosong dihitung salah.
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="text-center" style="width:50px">No</th>
+                        <th>Soal</th>
+                        <th class="text-center">Tipe</th>
+                        <th class="text-center">Benar</th>
+                        <th class="text-center">Kosong</th>
+                        <th style="min-width:210px">Sebaran pilihan (A / B / C / D)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{range .Hasil.Butir}}
+                    <tr>
+                        <td class="text-center text-muted">{{.No}}</td>
+                        <td class="text-break" dir="auto" style="max-width:420px">{{.Teks}}</td>
+                        <td class="text-center small">{{if eq .Tipe "pg"}}Pilihan ganda{{else if eq .Tipe "menjodohkan"}}Menjodohkan{{else}}Essay{{end}}</td>
+                        <td class="text-center">
+                            {{if lt .PersenBenar 0}}
+                                {{if .AdaSkor}}rata-rata skor <strong>{{printf "%.1f" .RataSkor}}</strong> / {{.Poin}}{{else}}<span class="text-muted">-</span>{{end}}
+                            {{else}}
+                                <strong class="{{if .Sulit}}text-danger{{else if .Mudah}}text-success{{end}}">{{.PersenBenar}}%</strong>
+                                <div class="small text-muted">{{.Benar}} siswa</div>
+                            {{end}}
+                        </td>
+                        <td class="text-center">{{.Kosong}}</td>
+                        <td class="small">
+                            {{if eq .Tipe "pg"}}
+                            <span class="{{if eq .Kunci "A"}}fw-bold text-success{{end}}">A {{.PilihanA}}</span> ·
+                            <span class="{{if eq .Kunci "B"}}fw-bold text-success{{end}}">B {{.PilihanB}}</span> ·
+                            <span class="{{if eq .Kunci "C"}}fw-bold text-success{{end}}">C {{.PilihanC}}</span> ·
+                            <span class="{{if eq .Kunci "D"}}fw-bold text-success{{end}}">D {{.PilihanD}}</span>
+                            <div class="text-muted">Kunci {{.Kunci}} (tebal hijau)</div>
+                            {{else}}<span class="text-muted">-</span>{{end}}
+                        </td>
+                    </tr>
+                    {{else}}
+                    <tr><td colspan="6" class="text-center py-4 text-muted">Ujian ini belum memiliki soal.</td></tr>
+                    {{end}}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {{end}}
+</div>
+
+{{template "app_scripts"}}
+</body>
+</html>

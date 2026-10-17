@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Daftar Hadir dan Berita Acara — {{.Ujian.NamaUjian}}</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; font-size: 11pt; color: #222; }
+        .header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 8px; margin-bottom: 14px; }
+        .header h1 { margin: 0; font-size: 15pt; }
+        .header p { margin: 3px 0 0; font-size: 10.5pt; color: #555; }
+        table.meta { width: 100%; margin-bottom: 10px; }
+        table.meta td { padding: 2px 0; vertical-align: top; }
+        table.data { width: 100%; border-collapse: collapse; margin-top: 8px; }
+        table.data th, table.data td { border: 1px solid #000; padding: 5px 6px; font-size: 9.5pt; }
+        table.data th { background: #f2f2f2; text-align: center; }
+        table.data tr { page-break-inside: avoid; }
+        .c { text-align: center; }
+        .ttd { height: 26px; }
+        .rekap { margin-top: 16px; page-break-inside: avoid; }
+        .rekap table { border-collapse: collapse; }
+        .rekap td { padding: 2px 14px 2px 0; }
+        .catatan { border: 1px solid #000; min-height: 80px; margin-top: 6px; padding: 6px; }
+        .sign { display: flex; justify-content: space-between; margin-top: 28px; page-break-inside: avoid; }
+        .sign div { width: 45%; text-align: center; }
+        .sign .space { height: 70px; }
+        @media print { .no-print { display: none; } body { margin: 0; } @page { size: A4; margin: 15mm; } }
+    </style>
+</head>
+<body>
+<div class="no-print" style="margin-bottom: 12px;">
+    <button onclick="window.print()" style="padding: 8px 16px; font-weight: bold; cursor: pointer;">Cetak</button>
+</div>
+
+<div class="header">
+    <h1>DAFTAR HADIR DAN BERITA ACARA UJIAN</h1>
+    <p>MTs Al-Ihsan Batujajar — Ujian Berbasis Komputer (CBT)</p>
+</div>
+
+<table class="meta">
+    <tr><td style="width:16%"><strong>Ujian</strong></td><td style="width:34%">: {{.Ujian.NamaUjian}}</td>
+        <td style="width:16%"><strong>Mata Pelajaran</strong></td><td>: {{.Ujian.NamaMapel}}</td></tr>
+    <tr><td><strong>Kelas</strong></td><td>: {{.Ujian.NamaKelas}}</td>
+        <td><strong>Guru Pengampu</strong></td><td>: {{.Ujian.NamaGuru}}</td></tr>
+    <tr><td><strong>Jadwal</strong></td><td>: {{.Ujian.TanggalMulai.Format "02 Jan 2006 15:04"}} – {{.Ujian.TanggalSelesai.Format "02 Jan 2006 15:04"}}</td>
+        <td><strong>Durasi</strong></td><td>: {{.Ujian.Durasi}} menit</td></tr>
+</table>
+
+<table class="data">
+    <thead>
+        <tr>
+            <th style="width:4%">No</th>
+            <th style="width:11%">NIS</th>
+            <th>Nama Siswa</th>
+            <th style="width:12%">Kehadiran</th>
+            <th style="width:8%">Mulai</th>
+            <th style="width:8%">Selesai</th>
+            <th style="width:8%">Pelang-<br>garan</th>
+            <th style="width:8%">Ganti<br>perangkat</th>
+            <th style="width:13%">Tanda tangan</th>
+        </tr>
+    </thead>
+    <tbody>
+        {{range $i, $b := .Baris}}
+        <tr>
+            <td class="c">{{add $i 1}}</td>
+            <td class="c">{{$b.NIS}}</td>
+            <td>{{$b.Nama}}</td>
+            <td class="c">{{if eq $b.Status ""}}Tidak hadir{{else if eq $b.Status "selesai"}}Hadir — selesai{{else if eq $b.Status "keluar_paksa"}}Hadir — terkunci{{else}}Hadir — belum selesai{{end}}</td>
+            <td class="c">{{if $b.Mulai}}{{$b.Mulai.Format "15:04"}}{{else}}-{{end}}</td>
+            <td class="c">{{if $b.Selesai}}{{$b.Selesai.Format "15:04"}}{{else}}-{{end}}</td>
+            <td class="c">{{$b.Pelanggaran}}</td>
+            <td class="c">{{$b.AmbilAlih}}</td>
+            <td class="ttd"></td>
+        </tr>
+        {{else}}
+        <tr><td colspan="9" class="c">Tidak ada siswa pada kelas ini.</td></tr>
+        {{end}}
+    </tbody>
+</table>
+
+<div class="rekap">
+    <strong>Rekapitulasi</strong>
+    <table>
+        <tr><td>Jumlah siswa terdaftar</td><td>: {{.Rekap.Total}}</td><td>Hadir</td><td>: {{.Rekap.Hadir}}</td><td>Tidak hadir</td><td>: {{.Rekap.TidakHadir}}</td></tr>
+        <tr><td>Selesai mengerjakan</td><td>: {{.Rekap.Selesai}}</td><td>Terkunci</td><td>: {{.Rekap.Terkunci}}</td><td>Belum selesai</td><td>: {{.Rekap.BelumSelesai}}</td></tr>
+        <tr><td>Total pelanggaran tercatat</td><td>: {{.Rekap.TotalPelanggaran}}</td><td colspan="4"></td></tr>
+    </table>
+    <p style="margin:10px 0 2px"><strong>Catatan selama ujian</strong> (kejadian, kendala teknis, siswa susulan):</p>
+    <div class="catatan"></div>
+</div>
+
+<div class="sign">
+    <div>Pengawas Ujian,<div class="space"></div>( ................................. )</div>
+    <div>Batujajar, {{.TanggalCetak}}<br>Kepala Madrasah / Panitia,<div class="space" style="height:54px"></div>( ................................. )</div>
+</div>
+</body>
+</html>
