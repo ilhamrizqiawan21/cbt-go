@@ -11,6 +11,7 @@ import (
 
 	"cbt-go/internal/config"
 	"cbt-go/internal/db"
+	"cbt-go/internal/testdb"
 )
 
 func TestMigrateArgValidation(t *testing.T) {
@@ -44,15 +45,27 @@ func TestMigrateProductionDownRejected(t *testing.T) {
 func TestMigrateIntegration(t *testing.T) {
 	// Tes integrasi terhadap database uji.
 	// Jika database uji tidak bisa dihubungi, lewati (t.Skip).
-	_ = godotenv.Load()
+	if p := testdb.CariEnvRoot(); p != "" {
+		_ = godotenv.Load(p)
+	}
 	cfg, err := config.Load(os.Getenv)
 	if err != nil {
-		t.Skipf("lewati tes migrasi DB: konfigurasi tidak valid: %v", err)
+		testDBName := os.Getenv("DB_NAME_TEST")
+		if testDBName == "" {
+			testDBName = "cbt_sekolah_go_test"
+		}
+		os.Setenv("DB_NAME", testDBName)
+		cfg, err = config.Load(os.Getenv)
+		if err != nil {
+			t.Skipf("lewati tes migrasi DB: konfigurasi tidak valid: %v", err)
+		}
 	}
 
 	// Pastikan DB yang dipakai adalah DB test
 	testDB := cfg.DB
-	if testDB.Name != "cbt_sekolah_go_test" {
+	if testName := os.Getenv("DB_NAME_TEST"); testName != "" {
+		testDB.Name = testName
+	} else if testDB.Name != "cbt_sekolah_go_test" {
 		testDB.Name = "cbt_sekolah_go_test"
 	}
 

@@ -45,7 +45,7 @@ func Open(t testing.TB) *sql.DB {
 
 	// `go test` menjalankan tes dari direktori paket (mis. internal/admin), bukan root repo,
 	// sehingga .env dicari di root modul. Variabel yang sudah ada di environment tidak ditimpa.
-	if p := cariEnvRoot(); p != "" {
+	if p := CariEnvRoot(); p != "" {
 		_ = godotenv.Load(p)
 	}
 
@@ -152,9 +152,9 @@ func Reset(t testing.TB, pool *sql.DB) {
 	}
 }
 
-// cariEnvRoot menelusuri direktori kerja ke atas sampai menemukan go.mod,
+// CariEnvRoot menelusuri direktori kerja ke atas sampai menemukan go.mod,
 // lalu mengembalikan path .env di sana bila ada. Kosong bila tidak ditemukan.
-func cariEnvRoot() string {
+func CariEnvRoot() string {
 	dir, err := os.Getwd()
 	if err != nil {
 		return ""

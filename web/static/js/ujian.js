@@ -198,6 +198,10 @@ function hitungTerjawab() {
     terjawab = Object.keys(local).filter(k => isAnswered(k)).length;
     updateProgress();
     updateNavGrid();
+    const ansCountEl = document.getElementById('answeredCount');
+    if (ansCountEl) {
+        ansCountEl.textContent = `${terjawab} dari ${totalSoal}`;
+    }
 }
 
 // ── Navigator soal ──
@@ -218,8 +222,14 @@ function buildNavGrid(soalList) {
         btn.textContent  = idx + 1;
         btn.dataset.soalId = soal.id;
         btn.addEventListener('click', () => {
+            grid.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
             document.querySelector(`.soal-card[data-id="${soal.id}"]`)
                 ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            const navPanel = document.getElementById('navPanel');
+            if (navPanel && navPanel.classList.contains('open')) {
+                navPanel.classList.remove('open');
+            }
         });
         grid.appendChild(btn);
     });
@@ -515,12 +525,16 @@ function renderSoal(soalList) {
         const soalIsAr = isArabic(soal.teks_soal);
         const soalArClass = soalIsAr ? ' ar' : '';
 
+        const tipeLabel = soal.tipe === 'pg' ? 'Pilihan ganda' : (soal.tipe === 'menjodohkan' ? 'Menjodohkan' : 'Uraian');
         let html = `
             <div class="soal-header">
-                <span class="soal-number">Soal ${idx + 1}</span>
-                <span class="soal-poin"><i class="bi bi-star-fill"></i> ${soal.poin} poin</span>
+                <span class="soal-number">Soal ${idx + 1} dari ${soalList.length}</span>
+                <div class="soal-badges">
+                    <span class="soal-badge-type">${tipeLabel}</span>
+                    <span class="soal-poin"><i class="bi bi-star-fill" style="color:#e67700;"></i> ${soal.poin} poin</span>
+                </div>
             </div>
-            <div class="soal-text${soalArClass}" dir="auto">${soal.teks_soal}</div>
+            <div class="soal-text${soalArClass}" dir="auto">${escapeHtml(soal.teks_soal)}</div>
         `;
 
         const savedValue = local[soal.id];
@@ -536,8 +550,9 @@ function renderSoal(soalList) {
                         <input class="form-check-input" type="radio"
                                name="soal_${soal.id}" value="${p.key}"
                                id="q_${soal.id}_${p.key}" ${isChecked}>
+                        <span class="option-badge">${p.key.toUpperCase()}</span>
                         <label class="form-check-label${choiceArClass}" for="q_${soal.id}_${p.key}" dir="auto">
-                            ${p.key}. ${p.text}
+                            ${escapeHtml(p.text)}
                         </label>
                     </div>`;
             });
@@ -546,8 +561,8 @@ function renderSoal(soalList) {
         else if (soal.tipe === 'menjodohkan') {
             const tersimpan = bacaPasanganTersimpan(savedValue);
             html += `<div class="menjodohkan mb-3">
-                <label class="form-label fw-bold">
-                    <i class="bi bi-arrow-left-right"></i> Pasangkan setiap pernyataan dengan jawaban yang tepat:
+                <label class="form-label fw-bold" style="color:var(--text);margin-bottom:.75rem;">
+                    <i class="bi bi-arrow-left-right text-primary"></i> Pasangkan setiap pernyataan dengan jawaban yang tepat:
                 </label>`;
             (soal.kiri || []).forEach((kiri, i) => {
                 const kiriAr = isArabic(kiri) ? ' ar' : '';
@@ -565,13 +580,13 @@ function renderSoal(soalList) {
             html += `</div>`;
         }
         else if (soal.tipe === 'essay') {
-            // FR-09, D-006: Essay dijawab di kertas
+            // FR-09, D-006, D-008: Essay dijawab di lembar kertas
             html += `<div class="essay mb-3">
-                <div class="alert alert-light border d-flex align-items-center gap-2 mb-0">
-                    <i class="bi bi-journal-text text-primary fs-5"></i>
+                <div class="essay-info-card">
+                    <i class="bi bi-journal-text essay-icon"></i>
                     <div>
-                        <strong class="d-block text-dark">Dijawab di Lembar Kertas</strong>
-                        <small class="text-muted">Tulis jawaban uraian Anda secara rapi pada lembar jawaban kertas yang disediakan pengawas.</small>
+                        <div class="essay-info-title">Jawab di lembar kertas</div>
+                        <div class="essay-info-desc">Tulis jawaban uraian pada lembar yang dibagikan pengawas. Guru akan menilainya secara terpisah.</div>
                     </div>
                 </div>
             </div>`;
@@ -618,8 +633,15 @@ function startTimer(durasiMenit, sisaDetik) {
         const s = waktuTersisa % 60;
         timerEl.textContent = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
         timerEl.classList.remove('warning', 'danger');
-        if (waktuTersisa <= 60)       timerEl.classList.add('danger');
-        else if (waktuTersisa <= 300) timerEl.classList.add('warning');
+        const timerBox = document.getElementById('timerBox');
+        if (timerBox) timerBox.classList.remove('warning', 'danger');
+        if (waktuTersisa <= 60) {
+            timerEl.classList.add('danger');
+            if (timerBox) timerBox.classList.add('danger');
+        } else if (waktuTersisa <= 300) {
+            timerEl.classList.add('warning');
+            if (timerBox) timerBox.classList.add('warning');
+        }
         if (waktuTersisa === 60) showWarning('⚠️ Waktu tersisa 1 menit! Pastikan jawaban sudah tersimpan.');
         waktuTersisa--;
     }, 1000);

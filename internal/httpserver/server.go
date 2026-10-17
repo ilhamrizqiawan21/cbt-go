@@ -53,7 +53,7 @@ func NewSessionManager(db *sql.DB, cfg config.Config) *scs.SessionManager {
 	sm.Cookie.Name = "cbt_session"
 	sm.Cookie.HttpOnly = true
 	sm.Cookie.SameSite = http.SameSiteLaxMode
-	sm.Cookie.Secure = cfg.IsProduction() || cfg.TrustProxy
+	sm.Cookie.Secure = cfg.CookieSecure()
 	return sm
 }
 

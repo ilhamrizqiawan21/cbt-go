@@ -58,7 +58,7 @@ DB_MAX_OPEN_CONNS=50
 
 > [!IMPORTANT]
 > - Pastikan zona waktu `APP_TIMEZONE` selaras dengan zona waktu MySQL (`Asia/Jakarta`).
-> - Pada `APP_ENV=production`, cookie sesi otomatis mengaktifkan `HttpOnly=true` dan `Secure=true` (jika menggunakan HTTPS/proxy) atau `SameSite=Lax`.
+> - Cookie sesi otomatis mengaktifkan `HttpOnly=true` dan `SameSite=Lax`. Flag `Secure=true` aktif otomatis pada mode production atau bila `TRUST_PROXY=true` (tunnel HTTPS). Bila server diakses langsung via HTTP IP lokal sekolah (`http://192.168.x.x:3000`), atur `COOKIE_SECURE=false` di `.env` agar peramban siswa tidak menolak cookie sesi.
 
 ---
 
@@ -177,4 +177,36 @@ sudo systemctl status cbt-sekolah.service
 curl -s http://localhost:3000/healthz
 ```
 Sesi siswa tidak akan hilang karena state sesi tersimpan secara persisten pada tabel `sessions` dan database `sesi_ujian`.
+
+---
+
+## 8. Manajemen Akun Admin & Guru Produksi (Ganti Password — F-7)
+
+Akun admin dan guru default dihasilkan melalui `cmd/seed` (`admin / admin123`, `guru / guru123`). Pada server produksi, password wajib diganti menggunakan password kuat.
+
+### Cara 1: Mengganti Password via CLI MySQL/MariaDB
+
+Password disimpan dalam bentuk hash `bcrypt` (cost 10). Anda dapat membuat hash baru menggunakan one-liner Go, lalu memperbarui tabel basis data:
+
+1. Buat hash password baru di terminal server:
+```bash
+go run -e 'package main; import ("fmt"; "golang.org/x/crypto/bcrypt"); func main() { h, _ := bcrypt.GenerateFromPassword([]byte("GantiDenganPasswordKuatAnda!"), 10); fmt.Println(string(h)) }'
+```
+
+2. Jalankan query SQL di MySQL/MariaDB:
+```sql
+-- Untuk akun admin:
+UPDATE admin SET password = '<hasil_hash_bcrypt_dari_langkah_1>' WHERE username = 'admin';
+
+-- Untuk akun guru:
+UPDATE guru SET password = '<hasil_hash_bcrypt_dari_langkah_1>' WHERE username = 'guru';
+```
+
+### Cara 2: Menambah Akun Admin Baru
+
+```sql
+INSERT INTO admin (username, password, nama)
+VALUES ('proktor_utama', '<hasil_hash_bcrypt>', 'Proktor Ujian MTs');
+```
+
 

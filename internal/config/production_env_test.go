@@ -77,4 +77,57 @@ func TestProductionEnvConfig(t *testing.T) {
 			t.Errorf("Cookie session harus memiliki Secure=false pada development tanpa proxy")
 		}
 	})
+
+	t.Run("Mode Production dengan COOKIE_SECURE=false Mematikan Flag Secure untuk HTTP LAN", func(t *testing.T) {
+		cfg, err := config.Load(func(k string) string {
+			switch k {
+			case "APP_ENV":
+				return "production"
+			case "COOKIE_SECURE":
+				return "false"
+			default:
+				return ""
+			}
+		})
+		if err != nil {
+			t.Fatalf("Load config gagal: %v", err)
+		}
+
+		if !cfg.IsProduction() {
+			t.Errorf("IsProduction harus true")
+		}
+		if cfg.CookieSecure() {
+			t.Errorf("CookieSecure harus false saat COOKIE_SECURE=false")
+		}
+
+		sm := httpserver.NewSessionManager(nil, cfg)
+		if sm.Cookie.Secure {
+			t.Errorf("Cookie session tidak boleh memiliki Secure=true saat COOKIE_SECURE=false (agar login HTTP LAN sekolah tidak ditolak browser)")
+		}
+	})
+
+	t.Run("COOKIE_SECURE=true Mengaktifkan Flag Secure Secara Eksplisit", func(t *testing.T) {
+		cfg, err := config.Load(func(k string) string {
+			switch k {
+			case "APP_ENV":
+				return "development"
+			case "COOKIE_SECURE":
+				return "true"
+			default:
+				return ""
+			}
+		})
+		if err != nil {
+			t.Fatalf("Load config gagal: %v", err)
+		}
+
+		if !cfg.CookieSecure() {
+			t.Errorf("CookieSecure harus true saat COOKIE_SECURE=true")
+		}
+
+		sm := httpserver.NewSessionManager(nil, cfg)
+		if !sm.Cookie.Secure {
+			t.Errorf("Cookie session harus memiliki Secure=true saat COOKIE_SECURE=true")
+		}
+	})
 }

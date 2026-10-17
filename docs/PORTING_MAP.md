@@ -74,7 +74,7 @@ Tandai ✔ saat padanan Go lulus. `N/A` hanya dengan alasan tertulis.
 | `landing.test.js` | Halaman landing | `httpserver` | T0.7 | ✔ |
 | `rfinal_minor.test.js` | Perbaikan MINOR review akhir Node | lintas | T4.1 | ✔ |
 | `tests/ui/*.ui.js` | Playwright 360px Arab, monitor | dipakai ulang vs server Go | T4.4 | ✔ |
-| `tests/helpers/db.js` | Helper DB uji | `internal/testdb` | T0.4 | |
+| `tests/helpers/db.js` | Helper DB uji | `internal/testdb` | T0.4 | ✔ |
 
 Cara membaca isi tes Node: `sed -n 1,120p ~/Projects/CBT-Sekolah/tests/<nama>.test.js`. Gunakan sebagai **spesifikasi** (input → hasil yang diharapkan), bukan untuk disalin.
 

@@ -6,6 +6,17 @@
         @font-face { font-family: 'Amiri'; src: url('/fonts/amiri-v30-arabic-regular.woff2') format('woff2'); font-display: swap; }
         .skor-input { width: 5.5rem; }
         tr.tersimpan { background: var(--bs-success-bg-subtle); transition: background .6s; }
+        .skor-input { width: 5.5rem; border-radius: 10px; font-weight: 600; text-align: center; }
+        tr.tersimpan { background: #dcf5ec !important; transition: background .6s; }
+        .essay-progress-card {
+            background:#fff; border-radius:16px; padding:18px 22px;
+            box-shadow:0 1px 3px rgba(16,21,51,.08); border:1px solid #dfe3ee;
+            display:flex; flex-wrap:wrap; align-items:center; gap:16px 32px;
+        }
+        .essay-soal-card {
+            background:#fff; border-radius:14px; padding:16px 18px;
+            box-shadow:0 1px 3px rgba(16,21,51,.08); border:1px solid #dfe3ee;
+        }
     </style>
 </head>
 <body class="bg-light">
@@ -18,10 +29,16 @@
             <h3 class="page-title mb-1">{{.Ujian.NamaUjian}}</h3>
             <p class="text-muted mb-0">{{.Ujian.NamaMapel}} · <span class="badge bg-secondary">{{.Ujian.NamaKelas}}</span> ·
                 {{.JumlahSiswa}} siswa selesai · <strong id="jumlahBelum">{{.BelumDinilai}}</strong> jawaban belum dinilai</p>
+            <a href="/guru/essay" class="small text-decoration-none text-muted mb-1 d-inline-flex align-items-center gap-1"><i class="bi bi-arrow-left"></i> Kembali ke daftar ujian</a>
+            <h3 class="page-title mb-1" style="font-family:'Sora',sans-serif;font-weight:700;">Lembar Koreksi Essay: {{.Ujian.NamaUjian}}</h3>
+            <p class="text-muted mb-0 small">{{.Ujian.NamaMapel}} · <span class="badge bg-secondary-subtle text-secondary-emphasis">{{.Ujian.NamaKelas}}</span> ·
+                {{.JumlahSiswa}} siswa selesai · <strong id="jumlahBelum">{{.BelumDinilai}}</strong> butir belum dinilai</p>
         </div>
         <div class="page-actions d-flex flex-wrap gap-2">
             <a href="/guru/essay/{{.UjianID}}/export" class="btn btn-outline-success"><i class="bi bi-file-earmark-excel me-1"></i> Unduh lembar nilai</a>
             <button type="button" class="btn btn-success" data-bs-toggle="collapse" data-bs-target="#panelImpor"><i class="bi bi-upload me-1"></i> Impor nilai</button>
+            <a href="/guru/essay/{{.UjianID}}/export" class="btn btn-outline-secondary" style="border-radius:12px;font-weight:600;"><i class="bi bi-download me-1"></i> Unduh template Excel</a>
+            <button type="button" class="btn btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#panelImpor" style="border-radius:12px;font-weight:600;"><i class="bi bi-upload me-1"></i> Impor Excel</button>
         </div>
     </div>
 
@@ -46,6 +63,9 @@
                     <div class="small text-muted">Soal essay {{.Nomor}} · maks. {{.PoinMaks}} poin</div>
                     <div dir="auto" style="white-space:pre-line">{{.TeksSoal}}</div>
                 </div>
+            <div class="essay-soal-card h-100">
+                <div class="small fw-semibold text-primary mb-1">Soal essay {{.Nomor}} · maks. {{.PoinMaks}} poin</div>
+                <div dir="auto" style="white-space:pre-line;line-height:1.6;color:var(--text);">{{.TeksSoal}}</div>
             </div>
         </div>
         {{end}}
@@ -53,6 +73,7 @@
     {{end}}
 
     <div class="card border-0 shadow-sm">
+    <div class="card border-0 shadow-sm" style="border-radius:16px;overflow:hidden;border:1px solid #dfe3ee !important;">
         <div class="card-body py-2 border-bottom">
             <div class="row g-2">
                 <div class="col-md-4"><input type="search" id="cari" class="form-control form-control-sm" placeholder="Cari NIS atau nama…" aria-label="Cari siswa"></div>

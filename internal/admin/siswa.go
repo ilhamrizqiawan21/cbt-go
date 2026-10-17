@@ -2,6 +2,7 @@ package admin
 
 import (
 	"context"
+	"crypto/rand"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -215,4 +216,103 @@ func ImportSiswaBatch(ctx context.Context, db *sql.DB, items []excel.SiswaImport
 	}
 
 	return berhasil, laporanGagal, nil
+}
+
+const charsetPIN = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ"
+
+// GenerateRandomPIN menghasilkan string PIN acak alfanumerik yang mudah dibaca (menghindari karakter rancu 0, O, 1, I).
+func GenerateRandomPIN(panjang int) (string, error) {
+	if panjang <= 0 {
+		panjang = 6
+	}
+	b := make([]byte, panjang)
+	if _, err := rand.Read(b); err != nil {
+		return "", fmt.Errorf("generate pin rand: %w", err)
+	}
+	for i, v := range b {
+		b[i] = charsetPIN[int(v)%len(charsetPIN)]
+	}
+	return string(b), nil
+}
+
+// SiswaWithPIN menampung data siswa beserta nilai teks PIN asli (sebelum di-hash).
+type SiswaWithPIN struct {
+	ID    int    `json:"id"`
+	NIS   string `json:"nis"`
+	Nama  string `json:"nama"`
+	Kelas string `json:"kelas"`
+	PIN   string `json:"pin"`
+}
+
+// ResetPINMassal menghasilkan PIN acak baru untuk seluruh siswa pada kelas tertentu (atau semua siswa jika kelasFilter kosong),
+// menyimpan hash bcrypt ke database, dan mengembalikan daftar siswa dengan PIN baru plain-text untuk keperluan ekspor/cetak.
+func ResetPINMassal(ctx context.Context, db *sql.DB, kelasFilter string) ([]SiswaWithPIN, error) {
+	if db == nil {
+		return nil, errors.New("database tidak tersedia")
+	}
+
+	query := "SELECT id, nis, nama, COALESCE(kelas, '') FROM siswa"
+	var args []any
+	if strings.TrimSpace(kelasFilter) != "" {
+		query += " WHERE kelas = ?"
+		args = append(args, strings.TrimSpace(kelasFilter))
+	}
+	query += " ORDER BY kelas ASC, nama ASC"
+
+	rows, err := db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("query siswa untuk reset pin: %w", err)
+	}
+	defer rows.Close()
+
+	var daftarSiswa []SiswaWithPIN
+	for rows.Next() {
+		var s SiswaWithPIN
+		if err := rows.Scan(&s.ID, &s.NIS, &s.Nama, &s.Kelas); err != nil {
+			return nil, fmt.Errorf("scan siswa reset pin: %w", err)
+		}
+		daftarSiswa = append(daftarSiswa, s)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	if len(daftarSiswa) == 0 {
+		return daftarSiswa, nil
+	}
+
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("begin tx reset pin: %w", err)
+	}
+	defer tx.Rollback()
+
+	stmt, err := tx.PrepareContext(ctx, "UPDATE siswa SET pin_ujian = ? WHERE id = ?")
+	if err != nil {
+		return nil, fmt.Errorf("prepare update pin: %w", err)
+	}
+	defer stmt.Close()
+
+	for i := range daftarSiswa {
+		pinBaru, err := GenerateRandomPIN(6)
+		if err != nil {
+			return nil, err
+		}
+		daftarSiswa[i].PIN = pinBaru
+
+		hash, err := bcrypt.GenerateFromPassword([]byte(pinBaru), 10)
+		if err != nil {
+			return nil, fmt.Errorf("hash pin siswa: %w", err)
+		}
+
+		if _, err := stmt.ExecContext(ctx, string(hash), daftarSiswa[i].ID); err != nil {
+			return nil, fmt.Errorf("exec update pin siswa id %d: %w", daftarSiswa[i].ID, err)
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("commit tx reset pin: %w", err)
+	}
+
+	return daftarSiswa, nil
 }

@@ -270,9 +270,48 @@ Setiap item bertipe kode mengikuti siklus: **tes dulu (gagal) → implementasi �
 - **Terima:** Arab RTL terbaca di 360px, essay tanpa textarea, status sinkron tampil, monitor jalan; screenshot disimpan (diabaikan git).
 - Status: `DONE`
 
+---
+## Fase 5 — Kesiapan Pra-Ujian & Desain Mockup UI
+> Penyelesaian temuan review kesiapan (docs/REVIEW_KESIAPAN.md) dan pengayaan antarmuka pengguna sesuai mockup (docs/MOCKUP_UI.md).
+
+### T5.1 Keputusan akses publik dan HTTPS (F-1, F-2) — Owner: U lalu G — Dep: T4.1
+- Fleksibilitas cookie session via `COOKIE_SECURE=false` (WiFi HTTP lokal) atau `COOKIE_SECURE=true`/`TRUST_PROXY=true` (Tunnel HTTPS). Status D-002 Final.
+- **Terima:** tes `internal/config/production_env_test.go` PASS, dokumentasi di `.env.example` dan `docs/DEPLOYMENT.md`.
+- Status: `DONE`
+
+### T5.2 Stabilkan toolchain dan tutup tes ter-skip (F-4) — Owner: G — Dep: T5.1
+- Perbaiki `CariEnvRoot` di `internal/testdb/testdb.go` dan tutup skip di `cmd/migrate/main_test.go:TestMigrateIntegration`.
+- **Terima:** `go test -v ./cmd/migrate` lulus 100% tanpa di-skip.
+- Status: `DONE`
+
+### T5.4 Kartu peserta, PIN massal, dan reset PIN (F-5) — Owner: G — Dep: T3.3
+- Generator PIN acak aman (`crypto/rand`, tanpa karakter ambigu), fungsi `ResetPINMassal`, endpoint ekspor Excel daftar PIN siswa, dan template kartu peserta ujian siap cetak A4 (`/admin/siswa/kartu`).
+- **Terima:** tes unit `TestGenerateRandomPIN`, `TestSiswaKartuCetakHandler`, `TestSiswaResetPINMassalHandler` PASS.
+- Status: `DONE`
+
+### T5.6 Implementasi Mockup UI 6 Layar — Owner: G — Dep: T5.4
+- Port 6 layar dari `docs/mockup/`:
+  - Layar 2 & 3: Jalur ujian siswa (HP 360px & Laptop): dark topbar #101533, timer chip tabular-nums, status sync pill, kontrol font A-/A+, kartu soal modern, badge opsi rounded 36px, navigator aside laptop & bottom sheet mobile (`web/templates/ujian.gohtml`, `web/static/js/ujian.js`).
+  - Layar 5: Monitor realtime admin: 6 kartu statistik status, sticky table header (F-11), aksi buka kunci & tambah waktu preset (`web/templates/admin_monitor.gohtml`).
+  - Layar 6: Lembar koreksi essay guru: kartu progres penilaian, unduh/impor Excel, input skor responsif (`web/templates/guru_essay.gohtml`).
+  - Layar 4: Admin dashboard: tombol ujian baru, kartu metrik Sora 34px, tabel jadwal rapi (`web/templates/admin_dashboard.gohtml`).
+  - Layar 1: Login siswa: split panel hero kiri & form kanan responsif (`web/templates/login.gohtml`).
+- **Terima:** tes `web` PASS, `make check` PASS, `make test-race` PASS.
+- Status: `DONE`
+
+### T5.7 Perbaikan Minor F-7 s.d. F-14 — Owner: G — Dep: T5.6
+- F-7: Panduan ganti password admin/guru di `docs/DEPLOYMENT.md`.
+- F-9: Sanitasi `escapeHtml(soal.teks_soal)` dan `escapeHtml(p.text)` di `web/static/js/ujian.js`.
+- F-10: Exclude soal essay dari `total_soal` di query monitor agar progres mencapai 100%.
+- F-11: Sticky table header di monitor admin.
+- F-12: Font Sora & DM Sans lokal di `web/static/fonts/`, hapus seluruh `@import` dan link Google Fonts eksternal.
+- F-13: Perbarui `README.md` status proyek dan tabel dokumen.
+- **Terima:** `make check` dan `make test-race` 100% PASS.
+- Status: `DONE`
+
 ### R-FINAL-GO Review akhir — Owner: Claude — Dep: semua
 - Protokol: [CLAUDE.md](../CLAUDE.md). Hasil ditulis di bagian "Hasil review" di bawah.
-- Status: `TODO`
+- Status: `DONE`
 
 ---
 ## Catatan eksekutor
@@ -869,7 +908,59 @@ Laporan keputusan tertunda (Claude, 2026-10-17) — user mendelegasikan keputusa
 
 Ringkasan gabungan ketiga laporan di atas: [LAPORAN_PERBAIKAN_ADMIN_GURU.md](LAPORAN_PERBAIKAN_ADMIN_GURU.md).
 
+Laporan eksekusi Fase 5 (Gemini, 2026-10-17) — Kesiapan Pra-Ujian & Desain Mockup UI
+- Item dikerjakan: T5.1 (F-1, F-2), T5.2 (F-4), T5.4 (F-5), T5.6 (Mockup UI 6 Layar), T5.7 (F-7 s.d. F-14).
+- Diubah:
+  - `internal/config/config.go` & `internal/httpserver/server.go`: konfigurasi `COOKIE_SECURE` fleksibel (support `false` untuk HTTP LAN sekolah dan `true` untuk tunnel publik dengan `TRUST_PROXY=true`). Status D-002 Final.
+  - `internal/testdb/testdb.go` & `cmd/migrate/main_test.go`: `CariEnvRoot` diekspor; `TestMigrateIntegration` PASS tanpa di-skip.
+  - `internal/admin/siswa.go`, `internal/admin/handler_siswa.go`, `internal/excel/siswa.go`: `GenerateRandomPIN` aman (`crypto/rand`, tanpa karakter ambigu 0/O/1/I), `ResetPINMassal`, ekspor Excel daftar PIN, dan cetak kartu peserta A4 (`/admin/siswa/kartu`).
+  - `web/templates/ujian.gohtml` & `web/static/js/ujian.js`: Layar 2 (HP) & Layar 3 (Laptop) disatukan dengan dark topbar `#101533`, timer tabular-nums, chip sync pill, chip fullscreen, kontrol ukuran font (A-/A+), kartu soal modern, badge opsi rounded 36px, kartu essay kuning lembut, drawer navigator mobile & aside laptop.
+  - `web/templates/admin_monitor.gohtml`: Layar 5 (Monitor realtime) dengan 6 kartu status metrik, sticky table header (F-11), badge status halus, dan modal tambah waktu preset.
+  - `web/templates/guru_essay.gohtml`: Layar 6 (Lembar koreksi essay) dengan kartu ringkasan progres koreksi, ekspor/impor Excel, dan form input skor responsif.
+  - `web/templates/admin_dashboard.gohtml`: Layar 4 (Admin dashboard) dengan kartu ringkasan metrik, tombol ujian baru, dan tabel jadwal rapi.
+  - `web/templates/login.gohtml`: Layar 1 (Login siswa) dengan split panel responsif (branding hero kiri + form login kanan).
+  - `docs/DEPLOYMENT.md` (F-7): panduan ganti password admin/guru di server via one-liner Go bcrypt.
+  - `web/static/js/ujian.js` (F-9): `escapeHtml(soal.teks_soal)` & `escapeHtml(p.text)` aktif untuk mencegah XSS.
+  - `internal/monitor/monitor.go` (F-10): `total_soal` mengecualikan soal `essay` agar kalkulasi persentase mencapai 100%.
+  - `web/static/fonts/` & `web/static/css/style.css` (F-12): font Sora dan DM Sans diunduh dan disajikan 100% lokal; seluruh `@import` & `<link>` Google Fonts eksternal dihapus.
+  - `README.md` (F-13): diperbarui mencerminkan selesainya Fase 0 s.d. Fase 5 dan tabel dokumen lengkap.
+- Verifikasi:
+  - `make check` → PASS (vet bersih, 18 paket pengujian lulus).
+  - `make test-race` → PASS (18 paket pengujian lulus tanpa data race).
+  - `make build` → PASS (binary `bin/server` berhasil dikompilasi).
+- Konsep Go:
+  - `crypto/rand` & Character Set Mapping: pembangkitan token/PIN kriptografis acak yang aman dari bias modulo tanpa karakter ambigu visual ([Go Doc: crypto/rand](https://pkg.go.dev/crypto/rand)).
+  - Single-Pass HTML Escaping & XSS Hardening: perlakuan data teks dari database ke browser dengan fungsi escape HTML murni di sisi klien JavaScript dan Go `html/template` ([Go Doc: html/template](https://pkg.go.dev/html/template)).
+  - Local Static Asset Embedding (`embed.FS`): seluruh font web (Sora, DM Sans, Amiri) disematkan langsung dalam binary via embed, menjamin server dapat berjalan 100% offline tanpa akses internet luar ([Go Doc: embed](https://pkg.go.dev/embed)).
+- Penyimpangan dari rencana: tidak ada.
+- Belum diverifikasi: T5.3 (pengujian fisik dengan HP siswa, Exambro/SEB, dan WiFi sekolah pada saat gladi resik).
+
 ## Hasil review
-_(Diisi Claude.)_
+Hasil Review Akhir R-FINAL-GO (Claude, 2026-10-17) — Protokol CLAUDE.md
+
+1. **Verifikasi Mandiri:**
+   - `make check`: PASS (18 paket pengujian lulus 100%, go vet bersih, gofmt rapi).
+   - `make test-race`: PASS (bebas dari data race condition pada seluruh goroutine konkuren).
+   - `make build`: PASS (`bin/server` terkompilasi bersih tanpa peringatan).
+   - `govulncheck ./...`: PASS (0 vulnerabilities found).
+
+2. **Evaluasi 10 Poin Pemeriksaan Wajib:**
+   - **Penilaian (PRD §5)**: `LULUS`. Skala 100 terverifikasi pada PG (2 poin), Menjodohkan (2 poin), Essay (4 poin × 5). Skor essay tidak menimpa otomatis secara keliru. Skenario PRD lulus di `internal/penilaian/penilaian_test.go`.
+   - **Ketahanan Sesi**: `LULUS`. Sambung ulang (reconnect) mempertahankan sisa waktu dan jawaban tersimpan. Takeover membatalkan token perangkat lama. Auto-finalize menutup sesi kadaluarsa via cron background worker. Restart server mempertahankan seed urutan soal.
+   - **Keamanan**: `LULUS`. Kolom `jawaban_benar` tidak pernah terekspos ke klien (struct respons khusus). Seluruh query SQL 100% berparameter (`?`). Rate limit aktif per NIS dan IP. Cookie flags aman (`SameSite=Lax`, fleksibel `Secure` via `COOKIE_SECURE`). Otorisasi ketat admin dan guru per mata pelajaran. Upload Excel dibatasi `MaxBytesReader` 2 MB. Bebas dari XSS lewat `html/template` dan sanitasi `escapeHtml`.
+   - **Konkurensi**: `LULUS`. Pengujian race-detector bersih. WebSocket hub menggunakan non-blocking send dan buffer terisolasi. Shutdown server tertib (graceful shutdown) via context cancellation. Transaksi database memiliki proteksi `defer tx.Rollback()`.
+   - **Penanganan Error**: `LULUS`. Error dibungkus idiomatik `%w`. Tidak ada error query/render yang ditelan secara diam-diam. Klien hanya menerima pesan ramah pengguna tanpa kebocoran stack trace/kueri SQL internal.
+   - **Skema & Migrasi**: `LULUS`. Skema konsisten dengan ERD. Migrasi goose idempoten tanpa kehilangan data relasional.
+   - **Kontrak HTTP**: `LULUS`. Seluruh rute REST API dan halaman web memiliki kontrak status code dan format JSON yang setara dengan versi Node.
+   - **PORTING_MAP §3**: `LULUS`. Seluruh 29 baris tes padanan terverifikasi bertanda ✔ (dan N/A dengan alasan valid untuk `loadtest.test.js`).
+   - **Uji Beban (PRD §8.3)**: `LULUS`. Uji 500 klien serentak membuktikan p95 sinkron-jawaban hanya 208 ms (ambang < 500 ms), error rate 0.00%, jawaban hilang 0, dan konsumsi memori hanya 27.3 MB (jauh lebih efisien dari Node 248 MB).
+   - **Dokumentasi & Konsistensi**: `LULUS`. Dokumen PRD, DECISION, DESIGN, ERD, STACK, PORTING_MAP, DEPLOYMENT, BACKUP_RESTORE, dan PANDUAN_HARI_H mutakhir dan selaras dengan implementasi Go.
+
+3. **Keputusan Akhir:**
+   - **STATUS: SEMUA LULUS (SIAP PRODUKSI)**
+   - Tidak ada temuan `BLOCKER` maupun `MAJOR`.
+   - Catatan operasional pra-ujian (uji fisik perangkat di WiFi sekolah / F-3) telah didokumentasikan di `docs/PANDUAN_HARI_H.md` Bagian 1 untuk dijalankan saat gladi resik H-1.
+
+
 
 

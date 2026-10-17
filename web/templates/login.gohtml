@@ -6,7 +6,7 @@
     <title>Login Ujian CBT</title>
     <link href="/css/vendor/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="/css/vendor/bootstrap-icons.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="/css/style.css" rel="stylesheet">
     <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon.png">
     <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon.png">
     <link rel="shortcut icon" href="/images/favicon.ico" type="image/x-icon">
@@ -14,237 +14,278 @@
     <style>
         :root {
             --primary: #3b5bdb;
+            --primary-hover: #2b44b0;
             --primary-light: #eef2ff;
             --success: #0ca678;
-            --bg: #f0f2f8;
+            --bg: #f4f6fb;
+            --dark: #101533;
+            --dark-surface: #1d2552;
+            --text: #1b2038;
+            --text-muted: #5b6280;
         }
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
-            font-family: 'DM Sans', sans-serif;
+            font-family: 'DM Sans', system-ui, sans-serif;
             background: var(--bg);
+            color: var(--text);
             min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .login-page-wrap {
+            display: flex;
+            flex-wrap: wrap;
+            min-height: 100vh;
+            width: 100%;
+        }
+        /* Panel Merek (Kiri) */
+        .login-brand-panel {
+            flex: 1 1 440px;
+            min-width: 320px;
+            background: var(--dark);
+            color: #fff;
+            padding: 56px 64px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            gap: 40px;
+            box-sizing: border-box;
+        }
+        .brand-logo-badge {
+            width: 48px; height: 48px; border-radius: 14px;
+            background: var(--primary); display: flex;
+            align-items: center; justify-content: center;
+            color: #fff; font-size: 1.5rem;
+        }
+        .brand-title {
+            font-family: 'Sora', sans-serif; font-weight: 700; font-size: 18px; letter-spacing: -0.01em;
+        }
+        .brand-sub { font-size: 13px; color: #aab3de; }
+        .brand-headline {
+            margin: 0; font-family: 'Sora', sans-serif; font-weight: 700;
+            font-size: 38px; line-height: 1.18; letter-spacing: -0.02em; max-width: 460px;
+        }
+        .brand-features { display: flex; flex-direction: column; gap: 18px; max-width: 440px; }
+        .feature-item { display: flex; gap: 14px; align-items: flex-start; }
+        .feature-icon {
+            flex: none; width: 36px; height: 36px; border-radius: 10px;
+            background: var(--dark-surface); display: flex;
+            align-items: center; justify-content: center; color: #9db1ff; font-size: 1.1rem;
+        }
+        .feature-title { font-weight: 600; font-size: 15px; color: #fff; }
+        .feature-desc { font-size: 13.5px; color: #aab3de; line-height: 1.5; margin-top: 2px; }
+        .brand-footer { font-size: 13px; color: #8590c4; }
+
+        /* Panel Form (Kanan) */
+        .login-form-panel {
+            flex: 1 1 440px;
+            min-width: 320px;
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 1rem;
+            padding: 48px 24px;
+            box-sizing: border-box;
+            background: var(--bg);
         }
-        .login-wrapper {
+        .login-form-container {
             width: 100%;
-            max-width: 420px;
+            max-width: 440px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
         }
-        .login-brand {
-            text-align: center;
-            margin-bottom: 2rem;
+        .form-header h2 {
+            margin: 0 0 6px; font-family: 'Sora', sans-serif;
+            font-weight: 700; font-size: 26px; letter-spacing: -0.01em; color: var(--text);
         }
-        .login-brand img {
-            width: 64px; height: 64px;
-            object-fit: contain;
-            margin-bottom: .75rem;
-            filter: drop-shadow(0 4px 8px rgba(0,0,0,.12));
-        }
-        .login-brand h1 {
-            font-family: 'Sora', sans-serif;
-            font-size: 1.35rem;
-            font-weight: 800;
-            color: #1e2022;
-            letter-spacing: -.03em;
-        }
-        .login-brand p {
-            font-size: .82rem;
-            color: #74788d;
-            margin-top: .25rem;
-        }
-        .login-card {
-            background: #fff;
-            border-radius: 18px;
-            box-shadow: 0 4px 24px rgba(0,0,0,.10);
-            overflow: hidden;
-        }
-        .login-card-header {
-            background: linear-gradient(135deg, var(--primary), #4c6ef5);
-            padding: 1.25rem 1.75rem;
+        .form-header p { margin: 0; color: var(--text-muted); font-size: 15px; }
+
+        .alert-custom {
+            background: #ffe3e3;
+            border-left: 4px solid #c92a2a;
+            border-radius: 10px;
+            padding: .85rem 1rem;
+            font-size: .88rem;
+            color: #a61e1e;
             display: flex;
             align-items: center;
             gap: .65rem;
         }
-        .login-card-header i {
-            font-size: 1.25rem;
-            color: rgba(255,255,255,.85);
-        }
-        .login-card-header h2 {
-            font-family: 'Sora', sans-serif;
-            font-size: .95rem;
-            font-weight: 700;
-            color: #fff;
-            margin: 0;
-        }
-        .login-card-body { padding: 1.75rem; }
-        .alert-custom {
-            background: #fff0f0;
-            border-left: 4px solid #e03131;
-            border-radius: 8px;
-            padding: .7rem 1rem;
-            font-size: .85rem;
-            color: #c92a2a;
-            margin-bottom: 1.25rem;
-            display: flex;
-            align-items: center;
-            gap: .5rem;
-        }
-        .form-group { margin-bottom: 1rem; }
         .form-label {
-            font-size: .78rem;
+            font-size: 14px;
             font-weight: 600;
-            color: #74788d;
-            letter-spacing: .02em;
+            color: var(--text);
+            margin-bottom: 6px;
             display: block;
-            margin-bottom: .35rem;
-        }
-        .input-wrap { position: relative; }
-        .input-wrap i {
-            position: absolute;
-            left: .85rem;
-            top: 50%;
-            transform: translateY(-50%);
-            color: #adb5bd;
-            font-size: .95rem;
-            pointer-events: none;
         }
         .form-control, .form-select {
+            height: 48px;
+            border: 1px solid #cfd5e6;
+            border-radius: 12px;
+            padding: 0 14px;
+            font-family: inherit;
+            font-size: 15px;
+            background: #fff;
+            color: var(--text);
+            box-sizing: border-box;
             width: 100%;
-            border: 1.5px solid #e2e5ec;
-            border-radius: 8px;
-            font-family: 'DM Sans', sans-serif;
-            font-size: .875rem;
-            padding: .6rem .85rem .6rem 2.4rem;
-            transition: all .2s;
-            background: #fafbff;
-            color: #2d3142;
+            transition: all .18s;
         }
-        .form-select { padding-left: 2.4rem; }
         .form-control:focus, .form-select:focus {
             border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(59,91,219,.12);
+            box-shadow: 0 0 0 3px rgba(59,91,219,.15);
             outline: none;
             background: #fff;
         }
         .btn-login {
-            width: 100%;
-            background: linear-gradient(135deg, var(--primary), #4c6ef5);
+            height: 52px;
+            border: 0;
+            border-radius: 12px;
+            background: var(--primary);
             color: #fff;
-            border: none;
-            border-radius: 8px;
-            padding: .7rem 1rem;
             font-family: 'Sora', sans-serif;
-            font-size: .9rem;
-            font-weight: 700;
+            font-weight: 600;
+            font-size: 16px;
             cursor: pointer;
-            transition: all .22s;
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: .5rem;
-            margin-top: 1.25rem;
+            gap: 10px;
+            transition: all .2s;
+            width: 100%;
+            margin-top: 8px;
         }
         .btn-login:hover {
+            background: var(--primary-hover);
             transform: translateY(-1px);
-            box-shadow: 0 4px 16px rgba(59,91,219,.35);
+            box-shadow: 0 4px 16px rgba(59,91,219,.3);
         }
         .btn-login:active { transform: translateY(0); }
-        .login-links {
-            text-align: center;
-            margin-top: 1.5rem;
-            font-size: .78rem;
-            color: #74788d;
-        }
-        .login-links a {
-            color: var(--primary);
-            font-weight: 600;
-            text-decoration: none;
-        }
-        .login-links a:hover { text-decoration: underline; }
-        .login-links .divider { margin: 0 .5rem; color: #dee2e6; }
 
-        @media (max-width: 480px) {
-            .login-card-body { padding: 1.25rem; }
-            .login-brand h1 { font-size: 1.15rem; }
+        .takeover-note {
+            display: flex; gap: 12px; align-items: flex-start;
+            background: #dcf5ec; border-radius: 12px; padding: 14px 16px;
+            font-size: 13.5px; line-height: 1.5; color: #0b4f3c;
+        }
+        .login-links {
+            display: flex; gap: 20px; font-size: 14px;
+            border-top: 1px solid #dfe3ee; padding-top: 18px;
+        }
+        .login-links a { color: var(--primary); font-weight: 600; text-decoration: none; }
+        .login-links a:hover { text-decoration: underline; }
+
+        @media (max-width: 991px) {
+            .login-brand-panel { padding: 40px 24px 32px; gap: 24px; }
+            .brand-headline { font-size: 26px; }
+            .brand-features { display: none; }
+            .login-form-panel { padding: 32px 16px; }
         }
     </style>
 </head>
 <body>
-<div class="login-wrapper">
-    <div class="login-brand">
-        <img src="/images/logo-sekolah.png" alt="Logo Sekolah"
-             onerror="this.style.display='none'">
-        <h1>CBT MTs. AL-IHSAN BATUJAJAR</h1>
-        <p>Computer Based Test — Portal Siswa</p>
+<div class="login-page-wrap">
+    <!-- Panel Merek (Kiri) -->
+    <div class="login-brand-panel">
+        <div style="display:flex;align-items:center;gap:14px">
+            <div class="brand-logo-badge" aria-hidden="true">
+                <i class="bi bi-mortarboard-fill"></i>
+            </div>
+            <div>
+                <div class="brand-title">CBT Sekolah</div>
+                <div class="brand-sub">MTs Al-Ihsan Batujajar</div>
+            </div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:28px">
+            <h1 class="brand-headline">Ujian berbasis komputer yang tidak mengulang dari nol.</h1>
+            <div class="brand-features">
+                <div class="feature-item">
+                    <div class="feature-icon"><i class="bi bi-wifi-off"></i></div>
+                    <div>
+                        <div class="feature-title">Koneksi putus, jawaban aman</div>
+                        <div class="feature-desc">Masuk lagi dan lanjutkan dari soal terakhir dengan sisa waktu yang benar.</div>
+                    </div>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon"><i class="bi bi-translate"></i></div>
+                    <div>
+                        <div class="feature-title">Soal Arab mudah dibaca</div>
+                        <div class="feature-desc">Teks kanan-ke-kiri, font Arab lokal, ukuran huruf dapat diperbesar (A+/A-).</div>
+                    </div>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon"><i class="bi bi-clock-history"></i></div>
+                    <div>
+                        <div class="feature-title">Waktu dihitung server</div>
+                        <div class="feature-desc">Sisa waktu akurat dan sama di perangkat mana pun tanpa bergantung jam HP.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="brand-footer">Pastikan HP terhubung ke WiFi ujian sebelum masuk.</div>
     </div>
 
-    <div class="login-card">
-        <div class="login-card-header">
-            <i class="bi bi-laptop"></i>
-            <h2>Login Ujian</h2>
-        </div>
-        <div class="login-card-body">
+    <!-- Panel Form Login (Kanan) -->
+    <div class="login-form-panel">
+        <div class="login-form-container">
+            <div class="form-header">
+                <h2>Masuk untuk ujian</h2>
+                <p>Gunakan NIS dan PIN dari pengawas atau wali kelas.</p>
+            </div>
+
             {{ if .Error }}
             <div class="alert-custom">
-                <i class="bi bi-exclamation-circle-fill"></i>
-                {{ .Error }}
+                <i class="bi bi-exclamation-circle-fill fs-5"></i>
+                <span>{{ .Error }}</span>
             </div>
             {{ end }}
 
-            <form action="/login-siswa" method="POST">
-                <div class="form-group">
-                    <label class="form-label">NIS (Nomor Induk Siswa)</label>
-                    <div class="input-wrap">
-                        <i class="bi bi-person"></i>
-                        <input type="text" name="nis" class="form-control"
-                               placeholder="Masukkan NIS Anda" required autocomplete="off">
-                    </div>
+            <form action="/login-siswa" method="POST" style="display:flex;flex-direction:column;gap:16px;">
+                <div>
+                    <label for="nis" class="form-label">NIS (Nomor Induk Siswa)</label>
+                    <input type="text" id="nis" name="nis" class="form-control"
+                           inputmode="numeric" placeholder="Contoh: 1001" required autocomplete="username">
                 </div>
 
-                <div class="form-group">
-                    <label class="form-label">PIN Ujian</label>
-                    <div class="input-wrap">
-                        <i class="bi bi-key"></i>
-                        <input type="password" name="pin" class="form-control"
-                               placeholder="Masukkan PIN ujian" required>
-                    </div>
+                <div>
+                    <label for="pin" class="form-label">PIN Ujian</label>
+                    <input type="password" id="pin" name="pin" class="form-control"
+                           inputmode="numeric" placeholder="PIN ujian (angka/karakter)" required autocomplete="current-password">
                 </div>
 
-                <div class="form-group">
-                    <label class="form-label">Pilih Ujian</label>
-                    <div class="input-wrap">
-                        <i class="bi bi-journal-check"></i>
-                        <select name="ujian_id" id="ujian_id" class="form-select" required>
-                            <option value="">-- Memuat daftar ujian... --</option>
-                        </select>
-                    </div>
+                <div>
+                    <label for="ujian_id" class="form-label">Pilih Ujian yang Sedang Dibuka</label>
+                    <select name="ujian_id" id="ujian_id" class="form-select" required>
+                        <option value="">-- Memuat daftar ujian... --</option>
+                    </select>
                 </div>
 
-                <div class="form-group" id="group-token" style="display: none;">
-                    <label class="form-label">Token Ujian <span class="text-danger">*</span></label>
-                    <div class="input-wrap">
-                        <i class="bi bi-shield-lock"></i>
-                        <input type="text" name="token_ujian" id="token_ujian" class="form-control"
-                               placeholder="Masukkan token dari pengawas" autocomplete="off" style="text-transform: uppercase;">
-                    </div>
+                <div id="group-token" style="display:none;">
+                    <label for="token_ujian" class="form-label">Token Ujian <span class="text-danger">*</span></label>
+                    <input type="text" name="token_ujian" id="token_ujian" class="form-control"
+                           placeholder="Masukkan token dari pengawas" autocomplete="off" style="text-transform:uppercase;letter-spacing:0.12em;">
+                    <span class="small text-muted mt-1 d-block">Token dibagikan pengawas saat ujian dimulai.</span>
                 </div>
 
                 <input type="hidden" name="device_type" id="device_type" value="laptop">
 
                 <button type="submit" class="btn-login">
-                    <i class="bi bi-box-arrow-in-right"></i>
-                    Mulai Ujian
+                    <span>Mulai Ujian</span>
+                    <i class="bi bi-arrow-right"></i>
                 </button>
             </form>
-        </div>
-    </div>
 
-    <div class="login-links">
-        <a href="/login-guru"><i class="bi bi-person-badge"></i> Login Guru</a>
-        <span class="divider">|</span>
-        <a href="/login-admin"><i class="bi bi-shield-lock"></i> Login Admin</a>
+            <div class="takeover-note">
+                <i class="bi bi-shield-check fs-5 flex-shrink-0" style="color:#0b8a68;"></i>
+                <span>Sudah pernah masuk? Login ulang akan melanjutkan sesi Anda. Perangkat lama otomatis keluar.</span>
+            </div>
+
+            <div class="login-links">
+                <a href="/login-guru"><i class="bi bi-person-badge me-1"></i> Masuk sebagai Guru</a>
+                <a href="/login-admin"><i class="bi bi-shield-lock me-1"></i> Masuk sebagai Admin</a>
+            </div>
+        </div>
     </div>
 </div>
 <script>

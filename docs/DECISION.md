@@ -8,7 +8,7 @@ Keputusan `D-xxx` **diwarisi** dari proyek Node (tetap berlaku bila tidak digant
 | ID | Status | Keputusan |
 |----|--------|-----------|
 | D-001 | Final | Server berjalan di **satu laptop khusus milik sekolah**; tanpa VPS berbayar |
-| D-002 | **Ditunda** | Cara akses publik (tunnel gratis, alamat tetap). Aplikasi harus berfungsi di balik proxy |
+| D-002 | Final | Akses fleksibel: mendukung Tunnel HTTPS (`TRUST_PROXY=true`) maupun WiFi HTTP LAN lokal sekolah. Flag `COOKIE_SECURE` dapat disetel mandiri (default otomatis aktif pada production/tunnel, dan nonaktif bila `COOKIE_SECURE=false`) agar cookie sesi tidak ditolak browser saat diakses lewat HTTP IP laptop sekolah |
 | D-003 | Final | Menjodohkan: satu soal = 2 poin jika **semua** pasangan benar, selain itu 0 |
 | D-004 | Final | Bobot: PG 2, menjodohkan 2, essay 4 per soal (5 soal = 20) |
 | D-005 | Final | Nilai akhir = total poin / total poin maks × 100, dibulatkan |

@@ -4,7 +4,38 @@
    Fonts   : Sora (heading) + DM Sans (body) + Amiri (Arabic local)
    ============================================================ */
 
-@import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap');
+/* Font Latin Lokal (Sora & DM Sans - OFL License, G-019, F-12) */
+@font-face {
+    font-family: 'DM Sans';
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url('/fonts/dmsans-regular.woff2') format('woff2');
+}
+
+@font-face {
+    font-family: 'DM Sans';
+    font-style: normal;
+    font-weight: 500;
+    font-display: swap;
+    src: url('/fonts/dmsans-500.woff2') format('woff2');
+}
+
+@font-face {
+    font-family: 'Sora';
+    font-style: normal;
+    font-weight: 600;
+    font-display: swap;
+    src: url('/fonts/sora-600.woff2') format('woff2');
+}
+
+@font-face {
+    font-family: 'Sora';
+    font-style: normal;
+    font-weight: 700;
+    font-display: swap;
+    src: url('/fonts/sora-700.woff2') format('woff2');
+}
 
 /* Font Arab Lokal (Amiri - OFL License, D-014, T2.1) */
 @font-face {

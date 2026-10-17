@@ -46,17 +46,29 @@ type DB struct {
 
 // Config adalah seluruh konfigurasi aplikasi.
 type Config struct {
-	Env                 Env
-	Port                int
-	Timezone            *time.Location
-	TrustProxy          bool // true bila di belakang reverse proxy/tunnel HTTPS
-	TampilkanNilaiSiswa bool // D-017: default false
-	LogLevel            slog.Level
-	DB                  DB
+	Env                  Env
+	Port                 int
+	Timezone             *time.Location
+	TrustProxy           bool // true bila di belakang reverse proxy/tunnel HTTPS
+	CookieInsecure       bool // true bila COOKIE_SECURE=false (mis. HTTP LAN sekolah)
+	CookieExplicitSecure bool // true bila COOKIE_SECURE=true eksplisit
+	TampilkanNilaiSiswa  bool // D-017: default false
+	LogLevel             slog.Level
+	DB                   DB
 }
 
-// IsProduction memudahkan pengecekan mode produksi (mis. cookie Secure).
+// IsProduction memudahkan pengecekan mode produksi (mis. logging).
 func (c Config) IsProduction() bool { return c.Env == EnvProduction }
+
+// CookieSecure mengembalikan apakah cookie sesi harus memakai atribut Secure.
+// Mengembalikan false bila COOKIE_SECURE=false (agar peramban siswa tidak menolak cookie saat akses HTTP IP LAN sekolah).
+// Mengembalikan true bila COOKIE_SECURE=true, TRUST_PROXY=true, atau pada mode production default.
+func (c Config) CookieSecure() bool {
+	if c.CookieInsecure {
+		return false
+	}
+	return c.CookieExplicitSecure || c.TrustProxy || c.IsProduction()
+}
 
 // Load membaca konfigurasi. Semua kesalahan validasi dikumpulkan dan
 // dikembalikan sekaligus agar operator tidak perlu memperbaiki satu per satu.
@@ -111,6 +123,18 @@ func Load(getenv func(string) string) (Config, error) {
 			Name:         str("DB_NAME", defaultDBName),
 			MaxOpenConns: integer("DB_MAX_OPEN_CONNS", defaultDBMaxOpen),
 		},
+	}
+
+	// Penentuan COOKIE_SECURE:
+	// Jika disetel eksplisit, simpan nilai spesifiknya (true -> CookieExplicitSecure, false -> CookieInsecure).
+	cookieSecureRaw := strings.TrimSpace(getenv("COOKIE_SECURE"))
+	if cookieSecureRaw != "" {
+		val := boolean("COOKIE_SECURE", false)
+		if val {
+			cfg.CookieExplicitSecure = true
+		} else {
+			cfg.CookieInsecure = true
+		}
 	}
 
 	switch cfg.Env {

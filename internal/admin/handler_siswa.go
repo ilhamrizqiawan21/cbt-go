@@ -11,6 +11,7 @@ import (
 	"github.com/alexedwards/scs/v2"
 
 	"cbt-go/internal/excel"
+	"cbt-go/web"
 )
 
 // RegisterAdminSiswaRoutes mendaftarkan seluruh rute CRUD siswa dan impor/template Excel.
@@ -21,6 +22,8 @@ func RegisterAdminSiswaRoutes(mux *http.ServeMux, db *sql.DB, sm *scs.SessionMan
 	mux.Handle("POST /admin/siswa/hapus/{id}", requireAdmin(SiswaHapusHandler(db, sm)))
 	mux.Handle("GET /admin/siswa/template", requireAdmin(SiswaTemplateHandler()))
 	mux.Handle("POST /admin/siswa/import", requireAdmin(SiswaImportHandler(db, sm)))
+	mux.Handle("GET /admin/siswa/kartu", requireAdmin(SiswaKartuCetakHandler(db, sm)))
+	mux.Handle("POST /admin/siswa/generate-pin", requireAdmin(SiswaResetPINMassalHandler(db, sm)))
 }
 
 // SiswaListHandler menampilkan daftar siswa atau mengembalikan JSON.
@@ -275,5 +278,63 @@ func SiswaImportHandler(db *sql.DB, sm *scs.SessionManager) http.HandlerFunc {
 		}
 
 		http.Redirect(w, r, "/admin/siswa", http.StatusFound)
+	}
+}
+
+// SiswaKartuCetakHandler menampilkan halaman kartu peserta ujian yang siap dicetak/PDF.
+func SiswaKartuCetakHandler(db *sql.DB, sm *scs.SessionManager) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		kelasFilter := r.URL.Query().Get("kelas")
+		list, err := ListSiswa(r.Context(), db, kelasFilter)
+		if err != nil {
+			serverError(w, r, err)
+			return
+		}
+
+		_ = web.Render(w, "admin_siswa_kartu.gohtml", map[string]any{
+			"SiswaList": list,
+			"Kelas":     kelasFilter,
+			"Username":  sm.GetString(r.Context(), "username"),
+		})
+	}
+}
+
+// SiswaResetPINMassalHandler menghasilkan PIN baru massal untuk kelas tertentu atau seluruh siswa,
+// menyimpannya ke database, dan mengembalikan file Excel (.xlsx) untuk diunduh panitia.
+func SiswaResetPINMassalHandler(db *sql.DB, sm *scs.SessionManager) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		_ = r.ParseForm()
+		kelasFilter := strings.TrimSpace(r.FormValue("kelas"))
+
+		daftar, err := ResetPINMassal(r.Context(), db, kelasFilter)
+		if err != nil {
+			serverError(w, r, err)
+			return
+		}
+
+		items := make([]excel.SiswaPINItem, len(daftar))
+		for i, s := range daftar {
+			items[i] = excel.SiswaPINItem{
+				NIS:   s.NIS,
+				Nama:  s.Nama,
+				Kelas: s.Kelas,
+				PIN:   s.PIN,
+			}
+		}
+
+		buf, err := excel.EksporDaftarPIN(items)
+		if err != nil {
+			serverError(w, r, err)
+			return
+		}
+
+		filename := "Daftar_PIN_Siswa.xlsx"
+		if kelasFilter != "" {
+			filename = fmt.Sprintf("Daftar_PIN_Siswa_Kelas_%s.xlsx", kelasFilter)
+		}
+
+		w.Header().Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+		w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", filename))
+		_, _ = w.Write(buf.Bytes())
 	}
 }

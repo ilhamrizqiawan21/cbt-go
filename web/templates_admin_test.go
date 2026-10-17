@@ -123,6 +123,10 @@ func TestAdminTemplates_Render(t *testing.T) {
 			"Ujian": ujian[0], "TanggalCetak": "17 October 2026",
 			"HasilList": []admin.HasilUjianRow{{NIS: "1001", NamaSiswa: "A", StatusKoreksi: "selesai"}},
 		}, []string{"Selesai"}},
+		{"ujian_siswa", "ujian.gohtml", map[string]any{
+			"UjianID": 3, "NamaUjian": "PAS Bahasa Arab", "NamaMapel": "Bahasa Arab", "DeviceType": "laptop",
+			"Siswa": admin.Siswa{ID: 1, NIS: "1001", Nama: nama, Kelas: "VII-A"},
+		}, []string{"PAS Bahasa Arab", "Navigator Soal", "btn-selesai", "fs-indicator", "timer"}},
 	}
 
 	for _, tc := range cases {

@@ -26,6 +26,12 @@ Panduan operasional ringkas untuk **Admin / Tim Teknis** MTs Al-Ihsan Batujajar 
     sudo systemctl status cbt-sekolah.service
     curl -s http://localhost:3000/healthz
     ```
+- [ ] **Gladi Resik & Uji Perangkat Siswa (Uji Lapangan Fisik / F-3)**:
+  - Uji koneksi dari minimal 5-10 sampel HP siswa (berbagai merek Android/iOS) dan laptop:
+    - Buka browser atau aplikasi Exambro/SEB, arahkan ke `http://<IP-SERVER>:3000`.
+    - Pastikan tampilan responsif terbaca jelas (termasuk soal berharakat Arab dengan font Amiri lokal).
+    - Coba uji coba login siswa dummy, jawab 2-3 soal, simulasikan kunci layar/pindah aplikasi untuk memverifikasi peringatan pelanggaran.
+    - Pastikan indikator sinkronisasi hijau ("Tersimpan") dan status muncul di layar monitor admin (`/admin/monitor`).
 
 ---
 

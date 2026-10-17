@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cetak Kartu Peserta Ujian - CBT MTs Al-Ihsan Batujajar</title>
+    <link href="/css/vendor/bootstrap.min.css" rel="stylesheet">
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            font-family: Arial, sans-serif;
+            color: #000;
+        }
+        .kartu-container {
+            width: 100%;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        .kartu-peserta {
+            border: 2px dashed #6c757d;
+            border-radius: 8px;
+            padding: 14px;
+            background: #fff;
+            margin-bottom: 20px;
+            page-break-inside: avoid;
+        }
+        .kartu-header {
+            border-bottom: 2px solid #000;
+            padding-bottom: 8px;
+            margin-bottom: 12px;
+            text-align: center;
+        }
+        .kartu-header h5 {
+            margin: 0;
+            font-weight: bold;
+            font-size: 15px;
+            text-transform: uppercase;
+        }
+        .kartu-header h6 {
+            margin: 2px 0 0;
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+        .kartu-table td {
+            padding: 3px 6px;
+            font-size: 13px;
+        }
+        .box-foto {
+            width: 70px;
+            height: 90px;
+            border: 1px solid #999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            color: #888;
+            background: #fafafa;
+        }
+        .ttd-box {
+            font-size: 11px;
+            text-align: center;
+        }
+        @media print {
+            body {
+                background: #fff;
+                padding: 0;
+            }
+            .d-print-none {
+                display: none !important;
+            }
+            .kartu-peserta {
+                border: 1px dashed #555;
+                margin-bottom: 15px;
+            }
+            @page {
+                size: A4;
+                margin: 10mm;
+            }
+        }
+    </style>
+</head>
+<body class="py-4">
+
+<div class="container kartu-container">
+    <div class="d-flex justify-content-between align-items-center mb-4 d-print-none">
+        <div>
+            <h4 class="fw-bold mb-1">Kartu Peserta Ujian CBT</h4>
+            <p class="text-muted mb-0">Kelas: <strong>{{if .Kelas}}{{.Kelas}}{{else}}Semua Kelas{{end}}</strong> (Total {{len .SiswaList}} peserta)</p>
+        </div>
+        <div>
+            <button onclick="window.print()" class="btn btn-primary fw-semibold">
+                🖨️ Cetak / Simpan PDF
+            </button>
+            <button onclick="window.close()" class="btn btn-outline-secondary ms-2">
+                Tutup
+            </button>
+        </div>
+    </div>
+
+    <div class="row g-3">
+        {{range .SiswaList}}
+        <div class="col-md-6">
+            <div class="kartu-peserta">
+                <div class="kartu-header">
+                    <h5>MTs Al-Ihsan Batujajar</h5>
+                    <h6>Kartu Peserta Ujian CBT</h6>
+                </div>
+                <div class="d-flex gap-3 align-items-start">
+                    <div class="box-foto">
+                        Foto 2x3
+                    </div>
+                    <div class="flex-grow-1">
+                        <table class="kartu-table w-100">
+                            <tr>
+                                <td style="width: 75px; font-weight: bold;">NIS</td>
+                                <td style="width: 10px;">:</td>
+                                <td class="font-monospace fw-bold">{{.NIS}}</td>
+                            </tr>
+                            <tr>
+                                <td style="font-weight: bold;">Nama</td>
+                                <td>:</td>
+                                <td class="fw-semibold text-truncate" style="max-width: 180px;">{{.Nama}}</td>
+                            </tr>
+                            <tr>
+                                <td style="font-weight: bold;">Kelas</td>
+                                <td>:</td>
+                                <td>{{.Kelas}}</td>
+                            </tr>
+                            <tr>
+                                <td style="font-weight: bold;">Sesi / Ruang</td>
+                                <td>:</td>
+                                <td>Sesi Terjadwal</td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+                <div class="d-flex justify-content-between align-items-end mt-3 pt-2 border-top">
+                    <div style="font-size: 10px; color: #555; max-width: 60%;">
+                        <em>* Bawa kartu ini saat pelaksanaan ujian CBT di sekolah.</em>
+                    </div>
+                    <div class="ttd-box">
+                        <div>Batujajar, Panitia CBT</div>
+                        <div style="height: 35px;"></div>
+                        <div class="text-decoration-underline fw-bold">Pengawas Ujian</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {{else}}
+        <div class="col-12 text-center py-5 text-muted">
+            Belum ada data siswa untuk dicetak.
+        </div>
+        {{end}}
+    </div>
+</div>
+
+</body>
+</html>
+

@@ -40,8 +40,14 @@ func (c *mockSiswaConn) Prepare(query string) (driver.Stmt, error) {
 	return &mockSiswaStmt{conn: c, query: query}, nil
 }
 func (c *mockSiswaConn) Close() error { return nil }
+
+type mockTx struct{}
+
+func (t *mockTx) Commit() error   { return nil }
+func (t *mockTx) Rollback() error { return nil }
+
 func (c *mockSiswaConn) Begin() (driver.Tx, error) {
-	return nil, errors.New("not implemented")
+	return &mockTx{}, nil
 }
 
 type mockSiswaStmt struct {
@@ -444,5 +450,113 @@ func TestSiswaHTTPRoutesIntegration(t *testing.T) {
 
 	if rrTambah.Code != http.StatusCreated {
 		t.Errorf("status tambah siswa harus 201 Created, dapat %d (body: %s)", rrTambah.Code, rrTambah.Body.String())
+	}
+}
+
+func TestGenerateRandomPIN(t *testing.T) {
+	// Verifikasi panjang dan karakter acak
+	pin, err := admin.GenerateRandomPIN(6)
+	if err != nil {
+		t.Fatalf("GenerateRandomPIN error: %v", err)
+	}
+	if len(pin) != 6 {
+		t.Errorf("panjang pin = %d, want 6", len(pin))
+	}
+
+	// Karakter tidak boleh mengandung 0, O, 1, I yang ambigu
+	for _, c := range []rune{'0', 'O', '1', 'I'} {
+		if strings.ContainsRune(pin, c) {
+			t.Errorf("PIN %q mengandung karakter ambigu %c", pin, c)
+		}
+	}
+}
+
+func TestSiswaKartuCetakHandler(t *testing.T) {
+	db := setupSiswaMockDB(t)
+	defer db.Close()
+	sm := scs.New()
+
+	mux := http.NewServeMux()
+	admin.RegisterAdminSiswaRoutes(mux, db, sm, auth.RequireAdmin(sm))
+	h := sm.LoadAndSave(mux)
+
+	adminCtx := func(r *http.Request) *http.Request {
+		ctx, _ := sm.Load(r.Context(), "")
+		sm.Put(ctx, "peran", "admin")
+		sm.Put(ctx, "adminId", 1)
+		return r.WithContext(ctx)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/siswa/kartu?kelas=VII-A", nil)
+	req = adminCtx(req)
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status kartu = %d, want 200 OK. Body: %s", rr.Code, rr.Body.String())
+	}
+
+	body := rr.Body.String()
+	if !strings.Contains(body, "Kartu Peserta Ujian CBT") {
+		t.Errorf("respons kartu tidak memuat judul kartu peserta")
+	}
+	if !strings.Contains(body, "Budi Santoso") {
+		t.Errorf("respons kartu tidak memuat nama siswa dari mock")
+	}
+}
+
+func TestSiswaResetPINMassalHandler(t *testing.T) {
+	db := setupSiswaMockDB(t)
+	defer db.Close()
+	sm := scs.New()
+
+	mux := http.NewServeMux()
+	admin.RegisterAdminSiswaRoutes(mux, db, sm, auth.RequireAdmin(sm))
+	h := sm.LoadAndSave(mux)
+
+	adminCtx := func(r *http.Request) *http.Request {
+		ctx, _ := sm.Load(r.Context(), "")
+		sm.Put(ctx, "peran", "admin")
+		sm.Put(ctx, "adminId", 1)
+		return r.WithContext(ctx)
+	}
+
+	form := url.Values{}
+	form.Set("kelas", "VII-A")
+
+	req := httptest.NewRequest(http.MethodPost, "/admin/siswa/generate-pin", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req = adminCtx(req)
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status generate-pin = %d, want 200 OK", rr.Code)
+	}
+
+	ctype := rr.Header().Get("Content-Type")
+	if !strings.Contains(ctype, "spreadsheetml.sheet") {
+		t.Errorf("Content-Type = %q, want spreadsheetml.sheet", ctype)
+	}
+
+	// Verifikasi spreadsheet dapat dibuka dan dibaca
+	f, err := excelize.OpenReader(rr.Body)
+	if err != nil {
+		t.Fatalf("baca hasil excel pin: %v", err)
+	}
+	defer f.Close()
+
+	sheet := f.GetSheetName(0)
+	rows, err := f.GetRows(sheet)
+	if err != nil {
+		t.Fatalf("ambil baris excel: %v", err)
+	}
+
+	if len(rows) < 2 {
+		t.Fatalf("jumlah baris excel = %d, want >= 2", len(rows))
+	}
+	// Baris header
+	if rows[0][1] != "NIS" || rows[0][4] != "PIN Baru" {
+		t.Errorf("header excel tidak sesuai: %+v", rows[0])
 	}
 }

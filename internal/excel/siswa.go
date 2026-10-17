@@ -163,3 +163,40 @@ func BacaImportSiswa(r io.Reader) (*HasilImportSiswa, error) {
 
 	return res, nil
 }
+
+// SiswaPINItem menampung informasi siswa dan PIN teks biasa untuk ekspor Excel.
+type SiswaPINItem struct {
+	NIS   string
+	Nama  string
+	Kelas string
+	PIN   string
+}
+
+// EksporDaftarPIN menyusun berkas Excel berisi daftar NIS, Nama, Kelas, dan PIN baru siswa.
+func EksporDaftarPIN(list []SiswaPINItem) (*bytes.Buffer, error) {
+	f := excelize.NewFile()
+	defer f.Close()
+
+	sheet := f.GetSheetName(0)
+
+	headers := []string{"No", "NIS", "Nama Siswa", "Kelas", "PIN Baru"}
+	for i, h := range headers {
+		cell, _ := excelize.CoordinatesToCellName(i+1, 1)
+		_ = f.SetCellValue(sheet, cell, h)
+	}
+
+	for i, s := range list {
+		row := i + 2
+		_ = f.SetCellValue(sheet, fmt.Sprintf("A%d", row), i+1)
+		_ = f.SetCellValue(sheet, fmt.Sprintf("B%d", row), s.NIS)
+		_ = f.SetCellValue(sheet, fmt.Sprintf("C%d", row), s.Nama)
+		_ = f.SetCellValue(sheet, fmt.Sprintf("D%d", row), s.Kelas)
+		_ = f.SetCellValue(sheet, fmt.Sprintf("E%d", row), s.PIN)
+	}
+
+	var buf bytes.Buffer
+	if err := f.Write(&buf); err != nil {
+		return nil, fmt.Errorf("write excel pin: %w", err)
+	}
+	return &buf, nil
+}

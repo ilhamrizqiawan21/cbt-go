@@ -151,7 +151,7 @@ func (s *Service) Snapshot(ctx context.Context, ujianID int) (*SnapshotData, err
 	var namaUjian string
 	var totalSoal int
 	err := s.db.QueryRowContext(ctx, `
-		SELECT u.nama_ujian, COALESCE((SELECT COUNT(*) FROM soal WHERE ujian_id = u.id), 0) AS total_soal
+		SELECT u.nama_ujian, COALESCE((SELECT COUNT(*) FROM soal WHERE ujian_id = u.id AND tipe_soal <> 'essay'), 0) AS total_soal
 		FROM ujian u
 		WHERE u.id = ?
 	`, ujianID).Scan(&namaUjian, &totalSoal)

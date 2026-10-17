@@ -11,6 +11,32 @@
         .stat-card { cursor:pointer; border-left:4px solid transparent; }
         .stat-card.aktif { outline:2px solid var(--bs-primary); }
         #tabel-monitor td { white-space: nowrap; }
+        .st-online { background:#dcf5ec !important; color:#0b8a68 !important; font-weight:600; padding:5px 12px; border-radius:999px; }
+        .st-offline { background:#eef0f8 !important; color:#5b6280 !important; font-weight:600; padding:5px 12px; border-radius:999px; }
+        .st-terkunci { background:#ffe3e3 !important; color:#c92a2a !important; font-weight:600; padding:5px 12px; border-radius:999px; }
+        .st-selesai { background:#eef2ff !important; color:#3b5bdb !important; font-weight:600; padding:5px 12px; border-radius:999px; }
+        .st-belum_masuk { background:#fff1d6 !important; color:#8a5200 !important; font-weight:600; padding:5px 12px; border-radius:999px; }
+
+        .stat-card {
+            background:#fff; border-radius:14px; padding:16px 18px;
+            box-shadow:0 1px 3px rgba(16,21,51,.08); border:1px solid #dfe3ee;
+            cursor:pointer; transition:all .18s;
+        }
+        .stat-card:hover { transform:translateY(-2px); box-shadow:0 4px 14px rgba(16,21,51,.12); }
+        .stat-card.aktif { border-color:var(--primary); outline:2px solid var(--primary); }
+        .stat-label { font-size:12px; font-weight:600; color:#5b6280; text-transform:uppercase; letter-spacing:0.04em; }
+        .stat-num { font-family:'Sora',sans-serif; font-weight:700; font-size:30px; line-height:1.2; margin-top:4px; }
+
+        /* F-11: Sticky table header */
+        .monitor-table-wrap {
+            max-height: calc(100vh - 300px); min-height: 400px; overflow-y: auto; overflow-x: auto;
+            border-radius: 14px;
+        }
+        #tabel-monitor thead {
+            position: sticky; top: 0; z-index: 10;
+            background: #fafbfe; box-shadow: 0 1px 3px rgba(16,21,51,.08);
+        }
+        #tabel-monitor td { white-space: nowrap; vertical-align: middle; }
     </style>
 </head>
 <body class="bg-light">
@@ -22,6 +48,7 @@
             <div class="d-flex align-items-center gap-2 flex-wrap">
                 <h3 class="page-title mb-0"><i class="bi bi-display text-primary me-2"></i>Monitor Realtime Ujian</h3>
                 <span id="ws-badge" class="badge bg-secondary">Menghubungkan…</span>
+                <span id="ws-badge" class="badge rounded-pill px-3 py-2" style="background:#12302f;color:#7fe0bf;font-weight:600;">Menghubungkan…</span>
             </div>
             <p class="text-muted mb-0 small">Online = aktif &lt; 45 detik terakhir. Data diperbarui otomatis.</p>
         </div>
@@ -54,6 +81,18 @@
             <div class="small fw-semibold text-uppercase">Selesai</div><div class="fs-3 fw-bold" id="stat-selesai">0</div></div></div>
         <div class="col-6 col-md-4 col-xl-2"><div class="card stat-card border-0 shadow-sm p-3 text-center st-belum_masuk" data-filter="belum_masuk">
             <div class="small fw-semibold text-uppercase">Belum masuk</div><div class="fs-3 fw-bold" id="stat-belum_masuk">0</div></div></div>
+        <div class="col-6 col-md-4 col-xl-2"><div class="stat-card" data-filter="">
+            <div class="stat-label">Total</div><div class="stat-num" style="color:#1b2038;" id="stat-total_siswa">0</div></div></div>
+        <div class="col-6 col-md-4 col-xl-2"><div class="stat-card" data-filter="online">
+            <div class="stat-label">Online</div><div class="stat-num" style="color:#0b8a68;" id="stat-online">0</div></div></div>
+        <div class="col-6 col-md-4 col-xl-2"><div class="stat-card" data-filter="offline">
+            <div class="stat-label">Offline</div><div class="stat-num" style="color:#5b6280;" id="stat-offline">0</div></div></div>
+        <div class="col-6 col-md-4 col-xl-2"><div class="stat-card" data-filter="terkunci">
+            <div class="stat-label">Terkunci</div><div class="stat-num" style="color:#c92a2a;" id="stat-terkunci">0</div></div></div>
+        <div class="col-6 col-md-4 col-xl-2"><div class="stat-card" data-filter="selesai">
+            <div class="stat-label">Selesai</div><div class="stat-num" style="color:#3b5bdb;" id="stat-selesai">0</div></div></div>
+        <div class="col-6 col-md-4 col-xl-2"><div class="stat-card" data-filter="belum_masuk">
+            <div class="stat-label">Belum masuk</div><div class="stat-num" style="color:#8a5200;" id="stat-belum_masuk">0</div></div></div>
     </div>
 
     <div class="card border-0 shadow-sm mb-3">
@@ -76,6 +115,8 @@
 
     <div class="card border-0 shadow-sm">
         <div class="table-responsive">
+    <div class="card border-0 shadow-sm" style="border-radius:16px;overflow:hidden;">
+        <div class="table-responsive monitor-table-wrap">
             <table class="table table-hover mb-0" id="tabel-monitor">
                 <thead class="table-light">
                     <tr>

@@ -6,39 +6,38 @@
     <title>Ujian CBT — {{.Siswa.Nama}}</title>
     <link href="/css/vendor/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="/css/vendor/bootstrap-icons.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
     <link href="/css/style.css" rel="stylesheet">
     <style>
         :root{
-            --primary:#3b5bdb; --primary-light:#eef2ff; --primary-rgb:59,91,219;
-            --success:#0ca678; --success-light:#e6f8f3; --success-rgb:12,166,120;
-            --warning:#e67700; --warning-light:#fff3cd;
-            --danger:#e03131; --danger-light:#fff0f0; --danger-rgb:224,49,49;
-            --bg:#f0f2f8; --card:#fff;
-            --font-body:'DM Sans',sans-serif;
-            --font-heading:'Sora',sans-serif;
+            --primary:#3b5bdb; --primary-hover:#2b44b0; --primary-light:#eef2ff; --primary-rgb:59,91,219;
+            --success:#0b8a68; --success-light:#dcf5ec; --success-rgb:11,138,104;
+            --warning:#8a5200; --warning-light:#fff1d6;
+            --danger:#c92a2a; --danger-light:#ffe3e3; --danger-rgb:201,42,42;
+            --dark-header:#101533; --dark-surface:#1d2552;
+            --bg:#f4f6fb; --card:#ffffff;
+            --border:#dfe3ee; --text:#1b2038; --text-muted:#5b6280;
+            --font-body:'DM Sans',system-ui,sans-serif;
+            --font-heading:'Sora',system-ui,sans-serif;
             --font-arabic:'Amiri',serif;
-            --shadow-sm:0 2px 8px rgba(0,0,0,.07);
-            --shadow-md:0 4px 20px rgba(0,0,0,.10);
-            --radius:14px; --radius-sm:8px;
+            --shadow-sm:0 1px 3px rgba(16,21,51,.08);
+            --shadow-md:0 4px 20px rgba(16,21,51,.12);
+            --radius:20px; --radius-sm:12px;
             --exam-font-scale: 1;
         }
         *{ box-sizing:border-box; margin:0; padding:0; }
         html{ font-size:16px; }
-        body{ font-family:var(--font-body); background:var(--bg); min-height:100vh; -webkit-font-smoothing:antialiased; }
+        body{ font-family:var(--font-body); background:var(--bg); color:var(--text); min-height:100vh; -webkit-font-smoothing:antialiased; }
 
-        /* Kontrol Ukuran Teks (A- / A+) (T2.2) */
+        /* Kontrol Ukuran Teks (A- / A+) (MOCKUP §2) */
         .font-size-ctrl {
             display: inline-flex;
             align-items: center;
-            background: #f1f3f5;
-            border: 1px solid #dee2e6;
-            border-radius: 20px;
-            padding: 2px 4px;
-            gap: 2px;
+            background: var(--dark-surface);
+            border-radius: 999px;
+            padding: 0 4px;
         }
         .btn-font-size {
-            background: none;
+            background: transparent;
             border: none;
             border-radius: 50%;
             width: 44px;
@@ -46,90 +45,97 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            font-size: 0.78rem;
+            font-size: 0.9rem;
             font-weight: 700;
-            color: #495057;
+            color: #fff;
             cursor: pointer;
-            transition: all 0.18s;
+            transition: all 0.15s;
             padding: 0;
         }
         .btn-font-size:hover {
-            background: #fff;
-            color: var(--primary);
-            box-shadow: 0 1px 4px rgba(0,0,0,.1);
+            color: #9db1ff;
+            background: rgba(255,255,255,.08);
         }
         .btn-font-size:active {
             transform: scale(0.92);
         }
         .font-size-label {
-            font-size: 0.68rem;
+            font-size: 0.75rem;
             font-weight: 600;
-            color: #868e96;
-            padding: 0 3px;
+            color: #aab3de;
+            min-width: 38px;
+            text-align: center;
             user-select: none;
         }
 
-        /* Terapkan skala font pada soal */
+        /* Skala font pada soal & pilihan */
         .soal-text {
-            font-size: calc(0.95rem * var(--exam-font-scale)) !important;
+            font-size: calc(1.05rem * var(--exam-font-scale)) !important;
+            line-height: 1.65;
+            color: var(--text);
         }
         .form-check-label {
-            font-size: calc(0.88rem * var(--exam-font-scale)) !important;
+            font-size: calc(0.95rem * var(--exam-font-scale)) !important;
+            line-height: 1.45;
+            color: var(--text);
         }
         .soal-text.ar, .form-check-label.ar {
-            font-size: calc(1.35rem * var(--exam-font-scale)) !important;
+            font-family: var(--font-arabic);
+            font-size: calc(1.75rem * var(--exam-font-scale)) !important;
+            line-height: 1.75 !important;
+            text-align: right;
+            direction: rtl;
         }
 
         /* ══════════════════════════════════════════
-           FIX #8 — OVERLAY 1: Sebelum ujian dimulai
-           Siswa wajib klik tombol untuk masuk fullscreen
+           OVERLAY 1: Sebelum ujian dimulai
            ══════════════════════════════════════════ */
         #fs-overlay{
             position:fixed; inset:0; z-index:9000;
-            background:linear-gradient(135deg,#1a1f36 0%,#2c3461 100%);
+            background:linear-gradient(135deg,#101533 0%,#1d2552 100%);
             display:flex; align-items:center; justify-content:center;
             flex-direction:column; text-align:center; padding:2rem;
         }
         #fs-overlay .fs-icon{
-            font-size:4rem; color:#748ffc; margin-bottom:1.25rem;
+            font-size:3.5rem; color:#9db1ff; margin-bottom:1.25rem;
             animation:bounce 1.6s ease-in-out infinite;
         }
-        @keyframes bounce{ 0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)} }
+        @keyframes bounce{ 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
         #fs-overlay h2{
-            font-family:var(--font-heading); font-size:1.4rem; font-weight:800;
+            font-family:var(--font-heading); font-size:1.45rem; font-weight:700;
             color:#fff; margin-bottom:.65rem; letter-spacing:-.02em;
         }
-        #fs-overlay p{ font-size:.9rem; color:rgba(255,255,255,.65); max-width:380px; line-height:1.6; margin-bottom:1.75rem; }
+        #fs-overlay p{ font-size:.92rem; color:#cfd6f5; max-width:420px; line-height:1.6; margin-bottom:1.75rem; }
         #btn-enter-fs{
-            background:linear-gradient(135deg,var(--primary),#4c6ef5);
-            color:#fff; border:none; border-radius:10px;
+            background:var(--primary);
+            color:#fff; border:none; border-radius:12px;
             padding:.85rem 2.25rem;
             font-family:var(--font-heading); font-size:1rem; font-weight:700;
-            cursor:pointer; transition:all .22s;
-            box-shadow:0 4px 20px rgba(59,91,219,.4);
+            cursor:pointer; transition:all .2s;
+            box-shadow:0 4px 18px rgba(59,91,219,.4);
             display:flex; align-items:center; gap:.6rem;
+            min-height: 48px;
         }
-        #btn-enter-fs:hover{ transform:translateY(-2px); box-shadow:0 6px 28px rgba(59,91,219,.5); }
+        #btn-enter-fs:hover{ background:var(--primary-hover); transform:translateY(-1px); }
         #btn-enter-fs:active{ transform:translateY(0); }
-        #btn-enter-fs:disabled{ opacity:.6; cursor:not-allowed; transform:none; }
-        #fs-overlay .fs-note{ margin-top:1rem; font-size:.73rem; color:rgba(255,255,255,.3); }
+        #btn-enter-fs:disabled{ opacity:.6; cursor:not-allowed; }
+        #fs-overlay .fs-note{ margin-top:1.2rem; font-size:.78rem; color:#8d98c7; }
 
         /* Browser tidak support Fullscreen API */
         #fs-not-supported{
             display:none; margin-top:.75rem;
             background:rgba(255,255,255,.08); border-radius:8px;
-            padding:.65rem 1rem; font-size:.8rem; color:rgba(255,255,255,.6);
+            padding:.65rem 1rem; font-size:.8rem; color:#cfd6f5;
             max-width:360px;
         }
 
         /* ══════════════════════════════════════════
-           FIX #8 — OVERLAY 2: Saat keluar fullscreen
-           di tengah ujian — muncul hitungan mundur
+           OVERLAY 2: Saat keluar fullscreen
            ══════════════════════════════════════════ */
         #fs-lost-overlay{
             display:none;
             position:fixed; inset:0; z-index:8000;
-            background:rgba(224,49,49,.95);
+            background:rgba(201,42,42,.96);
             backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
             align-items:center; justify-content:center;
             flex-direction:column; text-align:center; padding:2rem;
@@ -137,202 +143,286 @@
         #fs-lost-overlay.show{ display:flex; animation:fadeIn .25s ease; }
         #fs-lost-overlay .fl-icon{ font-size:3.5rem; color:#fff; margin-bottom:1rem; }
         #fs-lost-overlay h2{
-            font-family:var(--font-heading); font-size:1.35rem;
-            font-weight:800; color:#fff; margin-bottom:.5rem;
+            font-family:var(--font-heading); font-size:1.4rem;
+            font-weight:700; color:#fff; margin-bottom:.5rem;
         }
-        #fs-lost-overlay p{ font-size:.88rem; color:rgba(255,255,255,.8); max-width:360px; line-height:1.6; margin-bottom:1.25rem; }
+        #fs-lost-overlay p{ font-size:.9rem; color:rgba(255,255,255,.9); max-width:380px; line-height:1.6; margin-bottom:1.25rem; }
         #fs-countdown{
-            font-family:var(--font-heading); font-size:2.5rem; font-weight:800; color:#fff;
+            font-family:var(--font-heading); font-size:2.5rem; font-weight:700; color:#fff;
             background:rgba(0,0,0,.25); border-radius:12px;
             padding:.4rem 1.5rem; margin-bottom:1.25rem;
             min-width:100px; text-align:center;
         }
         #btn-reenter-fs{
-            background:#fff; color:var(--danger); border:none; border-radius:10px;
+            background:#fff; color:var(--danger); border:none; border-radius:12px;
             padding:.75rem 2rem;
-            font-family:var(--font-heading); font-size:.95rem; font-weight:700;
+            font-family:var(--font-heading); font-size:1rem; font-weight:700;
             cursor:pointer; transition:all .2s;
             display:flex; align-items:center; gap:.5rem;
+            min-height: 48px;
         }
         #btn-reenter-fs:hover{ transform:translateY(-1px); box-shadow:0 4px 16px rgba(0,0,0,.2); }
 
-        /* ── Topbar ── */
+        /* ── Topbar (Mockup §1-3) ── */
         .exam-topbar{
             position:fixed; top:0; left:0; right:0; z-index:500;
-            background:#fff; border-bottom:1px solid rgba(0,0,0,.07);
-            box-shadow:var(--shadow-sm); padding:.6rem 1.25rem;
+            background:var(--dark-header); color:#fff;
+            padding:12px 32px;
             display:flex; align-items:center; justify-content:space-between;
-            gap:1rem; flex-wrap:nowrap; min-height:62px;
+            gap:14px; flex-wrap:wrap; min-height:64px;
         }
-        .exam-topbar-left{ display:flex; align-items:center; gap:.75rem; flex:1; min-width:0; }
-        .exam-topbar-left img{ width:36px; height:36px; object-fit:contain; flex-shrink:0; }
-        .exam-info-text{ overflow:hidden; }
-        .exam-info-text .exam-name{ font-family:var(--font-heading); font-size:.9rem; font-weight:700; color:#1e2022; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-        .exam-info-text .exam-sub{ font-size:.72rem; color:#74788d; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-        .exam-topbar-right{ display:flex; align-items:center; gap:.65rem; flex-shrink:0; }
+        .exam-topbar-left{ display:flex; align-items:center; gap:14px; flex:1; min-width:0; }
+        .exam-icon-badge{
+            width:40px; height:40px; border-radius:12px;
+            background:var(--primary); display:flex; align-items:center; justify-content:center;
+            flex:none; color:#fff; font-size:1.25rem;
+        }
+        .exam-info-text{ overflow:hidden; min-width:0; }
+        .exam-info-text .exam-name{
+            font-family:var(--font-heading); font-size:1rem; font-weight:700;
+            color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+        }
+        .exam-info-text .exam-sub{
+            font-size:0.82rem; color:#aab3de; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:2px;
+        }
+        .exam-topbar-right{ display:flex; align-items:center; gap:10px 14px; flex-wrap:wrap; }
 
-        /* Indikator fullscreen di topbar */
-        #fs-indicator{
-            display:flex; align-items:center; gap:.35rem;
-            font-size:.72rem; font-weight:600;
-            color:var(--success); background:var(--success-light);
-            padding:.25rem .65rem; border-radius:20px;
-            border:1px solid rgba(12,166,120,.2);
-            transition:all .3s; cursor:pointer;
-            user-select:none;
-        }
-        #fs-indicator.fs-off{
-            color:var(--danger); background:var(--danger-light);
-            border-color:rgba(224,49,49,.2);
-            animation:blinkBorder .8s infinite;
-        }
-        @keyframes blinkBorder{ 0%,100%{border-color:rgba(224,49,49,.2)} 50%{border-color:var(--danger)} }
-        #fs-indicator i{ font-size:.8rem; }
-
-        /* Indikator sinkronisasi di topbar (T1.7) */
+        /* Status & Badge Pills */
         #sync-indicator{
-            display:flex; align-items:center; gap:.35rem;
-            font-size:.72rem; font-weight:600;
-            padding:.25rem .65rem; border-radius:20px;
-            border:1px solid transparent;
-            transition:all .3s; user-select:none;
+            display:flex; align-items:center; gap:6px;
+            font-size:0.82rem; font-weight:600;
+            padding:8px 14px; border-radius:999px;
+            user-select:none; transition:all .2s;
         }
         #sync-indicator.sync-saved{
-            color:var(--success); background:var(--success-light);
-            border-color:rgba(12,166,120,.2);
+            color:#7fe0bf; background:#12302f;
         }
         #sync-indicator.sync-saving{
-            color:var(--primary); background:var(--primary-light);
-            border-color:rgba(59,91,219,.2);
+            color:#9db1ff; background:var(--dark-surface);
         }
         #sync-indicator.sync-offline{
             color:var(--warning); background:var(--warning-light);
-            border-color:rgba(230,119,0,.3);
-            animation:blinkBorder .8s infinite;
         }
-        #sync-indicator i{ font-size:.8rem; }
 
-        /* Timer */
-        #timer{
-            font-family:var(--font-heading); font-size:1.4rem; font-weight:800;
-            color:var(--primary); background:var(--primary-light);
-            padding:.25rem 1rem; border-radius:10px;
-            letter-spacing:-.01em; min-width:96px; text-align:center;
-            display:inline-block; border:2px solid transparent; transition:all .3s;
+        #fs-indicator{
+            display:flex; align-items:center; gap:6px;
+            font-size:0.82rem; font-weight:600;
+            color:#cfd6f5; background:var(--dark-surface);
+            padding:8px 14px; border-radius:999px;
+            cursor:pointer; user-select:none; transition:all .2s;
         }
-        #timer.warning{ color:var(--warning); background:var(--warning-light); border-color:var(--warning); animation:pulse .9s infinite; }
-        #timer.danger { color:var(--danger);  background:var(--danger-light);  border-color:var(--danger);  animation:pulse .5s infinite; }
-        @keyframes pulse{ 0%,100%{transform:scale(1)} 50%{transform:scale(1.04)} }
-        .timer-label{ font-size:.6rem; color:#74788d; letter-spacing:.04em; text-align:center; margin-bottom:1px; }
+        #fs-indicator.fs-off{
+            color:var(--danger); background:var(--danger-light);
+        }
+
+        .exam-violation-badge{
+            font-size:0.82rem; font-weight:600; color:#cfd6f5;
+            background:var(--dark-surface); border-radius:999px;
+            padding:8px 14px; display:inline-flex; align-items:center;
+        }
+
+        /* Timer Block */
+        .exam-timer-box{
+            display:flex; align-items:center; gap:10px;
+            background:var(--primary); border-radius:12px;
+            padding:8px 16px; color:#fff;
+        }
+        .exam-timer-box.warning{ background:var(--warning); }
+        .exam-timer-box.danger{ background:var(--danger); animation:pulse .6s infinite; }
+        @keyframes pulse{ 0%,100%{transform:scale(1)} 50%{transform:scale(1.03)} }
+        #timer{
+            font-family:var(--font-heading); font-size:1.35rem; font-weight:700;
+            font-variant-numeric:tabular-nums; letter-spacing:-.01em;
+        }
 
         /* Progress strip */
-        .progress-strip{ position:fixed; top:62px; left:0; right:0; z-index:490; height:3px; background:#e9ecef; }
-        .progress-strip-bar{ height:100%; width:0%; background:linear-gradient(90deg,var(--primary),#38d9a9); transition:width .4s ease; }
+        .progress-strip{ position:fixed; top:64px; left:0; right:0; z-index:490; height:4px; background:#d9def0; }
+        .progress-strip-bar{ height:100%; width:0%; background:linear-gradient(90deg,var(--primary),var(--success)); transition:width .4s ease; }
 
-        /* Main layout */
-        .exam-main{ padding-top:78px; padding-bottom:2rem; }
-        .exam-layout{ display:grid; grid-template-columns:1fr 250px; gap:1.25rem; max-width:1060px; margin:0 auto; padding:1.25rem; align-items:start; }
+        /* Main Layout (Mockup §1-3) */
+        .exam-main{
+            padding-top:84px; padding-bottom:3rem; min-height:calc(100vh - 84px);
+            display:flex; justify-content:center;
+        }
+        .exam-layout{
+            display:flex; flex-wrap:wrap; gap:24px; align-items:flex-start;
+            max-width:1200px; width:100%; padding:20px 32px; box-sizing:border-box;
+        }
+        #soal-col{ flex:1 1 560px; min-width:0; display:flex; flex-direction:column; gap:18px; }
 
-        /* Soal card */
-        .soal-card{ background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow-sm); padding:1.5rem; margin-bottom:1.1rem; border:2px solid transparent; transition:box-shadow .2s, border-color .2s; animation:fadeUp .28s ease both; }
-        .soal-card:hover{ box-shadow:var(--shadow-md); border-color:rgba(var(--primary-rgb),.1); }
-        @keyframes fadeUp{ from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
-        @keyframes fadeIn{ from{opacity:0} to{opacity:1} }
-        .soal-header{ display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; padding-bottom:.75rem; border-bottom:1px solid #f0f2f4; }
-        .soal-number{ background:linear-gradient(135deg,var(--primary),#4c6ef5); color:#fff; padding:.28rem .85rem; border-radius:20px; font-size:.72rem; font-weight:700; font-family:var(--font-heading); box-shadow:0 2px 6px rgba(var(--primary-rgb),.3); }
-        .soal-poin{ background:#f8f9fc; color:#74788d; padding:.28rem .75rem; border-radius:20px; font-size:.7rem; font-weight:600; border:1px solid #e9ecef; }
-        .soal-text{ font-size:.945rem; line-height:1.7; color:#2c3e50; margin-bottom:1.2rem; }
-        .pilihan-ganda .form-check{ padding:.7rem .9rem; border-radius:10px; border:1.5px solid #e2e5ec; margin-bottom:.5rem; cursor:pointer; transition:all .18s; background:#fafbff; display:flex; align-items:flex-start; gap:.6rem; }
-        .pilihan-ganda .form-check:hover{ border-color:var(--primary); background:var(--primary-light); }
-        .pilihan-ganda .form-check:has(input:checked){ border-color:var(--primary); background:var(--primary-light); box-shadow:inset 0 0 0 1px var(--primary); }
-        .form-check-input{ width:17px; height:17px; margin-top:2px; flex-shrink:0; accent-color:var(--primary); cursor:pointer; }
-        .form-check-label{ cursor:pointer; font-size:.88rem; color:#34495e; line-height:1.5; flex:1; }
-        .pasangan-baris{ display:flex; flex-direction:column; gap:.35rem; padding:.6rem .75rem; background:#fafbff; border:1.5px solid #e2e5ec; border-radius:var(--radius-sm); }
-        .pasangan-select{ min-height:44px; }
-        .pasangan-kiri{ font-size:.92rem; color:#2c3e50; line-height:1.6; }
-        .pasangan-kiri.ar{ font-size:calc(1.2rem * var(--exam-font-scale)); }
-        .menjodohkan .form-select,.essay .form-control{ border-radius:var(--radius-sm); border:1.5px solid #e2e5ec; font-family:var(--font-body); font-size:.88rem; transition:all .2s; background:#fafbff; }
-        .menjodohkan .form-select:focus,.essay .form-control:focus{ border-color:var(--primary); box-shadow:0 0 0 3px rgba(var(--primary-rgb),.12); outline:none; background:#fff; }
-        .essay textarea{ resize:vertical; min-height:110px; }
+        /* Soal Card */
+        .soal-card{
+            background:var(--card); border-radius:var(--radius);
+            box-shadow:var(--shadow-sm); padding:28px 32px;
+            border:1px solid #dfe3ee; transition:box-shadow .2s;
+            animation:fadeUp .24s ease both;
+        }
+        @keyframes fadeUp{ from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+        .soal-header{
+            display:flex; justify-content:space-between; align-items:center;
+            margin-bottom:1.1rem; padding-bottom:.75rem; border-bottom:1px solid #f0f2f8;
+        }
+        .soal-number{
+            font-family:var(--font-heading); font-weight:700; font-size:1.05rem;
+            color:var(--primary);
+        }
+        .soal-badges{ display:flex; align-items:center; gap:8px; }
+        .soal-badge-type{
+            font-size:0.78rem; font-weight:600; color:var(--text-muted);
+            background:#e6e9f5; border-radius:999px; padding:4px 12px;
+        }
+        .soal-poin{
+            background:#f8f9fc; color:var(--text-muted); padding:4px 10px;
+            border-radius:999px; font-size:0.75rem; font-weight:600; border:1px solid #e9ecef;
+        }
+        .soal-text{
+            margin-bottom:1.5rem; word-break:break-word;
+        }
 
-        /* Navigator */
-        .nav-panel{ background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow-sm); padding:1.1rem; position:sticky; top:80px; }
-        .nav-panel-title{ font-family:var(--font-heading); font-weight:700; font-size:.7rem; color:#74788d; text-transform:uppercase; letter-spacing:.09em; margin-bottom:.75rem; }
-        .nav-grid{ display:grid; grid-template-columns:repeat(5,1fr); gap:5px; }
-        .nav-btn{ width:100%; aspect-ratio:1; border-radius:var(--radius-sm); border:1.5px solid #e2e5ec; background:#fafbff; font-family:var(--font-heading); font-weight:700; font-size:.7rem; cursor:pointer; transition:all .18s; display:flex; align-items:center; justify-content:center; color:#2d3142; -webkit-tap-highlight-color:transparent; }
-        .nav-btn:hover   { border-color:var(--primary); background:var(--primary-light); color:var(--primary); }
-        .nav-btn.answered{ background:var(--primary); border-color:var(--primary); color:#fff; }
-        .nav-legend{ display:flex; flex-wrap:wrap; gap:6px; margin-top:.8rem; }
-        .nav-legend-item{ display:flex; align-items:center; gap:4px; font-size:.67rem; font-weight:600; color:#74788d; }
-        .nav-dot{ width:10px; height:10px; border-radius:3px; border:1.5px solid #e2e5ec; }
-        .nav-dot.answered{ background:var(--primary); border-color:var(--primary); }
-
-        /* Submit */
-        .btn-selesai{ width:100%; margin-top:1rem; background:linear-gradient(135deg,var(--success),#12b886); color:#fff; border:none; border-radius:var(--radius-sm); padding:.75rem 1rem; font-family:var(--font-heading); font-size:.9rem; font-weight:700; cursor:pointer; transition:all .22s; box-shadow:0 3px 12px rgba(var(--success-rgb),.3); display:flex; align-items:center; justify-content:center; gap:.5rem; }
-        .btn-selesai:hover{ transform:translateY(-1px); box-shadow:0 5px 18px rgba(var(--success-rgb),.4); }
-        .btn-selesai:disabled{ opacity:.6; cursor:not-allowed; transform:none; box-shadow:none; }
-
-        /* Info panel */
-        .exam-info-panel{ background:var(--primary-light); border-radius:var(--radius-sm); padding:.65rem .9rem; margin-bottom:1rem; font-size:.78rem; color:var(--primary); font-weight:600; display:flex; align-items:center; gap:.5rem; border:1px solid rgba(var(--primary-rgb),.15); }
-
-        /* Loading */
-        .loading-box{ text-align:center; padding:3.5rem 2rem; background:#fff; border-radius:var(--radius); border:1px solid #e9ecef; }
-        .spinner-ring{ width:42px; height:42px; margin:0 auto 1rem; border:3px solid #e9ecef; border-top-color:var(--primary); border-radius:50%; animation:spin .75s linear infinite; }
-        @keyframes spin{ to{transform:rotate(360deg)} }
-        .loading-box p{ color:#74788d; font-size:.875rem; }
-
-        /* Toast */
-        #warningToast{ position:fixed; bottom:1.25rem; right:1.25rem; z-index:1000; background:#fff; border-left:4px solid var(--warning); border-radius:10px; box-shadow:var(--shadow-md); padding:.9rem 1.1rem; display:none; align-items:center; gap:.65rem; font-size:.84rem; color:#7c4a00; max-width:340px; }
-        #warningToast.show{ display:flex; animation:slideIn .3s ease; }
-        @keyframes slideIn{ from{transform:translateX(110%);opacity:0} to{transform:translateX(0);opacity:1} }
-
-        /* Floating nav toggle mobile */
-        #navToggleFloat{ display:none; position:fixed; bottom:1.25rem; right:1.25rem; z-index:400; width:50px; height:50px; border-radius:50%; background:linear-gradient(135deg,var(--primary),#4c6ef5); color:#fff; border:none; box-shadow:0 4px 16px rgba(var(--primary-rgb),.4); font-size:1.2rem; cursor:pointer; align-items:center; justify-content:center; transition:all .22s; }
-
-        /* Touch targets ≥ 44px & Mobile Ergonomics (T2.3) */
+        /* Pilihan Ganda (Tombol Opsi Mockup 2 & 3) */
+        .pilihan-ganda{ display:flex; flex-direction:column; gap:10px; }
         .pilihan-ganda .form-check{
-            min-height: 46px;
-            padding: .75rem 1rem;
-            align-items: center;
+            display:flex; align-items:center; gap:16px;
+            min-height:58px; padding:12px 18px;
+            border-radius:14px; box-sizing:border-box; width:100%;
+            cursor:pointer; font:inherit; text-align:left;
+            background:#fff; border:1px solid #cfd5e6;
+            margin-bottom:0; transition:all .18s;
         }
-        .form-check-input{
-            width: 22px;
-            height: 22px;
+        .pilihan-ganda .form-check:hover{
+            border-color:var(--primary); background:#fafbff;
         }
-        .nav-btn{
-            min-height: 44px;
-            font-size: .82rem;
+        .pilihan-ganda .form-check:has(input:checked){
+            border:2px solid var(--primary); background:var(--primary-light);
         }
-        .btn-selesai{
-            min-height: 48px;
+        .pilihan-ganda .form-check-input{
+            display:none; /* Sembunyikan radio default, pakai option-badge */
+        }
+        .option-badge{
+            flex:none; width:36px; height:36px; border-radius:50%;
+            display:flex; align-items:center; justify-content:center;
+            font-family:var(--font-heading); font-weight:700; font-size:15px;
+            background:#eef0f8; color:#3b4160; transition:all .18s;
+        }
+        .pilihan-ganda .form-check:has(input:checked) .option-badge{
+            background:var(--primary); color:#fff;
+        }
+        .form-check-label{
+            flex:1; cursor:pointer; margin:0; word-break:break-word;
         }
 
-        /* Responsive */
-        @media(max-width:768px){
-            .exam-topbar{ flex-wrap:wrap; padding:.55rem .75rem; min-height:56px; }
-            .exam-topbar-right{ flex-wrap:wrap; width:100%; justify-content:space-between; gap:.4rem; }
-            .exam-info-text .exam-sub{ display:none; }
-            #timer{ font-size:1.05rem; min-width:74px; padding:.22rem .5rem; }
-            .progress-strip{ top:var(--topbar-h, 56px); }
-            .exam-main{ padding-top:calc(var(--topbar-h, 56px) + 12px); }
-            .exam-layout{ grid-template-columns:1fr; padding:.75rem; padding-bottom:5.5rem; overflow-x:hidden; }
-            .nav-panel{ position:fixed; bottom:0;left:0;right:0; border-radius:16px 16px 0 0; box-shadow:0 -4px 24px rgba(0,0,0,.15); transform:translateY(100%); transition:transform .32s ease; z-index:400; max-height:60vh; overflow-y:auto; padding:1.25rem 1rem; top:auto !important; }
-            .nav-panel::before{ content:''; display:block; width:40px; height:5px; background:#ced4da; border-radius:99px; margin:0 auto 1rem; }
+        /* Soal Menjodohkan */
+        .pasangan-baris{
+            display:flex; flex-direction:column; gap:.4rem;
+            padding:.8rem 1rem; background:#fafbff;
+            border:1.5px solid #dfe3ee; border-radius:var(--radius-sm);
+        }
+        .pasangan-select{ min-height:46px; border-radius:10px; }
+        .pasangan-kiri{ font-size:.95rem; color:var(--text); line-height:1.6; }
+        .pasangan-kiri.ar{ font-family:var(--font-arabic); font-size:calc(1.35rem * var(--exam-font-scale)); direction:rtl; text-align:right; }
+
+        /* Soal Essay (D-008, Mockup Layar 2) */
+        .essay-info-card{
+            background:#fff7e6; border-radius:16px; padding:18px;
+            display:flex; gap:14px; align-items:flex-start;
+        }
+        .essay-info-card .essay-icon{ flex:none; font-size:1.5rem; color:#8a5200; margin-top:2px; }
+        .essay-info-title{ font-family:var(--font-heading); font-weight:700; font-size:1rem; color:#5c3700; }
+        .essay-info-desc{ font-size:0.9rem; line-height:1.5; color:#7a4a00; margin-top:4px; }
+
+        /* Navigator Panel Aside (Mockup Layar 3) */
+        .nav-panel{
+            flex:1 1 300px; max-width:380px; min-width:0;
+            background:var(--card); border-radius:var(--radius);
+            padding:22px; box-shadow:var(--shadow-sm); border:1px solid #dfe3ee;
+            display:flex; flex-direction:column; gap:18px; position:sticky; top:84px;
+        }
+        .nav-panel-head{
+            display:flex; align-items:baseline; justify-content:space-between;
+        }
+        .nav-panel-title{
+            font-family:var(--font-heading); font-weight:700; font-size:1rem; color:var(--text);
+        }
+        .nav-panel-count{ font-size:0.82rem; color:var(--text-muted); }
+        .nav-grid{ display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:8px; }
+        .nav-btn{
+            height:44px; border-radius:10px; font-family:var(--font-heading);
+            font-weight:700; font-size:14px; cursor:pointer; box-sizing:border-box;
+            background:#fff; color:var(--text); border:1.5px solid #aab1c9;
+            display:flex; align-items:center; justify-content:center;
+            transition:all .15s;
+        }
+        .nav-btn:hover{ border-color:var(--primary); color:var(--primary); background:var(--primary-light); }
+        .nav-btn.answered{ background:var(--success); color:#fff; border-color:var(--success); }
+        .nav-btn.active{ background:var(--primary); color:#fff; border-color:var(--primary); }
+
+        .nav-legend{ display:flex; flex-wrap:wrap; gap:8px 16px; font-size:0.82rem; color:var(--text-muted); }
+        .nav-legend-item{ display:flex; align-items:center; gap:6px; }
+        .nav-legend-dot{ width:14px; height:14px; border-radius:4px; }
+        .nav-legend-dot.answered{ background:var(--success); }
+        .nav-legend-dot.empty{ border:1.5px solid #aab1c9; background:#fff; }
+        .nav-legend-dot.current{ background:var(--primary); }
+
+        .btn-selesai{
+            height:52px; border:0; border-radius:12px;
+            background:var(--success); color:#fff;
+            font-family:var(--font-heading); font-weight:700; font-size:1rem;
+            cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px;
+            transition:all .2s; width:100%;
+        }
+        .btn-selesai:hover{ background:#097356; }
+        .btn-selesai:disabled{ opacity:.6; cursor:not-allowed; }
+
+        .exam-security-note{
+            display:flex; gap:10px; font-size:0.82rem; line-height:1.5; color:var(--text-muted);
+            background:var(--bg); border-radius:12px; padding:12px 14px;
+        }
+
+        /* Toast Peringatan */
+        #warningToast{
+            position:fixed; bottom:1.25rem; right:1.25rem; z-index:1000;
+            background:#fff; border-left:4px solid var(--warning); border-radius:10px;
+            box-shadow:var(--shadow-md); padding:.9rem 1.1rem; display:none;
+            align-items:center; gap:.65rem; font-size:.85rem; color:#7c4a00; max-width:340px;
+        }
+
+        /* Floating Nav Toggle Mobile (HP) */
+        #navToggleFloat{ display:none; }
+
+        /* Responsive Breakpoints (HP Mockup Layar 2) */
+        @media(max-width:991px){
+            .exam-topbar{ padding:12px 16px 10px; min-height:auto; gap:10px; }
+            .exam-topbar-left{ width:100%; justify-content:space-between; }
+            .exam-topbar-right{ width:100%; justify-content:space-between; gap:8px; }
+            .exam-violation-badge{ display:none; }
+            .progress-strip{ top:var(--topbar-h, 114px); }
+            .exam-main{ padding-top:calc(var(--topbar-h, 114px) + 12px); padding-bottom:80px; }
+            .exam-layout{ padding:12px 16px; }
+            .soal-card{ padding:20px 18px; border-radius:16px; }
+            .nav-panel{
+                position:fixed; bottom:0; left:0; right:0; max-width:100%;
+                border-radius:20px 20px 0 0; box-shadow:0 -4px 30px rgba(16,21,51,.25);
+                transform:translateY(100%); transition:transform .3s ease;
+                z-index:900; max-height:75vh; overflow-y:auto; top:auto !important;
+            }
+            .nav-panel::before{
+                content:''; display:block; width:44px; height:5px;
+                background:#ced4da; border-radius:99px; margin:0 auto 12px;
+            }
             .nav-panel.open{ transform:translateY(0); }
-            .nav-grid{ grid-template-columns:repeat(5,1fr); gap:8px; }
-            #navToggleFloat{ display:flex; min-width:48px; min-height:48px; }
-            #fs-indicator span{ display:none; }
+            #navToggleFloat{
+                display:flex; position:fixed; bottom:1rem; right:1rem; z-index:450;
+                width:52px; height:52px; border-radius:50%; background:var(--primary);
+                color:#fff; border:none; box-shadow:0 4px 16px rgba(59,91,219,.4);
+                font-size:1.25rem; align-items:center; justify-content:center; cursor:pointer;
+            }
         }
+
         @media(max-width:480px){
-            .exam-topbar{ padding:.45rem .6rem; }
-            .soal-card{ padding:1.1rem .9rem; }
-            .nav-grid{ grid-template-columns:repeat(5,1fr); gap:6px; }
+            .pilihan-ganda .form-check{ padding:10px 14px; gap:12px; }
+            .option-badge{ width:32px; height:32px; font-size:13px; }
         }
-        @media(hover:none) and (pointer:coarse){
-            .soal-card:hover{ box-shadow:var(--shadow-sm); border-color:transparent; }
-            .btn-selesai:hover{ transform:none; }
-            .nav-btn{ min-height:44px; }
-        }
+
         @media print{
             .exam-topbar,.progress-strip,#warningToast,#navToggleFloat,.nav-panel,#fs-overlay,#fs-lost-overlay{ display:none !important; }
             .exam-main{ padding-top:0; }
@@ -384,25 +474,21 @@
 <!-- ══ TOPBAR ══ -->
 <div class="exam-topbar">
     <div class="exam-topbar-left">
-        <img src="/images/logo-sekolah.png" alt="Logo" onerror="this.style.display='none'">
+        <div class="exam-icon-badge" aria-hidden="true">
+            <i class="bi bi-journal-text"></i>
+        </div>
         <div class="exam-info-text">
             <div class="exam-name">
-                <i class="bi bi-laptop" style="color:var(--success);margin-right:4px;"></i>
                 {{.NamaUjian}}
             </div>
             <div class="exam-sub">
                 {{.Siswa.Nama}} &nbsp;·&nbsp; NIS: {{if .Siswa.NIS}}{{.Siswa.NIS}}{{else}}{{.Siswa.ID}}{{end}}
+                {{if .Siswa.Kelas}}&nbsp;·&nbsp; {{.Siswa.Kelas}}{{end}}
                 {{if .NamaMapel}}&nbsp;·&nbsp; {{.NamaMapel}}{{end}}
             </div>
         </div>
     </div>
     <div class="exam-topbar-right">
-        <!-- Kontrol Ukuran Teks (A- / A+) (T2.2) -->
-        <div class="font-size-ctrl" title="Atur ukuran teks">
-            <button type="button" class="btn-font-size" id="btn-font-dec" aria-label="Kecilkan teks">A−</button>
-            <span class="font-size-label" id="font-size-val">100%</span>
-            <button type="button" class="btn-font-size" id="btn-font-inc" aria-label="Besarkan teks">A+</button>
-        </div>
         <!-- Indikator sinkronisasi jawaban (T1.7) -->
         <div id="sync-indicator" class="sync-saved" title="Status penyimpanan jawaban">
             <i class="bi bi-cloud-check-fill" id="sync-icon"></i>
@@ -410,12 +496,23 @@
         </div>
         <!-- Indikator fullscreen — klik untuk masuk kembali -->
         <div id="fs-indicator" class="fs-off" title="Klik untuk masuk layar penuh" role="button" tabindex="0">
-            <i class="bi bi-fullscreen-exit"></i>
-            <span id="fs-indicator-txt">Tidak Fullscreen</span>
+            <i class="bi bi-fullscreen"></i>
+            <span id="fs-indicator-txt">Layar penuh</span>
         </div>
-        <div>
-            <div class="timer-label"><i class="bi bi-hourglass-split"></i> Sisa Waktu</div>
-            <div id="timer">00:00</div>
+        <!-- Indikator pelanggaran (laptop) -->
+        <div class="exam-violation-badge" id="violationBadge" title="Status kepatuhan ujian">
+            Pelanggaran <span id="violation-count" style="margin: 0 4px; font-weight:700;">0</span> dari 3
+        </div>
+        <!-- Kontrol Ukuran Teks (A- / A+) (T2.2) -->
+        <div class="font-size-ctrl" title="Atur ukuran teks">
+            <button type="button" class="btn-font-size" id="btn-font-dec" aria-label="Kecilkan teks">A−</button>
+            <span class="font-size-label" id="font-size-val">100%</span>
+            <button type="button" class="btn-font-size" id="btn-font-inc" aria-label="Besarkan teks">A+</button>
+        </div>
+        <!-- Timer Server-Authoritative -->
+        <div class="exam-timer-box" id="timerBox">
+            <i class="bi bi-stopwatch" style="font-size:1.15rem;"></i>
+            <span id="timer">00:00</span>
         </div>
     </div>
 </div>
@@ -431,31 +528,33 @@
 
         <!-- Kolom soal -->
         <div id="soal-col">
-            <div class="exam-info-panel">
-                <i class="bi bi-info-circle-fill"></i>
-                Jawaban tersimpan otomatis. Kerjakan semua soal sebelum waktu habis.
-            </div>
             <div id="soal-container">
                 <div class="loading-box">
                     <div class="spinner-ring"></div>
                     <p>Menghubungkan ke server ujian…</p>
                 </div>
             </div>
-            <div style="padding-bottom:1rem;">
-                <button id="btn-selesai" class="btn-selesai">
-                    <i class="bi bi-check2-circle"></i>
-                    Selesai &amp; Kumpulkan
-                </button>
-            </div>
         </div>
 
         <!-- Navigator soal -->
         <div class="nav-panel" id="navPanel">
-            <div class="nav-panel-title">Navigator Soal</div>
+            <div class="nav-panel-head">
+                <div class="nav-panel-title">Navigator Soal</div>
+                <div class="nav-panel-count"><span id="answeredCount">0</span> terjawab</div>
+            </div>
             <div class="nav-grid" id="navGrid"></div>
             <div class="nav-legend">
-                <div class="nav-legend-item"><div class="nav-dot answered"></div> Dijawab</div>
-                <div class="nav-legend-item"><div class="nav-dot"></div> Belum</div>
+                <div class="nav-legend-item"><span class="nav-legend-dot answered"></span> Dijawab</div>
+                <div class="nav-legend-item"><span class="nav-legend-dot empty"></span> Belum</div>
+                <div class="nav-legend-item"><span class="nav-legend-dot current"></span> Sedang dibuka</div>
+            </div>
+            <button id="btn-selesai" class="btn-selesai">
+                <i class="bi bi-check2-circle"></i>
+                Kumpulkan Ujian
+            </button>
+            <div class="exam-security-note">
+                <i class="bi bi-shield-exclamation text-primary fs-5 flex-shrink-0"></i>
+                <span>Berpindah tab atau keluar layar penuh dicatat sebagai pelanggaran. Tiga kali, ujian terkunci sampai pengawas membukanya.</span>
             </div>
         </div>
 
