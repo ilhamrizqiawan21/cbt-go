@@ -867,6 +867,8 @@ Laporan keputusan tertunda (Claude, 2026-10-17) — user mendelegasikan keputusa
 - Verifikasi: `make check` PASS, `make test-race` PASS; kedua tes UI LULUS terhadap server (`cbt_sekolah_go_test`); e2e browser: siswa 1001 memicu 3 pelanggaran via WebSocket → layar terkunci, status `keluar_paksa`, 0 nilai, 1 jawaban tersimpan → admin buka kunci → login ulang 302 `/ujian`, `/api/sesi` `sedang_ujian` dengan jawaban tersimpan dan sisa waktu berlanjut.
 - Catatan terbuka: `ujian.js` menyisipkan `teks_soal` ke `innerHTML` tanpa escape (sumber: guru/admin tepercaya, tetapi sebaiknya di-escape — perlu cek apakah soal sengaja memuat HTML); toolchain Go di mesin ini tetap perlu diperiksa (crash acak).
 
+Ringkasan gabungan ketiga laporan di atas: [LAPORAN_PERBAIKAN_ADMIN_GURU.md](LAPORAN_PERBAIKAN_ADMIN_GURU.md).
+
 ## Hasil review
 _(Diisi Claude.)_
 
