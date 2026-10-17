@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<title>Ujian di HP</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700&family=DM+Sans:wght@400;500;600&family=Amiri:wght@400;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0;font-family:'DM Sans',system-ui,sans-serif;color:#1b2038;background:#f4f6fb}
+button:focus-visible{outline:3px solid #9db1ff;outline-offset:2px}
+</style>
+</helmet>
+<div style="position:relative;width:390px;height:844px;box-sizing:border-box;overflow:hidden;display:flex;flex-direction:column;background:#f4f6fb">
+
+  <!-- Bilah atas -->
+  <div style="flex:none;background:#101533;color:#fff;padding:14px 16px 12px;display:flex;flex-direction:column;gap:10px">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+      <div style="min-width:0">
+        <div style="font-size:12px;color:#aab3de">PAS Bahasa Arab · VII-A</div>
+        <div style="font-family:'Sora',sans-serif;font-weight:600;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Ilham Rizqi</div>
+      </div>
+      <div style="flex:none;display:flex;align-items:center;gap:8px;background:#1d2552;border-radius:12px;padding:8px 12px">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9db1ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M9 3h6"/></svg>
+        <span style="font-family:'Sora',sans-serif;font-weight:700;font-size:18px;font-variant-numeric:tabular-nums">01:12:45</span>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+      <div style="display:flex;align-items:center;gap:6px;font-size:13px;color:#7fe0bf">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7fe0bf" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 18a4 4 0 0 1-.5-7.97A6 6 0 0 1 18 9a4.5 4.5 0 0 1-.5 9z"/><path d="m9 13 2 2 4-4"/></svg>
+        Jawaban tersimpan
+      </div>
+      <div style="display:flex;align-items:center;background:#1d2552;border-radius:999px">
+        <button type="button" onClick="{{smaller}}" aria-label="Kecilkan teks" style="width:44px;height:44px;border:0;background:transparent;color:#fff;font:inherit;font-weight:700;font-size:13px;cursor:pointer">A−</button>
+        <span style="font-size:12px;color:#aab3de;min-width:38px;text-align:center">{{scaleLabel}}</span>
+        <button type="button" onClick="{{bigger}}" aria-label="Besarkan teks" style="width:44px;height:44px;border:0;background:transparent;color:#fff;font:inherit;font-weight:700;font-size:16px;cursor:pointer">A+</button>
+      </div>
+    </div>
+  </div>
+  <div style="flex:none;height:4px;background:#d9def0"><div style="{{progressStyle}}"></div></div>
+
+  <!-- Soal -->
+  <div style="flex:1;min-height:0;overflow-y:auto;padding:16px 16px 20px;display:flex;flex-direction:column;gap:14px">
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <div style="font-family:'Sora',sans-serif;font-weight:600;font-size:14px;color:#3b5bdb">Soal {{q.nomor}} dari {{total}}</div>
+      <div style="font-size:12px;font-weight:600;color:#5b6280;background:#e6e9f5;border-radius:999px;padding:4px 10px">{{q.jenis}}</div>
+    </div>
+
+    <div style="background:#fff;border-radius:16px;padding:18px;box-shadow:0 1px 3px rgba(16,21,51,.08)">
+      <div dir="auto" style="{{q.textStyle}}">{{q.teks}}</div>
+    </div>
+
+    <sc-if value="{{q.isPg}}" hint-placeholder-val="{{ true }}">
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <sc-for list="{{q.options}}" as="o" hint-placeholder-count="4">
+          <button type="button" onClick="{{o.pick}}" aria-pressed="{{o.pressed}}" style="{{o.style}}">
+            <span style="{{o.badge}}">{{o.huruf}}</span>
+            <span dir="auto" style="{{o.textStyle}}">{{o.teks}}</span>
+          </button>
+        </sc-for>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{q.isEssay}}" hint-placeholder-val="{{ false }}">
+      <div style="background:#fff7e6;border-radius:16px;padding:18px;display:flex;gap:14px;align-items:flex-start">
+        <svg style="flex:none;margin-top:2px" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#8a5200" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg>
+        <div>
+          <div style="font-weight:600;font-size:15px;color:#5c3700">Jawab di lembar kertas</div>
+          <div style="font-size:14px;line-height:1.5;color:#7a4a00;margin-top:4px">Tulis jawaban uraian pada lembar yang dibagikan pengawas. Guru akan menilainya terpisah.</div>
+        </div>
+      </div>
+    </sc-if>
+  </div>
+
+  <!-- Navigasi bawah -->
+  <div style="flex:none;background:#fff;border-top:1px solid #dfe3ee;padding:10px 12px;display:flex;gap:8px;align-items:center">
+    <button type="button" onClick="{{prev}}" style="{{prevStyle}}" aria-label="Soal sebelumnya">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 6-6 6 6 6"/></svg>
+    </button>
+    <button type="button" onClick="{{openNav}}" style="flex:1;height:48px;border:1px solid #cfd5e6;border-radius:12px;background:#fff;font:inherit;font-weight:600;font-size:14px;color:#1b2038;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3b5bdb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+      {{answered}} dari {{pgTotal}} terjawab
+    </button>
+    <sc-if value="{{notLast}}" hint-placeholder-val="{{ true }}">
+      <button type="button" onClick="{{next}}" style="width:96px;height:48px;border:0;border-radius:12px;background:#3b5bdb;color:#fff;font:inherit;font-weight:600;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px">Lanjut
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
+      </button>
+    </sc-if>
+    <sc-if value="{{isLast}}" hint-placeholder-val="{{ false }}">
+      <button type="button" onClick="{{openNav}}" style="width:96px;height:48px;border:0;border-radius:12px;background:#0b8a68;color:#fff;font:inherit;font-weight:600;font-size:15px;cursor:pointer">Kumpulkan</button>
+    </sc-if>
+  </div>
+
+  <!-- Navigator soal (lembar bawah) -->
+  <sc-if value="{{showNav}}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;inset:0;background:rgba(16,21,51,.55);display:flex;align-items:flex-end">
+      <div role="dialog" aria-label="Navigator soal" style="width:100%;background:#fff;border-radius:20px 20px 0 0;padding:20px 16px 24px;box-sizing:border-box;display:flex;flex-direction:column;gap:16px">
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <div style="font-family:'Sora',sans-serif;font-weight:700;font-size:17px">Navigator soal</div>
+          <button type="button" onClick="{{closeNav}}" aria-label="Tutup navigator" style="width:44px;height:44px;border:0;border-radius:12px;background:#eef0f8;cursor:pointer">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1b2038" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+          </button>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px">
+          <sc-for list="{{navItems}}" as="n" hint-placeholder-count="4">
+            <button type="button" onClick="{{n.go}}" aria-label="{{n.label}}" style="{{n.style}}">{{n.no}}</button>
+          </sc-for>
+        </div>
+        <div style="display:flex;gap:16px;font-size:13px;color:#5b6280">
+          <span style="display:flex;align-items:center;gap:6px"><span style="width:14px;height:14px;border-radius:4px;background:#0b8a68"></span>Dijawab</span>
+          <span style="display:flex;align-items:center;gap:6px"><span style="width:14px;height:14px;border-radius:4px;border:1.5px solid #aab1c9;background:#fff;box-sizing:border-box"></span>Belum</span>
+          <span style="display:flex;align-items:center;gap:6px"><span style="width:14px;height:14px;border-radius:4px;background:#3b5bdb"></span>Sedang dibuka</span>
+        </div>
+        <button type="button" onClick="{{closeNav}}" style="height:52px;border:0;border-radius:12px;background:#0b8a68;color:#fff;font:inherit;font-weight:600;font-size:16px;cursor:pointer">Kumpulkan ujian</button>
+        <div style="font-size:13px;color:#5b6280;text-align:center;margin-top:-6px">Soal uraian dijawab di kertas dan tidak dihitung di sini.</div>
+      </div>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { idx: 0, answers: { 1: 'a' }, scale: 1, showNav: false };
+  }
+  renderVals() {
+    const QS = [
+      { no: 1, tipe: 'pg', arab: true, jenis: 'Pilihan ganda',
+        teks: 'عَيِّنِ الْفِعْلَ الْمَاضِيَ مِنَ الْجُمْلَةِ التَّالِيَةِ: كَتَبَ التِّلْمِيذُ الدَّرْسَ',
+        opts: [['a', 'كَتَبَ'], ['b', 'التِّلْمِيذُ'], ['c', 'الدَّرْسَ'], ['d', 'يَكْتُبُ']] },
+      { no: 2, tipe: 'pg', arab: false, jenis: 'Pilihan ganda',
+        teks: 'Dalam sehari semalam, salat fardu yang wajib dikerjakan umat Islam berjumlah …',
+        opts: [['a', 'Tiga waktu'], ['b', 'Empat waktu'], ['c', 'Lima waktu'], ['d', 'Enam waktu']] },
+      { no: 3, tipe: 'pg', arab: true, jenis: 'Pilihan ganda',
+        teks: 'مَا مَعْنَى كَلِمَةِ «مَدْرَسَةٌ»؟',
+        opts: [['a', 'مَكَانُ التَّعَلُّمِ'], ['b', 'مَكَانُ الْأَكْلِ'], ['c', 'مَكَانُ النَّوْمِ'], ['d', 'مَكَانُ اللَّعِبِ']] },
+      { no: 4, tipe: 'essay', arab: false, jenis: 'Uraian',
+        teks: 'Jelaskan hikmah dan keutamaan mempelajari kaidah bahasa Arab!', opts: [] }
+    ];
+    const s = this.state;
+    const cur = QS[s.idx];
+    const total = QS.length;
+    const sc = s.scale;
+    const pgCount = QS.filter((x) => x.tipe === 'pg').length;
+    const answered = QS.filter((x) => x.tipe === 'pg' && s.answers[x.no]).length;
+    const chosen = s.answers[cur.no];
+    const textBase = cur.arab
+      ? "font-family:'Amiri',serif;font-size:" + (28 * sc) + "px;line-height:1.9;color:#1b2038;text-align:right"
+      : "font-size:" + (17 * sc) + "px;line-height:1.55;color:#1b2038";
+    const options = cur.opts.map((o) => {
+      const on = chosen === o[0];
+      return {
+        huruf: o[0].toUpperCase(), teks: o[1],
+        pressed: on ? 'true' : 'false',
+        pick: () => this.setState({ answers: { ...s.answers, [cur.no]: o[0] } }),
+        style: 'display:flex;align-items:center;gap:14px;min-height:60px;padding:10px 14px;border-radius:14px;box-sizing:border-box;width:100%;cursor:pointer;font:inherit;text-align:left;background:' + (on ? '#eef2ff' : '#fff') + ';border:' + (on ? '2px solid #3b5bdb' : '1px solid #cfd5e6'),
+        badge: 'flex:none;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;' + (on ? 'background:#3b5bdb;color:#fff' : 'background:#eef0f8;color:#3b4160'),
+        textStyle: 'flex:1;' + (cur.arab ? "font-family:'Amiri',serif;font-size:" + (24 * sc) + "px;line-height:1.7;text-align:right;color:#1b2038" : "font-size:" + (16 * sc) + "px;line-height:1.45;color:#1b2038")
+      };
+    });
+    const navItems = QS.map((x, i) => {
+      const done = x.tipe === 'pg' && !!s.answers[x.no];
+      const here = i === s.idx;
+      let bg = '#fff', col = '#1b2038', bd = '1.5px solid #aab1c9';
+      if (done) { bg = '#0b8a68'; col = '#fff'; bd = '1.5px solid #0b8a68'; }
+      if (here) { bg = '#3b5bdb'; col = '#fff'; bd = '1.5px solid #3b5bdb'; }
+      return {
+        no: x.no,
+        label: 'Soal ' + x.no + (done ? ', dijawab' : (x.tipe === 'essay' ? ', uraian' : ', belum dijawab')),
+        go: () => this.setState({ idx: i, showNav: false }),
+        style: 'height:48px;border-radius:12px;font:inherit;font-weight:700;font-size:15px;cursor:pointer;box-sizing:border-box;background:' + bg + ';color:' + col + ';border:' + bd
+      };
+    });
+    const last = s.idx === total - 1;
+    return {
+      q: { nomor: cur.no, jenis: cur.jenis, teks: cur.teks, isPg: cur.tipe === 'pg', isEssay: cur.tipe === 'essay', options, textStyle: textBase },
+      total, answered,
+      pgTotal: pgCount,
+      progressStyle: 'height:4px;background:#0b8a68;width:' + Math.round((answered / pgCount) * 100) + '%',
+      scaleLabel: Math.round(sc * 100) + '%',
+      smaller: () => this.setState({ scale: Math.max(0.85, +(s.scale - 0.15).toFixed(2)) }),
+      bigger: () => this.setState({ scale: Math.min(1.45, +(s.scale + 0.15).toFixed(2)) }),
+      prev: () => this.setState({ idx: Math.max(0, s.idx - 1) }),
+      next: () => this.setState({ idx: Math.min(total - 1, s.idx + 1) }),
+      prevStyle: 'flex:none;width:48px;height:48px;border:1px solid #cfd5e6;border-radius:12px;background:#fff;color:#1b2038;cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:' + (s.idx === 0 ? '0.4' : '1'),
+      notLast: !last, isLast: last,
+      showNav: s.showNav,
+      openNav: () => this.setState({ showNav: true }),
+      closeNav: () => this.setState({ showNav: false }),
+      navItems
+    };
+  }
+}
+</script>
+</body>
+</html>

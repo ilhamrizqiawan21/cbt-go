@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<title>Monitor realtime</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+body{margin:0;font-family:'DM Sans',system-ui,sans-serif;color:#1b2038;background:#f4f6fb}
+a{color:#3b5bdb}
+a:focus-visible,button:focus-visible,input:focus-visible{outline:3px solid #9db1ff;outline-offset:2px}
+</style>
+</helmet>
+<div style="min-height:1040px;background:#f4f6fb;display:flex;flex-direction:column">
+
+  <header style="background:#101533;color:#fff;padding:12px 32px;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px">
+    <div style="display:flex;align-items:center;gap:14px">
+      <a href="#" aria-label="Kembali ke dashboard" style="width:40px;height:40px;border-radius:12px;background:#1d2552;display:flex;align-items:center;justify-content:center">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 6-6 6 6 6"/></svg>
+      </a>
+      <div>
+        <div style="font-family:'Sora',sans-serif;font-weight:700;font-size:17px">Monitor: PAS Bahasa Arab</div>
+        <div style="font-size:13px;color:#aab3de">Kelas VII-A, VII-B, VII-C · 07.30–09.30 · 120 menit</div>
+      </div>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px">
+      <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:#7fe0bf;background:#12302f;border-radius:999px;padding:8px 14px">
+        <span style="width:8px;height:8px;border-radius:50%;background:#33d6a0"></span>Realtime aktif
+      </div>
+      <div style="font-size:13px;color:#cfd6f5;background:#1d2552;border-radius:999px;padding:8px 14px">Token: <strong style="letter-spacing:0.12em;color:#fff">KX7M2Q</strong></div>
+    </div>
+  </header>
+
+  <main style="flex:1;padding:28px 32px 48px;display:flex;flex-direction:column;gap:22px;box-sizing:border-box">
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px">
+      <sc-for list="{{kartu}}" as="k" hint-placeholder-count="6">
+        <div style="background:#fff;border-radius:14px;padding:16px 18px;box-shadow:0 1px 3px rgba(16,21,51,.08)">
+          <div style="font-size:12px;font-weight:600;color:#5b6280;text-transform:uppercase;letter-spacing:0.04em">{{k.label}}</div>
+          <div style="font-family:'Sora',sans-serif;font-weight:700;font-size:30px;line-height:1.2;color:{{k.warna}}">{{k.nilai}}</div>
+        </div>
+      </sc-for>
+    </div>
+
+    <section style="background:#fff;border-radius:16px;box-shadow:0 1px 3px rgba(16,21,51,.08);overflow:hidden">
+      <div style="padding:16px 20px;display:flex;flex-wrap:wrap;gap:12px 16px;align-items:center;border-bottom:1px solid #e8ebf5">
+        <div style="position:relative;flex:1 1 240px;max-width:360px">
+          <label for="cari" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Cari nama atau NIS</label>
+          <svg style="position:absolute;left:14px;top:14px" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5b6280" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <input id="cari" type="search" placeholder="Cari nama atau NIS" value="{{cari}}" onInput="{{onCari}}" style="height:46px;width:100%;box-sizing:border-box;border:1px solid #cfd5e6;border-radius:12px;padding:0 14px 0 42px;font:inherit;font-size:15px;color:#1b2038;background:#fff">
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px" role="group" aria-label="Filter status">
+          <sc-for list="{{filter}}" as="f" hint-placeholder-count="6">
+            <button type="button" onClick="{{f.pick}}" aria-pressed="{{f.pressed}}" style="{{f.style}}">{{f.label}}</button>
+          </sc-for>
+        </div>
+      </div>
+
+      <div style="overflow-x:auto">
+        <table style="width:100%;min-width:980px;border-collapse:collapse;font-size:14px">
+          <thead>
+            <tr style="text-align:left;color:#5b6280;font-size:12px;text-transform:uppercase;letter-spacing:0.04em;background:#fafbfe">
+              <th style="padding:12px 20px;font-weight:600;width:44px">No</th>
+              <th style="padding:12px 8px;font-weight:600">Siswa</th>
+              <th style="padding:12px 8px;font-weight:600">Kelas</th>
+              <th style="padding:12px 8px;font-weight:600">Status</th>
+              <th style="padding:12px 8px;font-weight:600;min-width:150px">Progres</th>
+              <th style="padding:12px 8px;font-weight:600">Sisa waktu</th>
+              <th style="padding:12px 8px;font-weight:600">Pelanggaran</th>
+              <th style="padding:12px 8px;font-weight:600">Perangkat</th>
+              <th style="padding:12px 20px;font-weight:600;text-align:right">Aksi</th>
+            </tr>
+          </thead>
+          <tbody>
+            <sc-for list="{{baris}}" as="r" hint-placeholder-count="8">
+              <tr style="border-top:1px solid #eef0f8">
+                <td style="padding:12px 20px;color:#5b6280">{{r.no}}</td>
+                <td style="padding:12px 8px"><div style="font-weight:600">{{r.nama}}</div><div style="font-size:12px;color:#5b6280">NIS {{r.nis}}</div></td>
+                <td style="padding:12px 8px"><span style="font-size:13px;background:#eef0f8;border-radius:8px;padding:3px 9px">{{r.kelas}}</span></td>
+                <td style="padding:12px 8px"><span style="{{r.badge}}">{{r.statusLabel}}</span></td>
+                <td style="padding:12px 8px">
+                  <div style="display:flex;align-items:center;gap:10px">
+                    <div style="flex:1;height:8px;border-radius:999px;background:#e6e9f5;overflow:hidden"><div style="{{r.bar}}"></div></div>
+                    <span style="font-size:12px;color:#5b6280;min-width:34px">{{r.progres}}</span>
+                  </div>
+                </td>
+                <td style="padding:12px 8px;font-variant-numeric:tabular-nums;color:#1b2038">{{r.sisa}}</td>
+                <td style="padding:12px 8px"><span style="{{r.pelStyle}}">{{r.pel}} / 3</span></td>
+                <td style="padding:12px 8px;color:#3b4160">{{r.dev}}</td>
+                <td style="padding:12px 20px;text-align:right;white-space:nowrap">
+                  <sc-if value="{{r.bisaBuka}}" hint-placeholder-val="{{ false }}">
+                    <button type="button" onClick="{{r.buka}}" style="height:36px;padding:0 12px;border:0;border-radius:10px;background:#c92a2a;color:#fff;font:inherit;font-weight:600;font-size:13px;cursor:pointer;margin-right:6px">Buka kunci</button>
+                  </sc-if>
+                  <sc-if value="{{r.aktif}}" hint-placeholder-val="{{ true }}">
+                    <button type="button" onClick="{{r.waktu}}" style="height:36px;padding:0 12px;border:1px solid #cfd5e6;border-radius:10px;background:#fff;color:#1b2038;font:inherit;font-weight:600;font-size:13px;cursor:pointer;margin-right:6px">+ Waktu</button>
+                    <button type="button" onClick="{{r.selesaikan}}" style="height:36px;padding:0 12px;border:1px solid #cfd5e6;border-radius:10px;background:#fff;color:#1b2038;font:inherit;font-weight:600;font-size:13px;cursor:pointer">Selesaikan</button>
+                  </sc-if>
+                </td>
+              </tr>
+            </sc-for>
+          </tbody>
+        </table>
+      </div>
+      <div style="padding:14px 20px;border-top:1px solid #e8ebf5;font-size:13px;color:#5b6280;display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px">
+        <span>Menampilkan {{jumlah}} dari 134 peserta · diperbarui 2 detik lalu</span>
+        <span>Siswa terkunci tetap menyimpan jawaban. Setelah dibuka, minta siswa login ulang.</span>
+      </div>
+    </section>
+  </main>
+
+  <!-- Dialog tambah waktu -->
+  <sc-if value="{{dialog}}" hint-placeholder-val="{{ false }}">
+    <div style="position:fixed;inset:0;background:rgba(16,21,51,.55);display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box">
+      <div role="dialog" aria-label="Tambah waktu" style="width:100%;max-width:400px;background:#fff;border-radius:20px;padding:24px;display:flex;flex-direction:column;gap:18px">
+        <div>
+          <div style="font-family:'Sora',sans-serif;font-weight:700;font-size:18px">Tambah waktu</div>
+          <div style="font-size:14px;color:#5b6280;margin-top:4px">Untuk {{dialogNama}}. Hitung mundur di perangkat siswa ikut berubah.</div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px">
+          <sc-for list="{{presets}}" as="p" hint-placeholder-count="4">
+            <button type="button" onClick="{{p.pick}}" aria-pressed="{{p.pressed}}" style="{{p.style}}">+{{p.menit}}</button>
+          </sc-for>
+        </div>
+        <div style="font-size:13px;color:#5b6280">Dipilih: {{pilihMenit}} menit</div>
+        <div style="display:flex;gap:10px;justify-content:flex-end">
+          <button type="button" onClick="{{tutup}}" style="height:46px;padding:0 20px;border:1px solid #cfd5e6;border-radius:12px;background:#fff;font:inherit;font-weight:600;font-size:15px;cursor:pointer;color:#1b2038">Batal</button>
+          <button type="button" onClick="{{terapkan}}" style="height:46px;padding:0 22px;border:0;border-radius:12px;background:#3b5bdb;color:#fff;font:inherit;font-weight:600;font-size:15px;cursor:pointer">Tambahkan</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1040}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = {
+      cari: '', filter: 'semua', dialogId: null, menit: 10,
+      rows: [
+        { id: 1, nama: 'Ahmad Fauzan', nis: '2410101', kelas: 'VII-A', status: 'online', done: 22, sisa: 74, pel: 0, dev: 'HP' },
+        { id: 2, nama: 'Aisyah Nur Rahma', nis: '2410102', kelas: 'VII-A', status: 'online', done: 27, sisa: 74, pel: 1, dev: 'HP' },
+        { id: 3, nama: 'Bagas Pratama', nis: '2410103', kelas: 'VII-A', status: 'terkunci', done: 14, sisa: 68, pel: 3, dev: 'Laptop' },
+        { id: 4, nama: 'Citra Maharani', nis: '2410104', kelas: 'VII-B', status: 'offline', done: 18, sisa: 71, pel: 0, dev: 'HP' },
+        { id: 5, nama: 'Dimas Aditya', nis: '2410105', kelas: 'VII-B', status: 'selesai', done: 30, sisa: 0, pel: 0, dev: 'HP' },
+        { id: 6, nama: 'Eka Putri Lestari', nis: '2410106', kelas: 'VII-B', status: 'online', done: 9, sisa: 74, pel: 2, dev: 'Laptop' },
+        { id: 7, nama: 'Farhan Hidayat', nis: '2410107', kelas: 'VII-C', status: 'terkunci', done: 21, sisa: 66, pel: 3, dev: 'HP' },
+        { id: 8, nama: 'Gina Salsabila', nis: '2410108', kelas: 'VII-C', status: 'selesai', done: 30, sisa: 0, pel: 0, dev: 'HP' },
+        { id: 9, nama: 'Hilmi Maulana', nis: '2410109', kelas: 'VII-C', status: 'belum_masuk', done: 0, sisa: 120, pel: 0, dev: '-' },
+        { id: 10, nama: 'Intan Permata', nis: '2410110', kelas: 'VII-C', status: 'offline', done: 12, sisa: 70, pel: 0, dev: 'HP' }
+      ]
+    };
+  }
+  renderVals() {
+    const s = this.state;
+    const L = { online: 'Online', offline: 'Offline', terkunci: 'Terkunci', selesai: 'Selesai', belum_masuk: 'Belum masuk' };
+    const B = {
+      online: ['#dcf5ec', '#0b6e53'], offline: ['#e9ebf3', '#3b4160'], terkunci: ['#ffe3e3', '#a61e1e'],
+      selesai: ['#e3ecff', '#2b44b0'], belum_masuk: ['#f1f3f9', '#5b6280']
+    };
+    const BAR = { online: '#0b8a68', offline: '#8a93b5', terkunci: '#c92a2a', selesai: '#3b5bdb', belum_masuk: '#8a93b5' };
+    const fmt = (m) => (m <= 0 ? '-' : Math.floor(m / 60) + ':' + String(m % 60).padStart(2, '0') + ':00');
+    const q = s.cari.trim().toLowerCase();
+    const vis = s.rows.filter((r) => (s.filter === 'semua' || r.status === s.filter) && (!q || r.nama.toLowerCase().includes(q) || r.nis.includes(q)));
+    const baris = vis.map((r, i) => ({
+      no: i + 1, nama: r.nama, nis: r.nis, kelas: r.kelas, dev: r.dev,
+      statusLabel: L[r.status],
+      badge: 'display:inline-block;font-size:12px;font-weight:600;border-radius:999px;padding:4px 10px;background:' + B[r.status][0] + ';color:' + B[r.status][1],
+      bar: 'height:8px;border-radius:999px;width:' + Math.round((r.done / 30) * 100) + '%;background:' + BAR[r.status],
+      progres: r.done + '/30',
+      sisa: fmt(r.sisa),
+      pel: r.pel,
+      pelStyle: r.pel >= 2 ? 'font-weight:700;color:#a61e1e' : 'color:#3b4160',
+      bisaBuka: r.status === 'terkunci',
+      aktif: r.status === 'online' || r.status === 'offline' || r.status === 'terkunci',
+      buka: () => this.setState({ rows: s.rows.map((x) => x.id === r.id ? { ...x, status: 'online', pel: 0 } : x) }),
+      waktu: () => this.setState({ dialogId: r.id, menit: 10 }),
+      selesaikan: () => this.setState({ rows: s.rows.map((x) => x.id === r.id ? { ...x, status: 'selesai', sisa: 0 } : x) })
+    }));
+    const keys = [['semua', 'Semua'], ['online', 'Online'], ['offline', 'Offline'], ['terkunci', 'Terkunci'], ['selesai', 'Selesai'], ['belum_masuk', 'Belum masuk']];
+    const filter = keys.map((k) => {
+      const on = s.filter === k[0];
+      return {
+        label: k[1], pressed: on ? 'true' : 'false',
+        pick: () => this.setState({ filter: k[0] }),
+        style: 'height:40px;padding:0 16px;border-radius:999px;font:inherit;font-weight:600;font-size:14px;cursor:pointer;border:1px solid ' + (on ? '#3b5bdb' : '#cfd5e6') + ';background:' + (on ? '#3b5bdb' : '#fff') + ';color:' + (on ? '#fff' : '#1b2038')
+      };
+    });
+    const presets = [5, 10, 15, 30].map((m) => {
+      const on = s.menit === m;
+      return {
+        menit: m, pressed: on ? 'true' : 'false',
+        pick: () => this.setState({ menit: m }),
+        style: 'height:48px;border-radius:12px;font:inherit;font-weight:700;font-size:15px;cursor:pointer;border:' + (on ? '2px solid #3b5bdb' : '1px solid #cfd5e6') + ';background:' + (on ? '#eef2ff' : '#fff') + ';color:' + (on ? '#2b44b0' : '#1b2038')
+      };
+    });
+    const dlg = s.rows.find((x) => x.id === s.dialogId);
+    return {
+      kartu: [
+        { label: 'Peserta', nilai: '134', warna: '#1b2038' },
+        { label: 'Online', nilai: '58', warna: '#0b8a68' },
+        { label: 'Offline', nilai: '9', warna: '#5b6280' },
+        { label: 'Terkunci', nilai: '3', warna: '#c92a2a' },
+        { label: 'Selesai', nilai: '62', warna: '#3b5bdb' },
+        { label: 'Belum masuk', nilai: '2', warna: '#8a5200' }
+      ],
+      filter, baris, jumlah: vis.length, cari: s.cari,
+      onCari: (e) => this.setState({ cari: e && e.target ? e.target.value : '' }),
+      dialog: !!dlg, dialogNama: dlg ? dlg.nama : '', presets, pilihMenit: s.menit,
+      tutup: () => this.setState({ dialogId: null }),
+      terapkan: () => this.setState({ rows: s.rows.map((x) => x.id === s.dialogId ? { ...x, sisa: x.sisa + s.menit } : x), dialogId: null })
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<title>Login siswa</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+body{margin:0;font-family:'DM Sans',system-ui,sans-serif;background:#f4f6fb;color:#1b2038}
+a{color:#3b5bdb}a:hover{color:#2b44b0}
+input:focus-visible,button:focus-visible,a:focus-visible{outline:3px solid #9db1ff;outline-offset:2px}
+</style>
+</helmet>
+<div style="display:flex;flex-wrap:wrap;min-height:820px;background:#f4f6fb">
+
+  <!-- Panel merek -->
+  <div style="flex:1 1 440px;min-width:0;background:#101533;color:#fff;padding:56px 64px;display:flex;flex-direction:column;justify-content:space-between;gap:40px;box-sizing:border-box">
+    <div style="display:flex;align-items:center;gap:14px">
+      <div style="width:48px;height:48px;border-radius:14px;background:#3b5bdb;display:flex;align-items:center;justify-content:center">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v16H6.5A2.5 2.5 0 0 0 4 21.5z"/><path d="m9 11 2 2 4-4"/></svg>
+      </div>
+      <div>
+        <div style="font-family:'Sora',sans-serif;font-weight:700;font-size:18px;letter-spacing:-0.01em">CBT Sekolah</div>
+        <div style="font-size:13px;color:#aab3de">MTs Al-Ihsan Batujajar</div>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:28px">
+      <h1 style="margin:0;font-family:'Sora',sans-serif;font-weight:700;font-size:40px;line-height:1.15;letter-spacing:-0.02em;max-width:460px">Ujian berbasis komputer yang tidak mengulang dari nol.</h1>
+      <div style="display:flex;flex-direction:column;gap:18px;max-width:440px">
+        <div style="display:flex;gap:14px;align-items:flex-start">
+          <div style="flex:none;width:36px;height:36px;border-radius:10px;background:#1d2552;display:flex;align-items:center;justify-content:center">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#9db1ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5a10 10 0 0 1 14 0"/><path d="M8.5 16a5 5 0 0 1 7 0"/><path d="M12 19.5h.01"/></svg>
+          </div>
+          <div><div style="font-weight:600;font-size:15px">Koneksi putus, jawaban aman</div><div style="font-size:14px;color:#aab3de;line-height:1.5">Masuk lagi dan lanjutkan dari soal terakhir dengan sisa waktu yang benar.</div></div>
+        </div>
+        <div style="display:flex;gap:14px;align-items:flex-start">
+          <div style="flex:none;width:36px;height:36px;border-radius:10px;background:#1d2552;display:flex;align-items:center;justify-content:center">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#9db1ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M4 12h10M4 17h16"/></svg>
+          </div>
+          <div><div style="font-weight:600;font-size:15px">Soal Arab mudah dibaca</div><div style="font-size:14px;color:#aab3de;line-height:1.5">Teks kanan-ke-kiri, font Arab lokal, ukuran huruf bisa diperbesar.</div></div>
+        </div>
+        <div style="display:flex;gap:14px;align-items:flex-start">
+          <div style="flex:none;width:36px;height:36px;border-radius:10px;background:#1d2552;display:flex;align-items:center;justify-content:center">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#9db1ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+          </div>
+          <div><div style="font-weight:600;font-size:15px">Waktu dihitung server</div><div style="font-size:14px;color:#aab3de;line-height:1.5">Sisa waktu sama di perangkat mana pun.</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div style="font-size:13px;color:#8590c4">Pastikan HP terhubung ke WiFi ujian sebelum masuk.</div>
+  </div>
+
+  <!-- Form -->
+  <div style="flex:1 1 440px;min-width:0;display:flex;align-items:center;justify-content:center;padding:48px 24px;box-sizing:border-box">
+    <div style="width:100%;max-width:440px;display:flex;flex-direction:column;gap:24px">
+      <div>
+        <h2 style="margin:0 0 6px;font-family:'Sora',sans-serif;font-weight:700;font-size:26px;letter-spacing:-0.01em">Masuk untuk ujian</h2>
+        <p style="margin:0;color:#5b6280;font-size:15px">Gunakan NIS dan PIN dari wali kelas.</p>
+      </div>
+
+      <form style="display:flex;flex-direction:column;gap:18px" onSubmit="{{noSubmit}}">
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <label for="nis" style="font-size:14px;font-weight:600">NIS</label>
+          <input id="nis" type="text" inputmode="numeric" autocomplete="username" placeholder="Contoh: 2410123" value="2410123" style="height:48px;border:1px solid #cfd5e6;border-radius:12px;padding:0 14px;font:inherit;font-size:16px;background:#fff;color:#1b2038;box-sizing:border-box;width:100%">
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <label for="pin" style="font-size:14px;font-weight:600">PIN</label>
+          <input id="pin" type="password" inputmode="numeric" autocomplete="current-password" placeholder="PIN ujian" value="123456" style="height:48px;border:1px solid #cfd5e6;border-radius:12px;padding:0 14px;font:inherit;font-size:16px;background:#fff;color:#1b2038;box-sizing:border-box;width:100%">
+        </div>
+
+        <fieldset style="border:0;margin:0;padding:0;display:flex;flex-direction:column;gap:8px">
+          <legend style="padding:0;margin-bottom:8px;font-size:14px;font-weight:600">Ujian yang sedang dibuka</legend>
+          <sc-for list="{{ujian}}" as="u" hint-placeholder-count="3">
+            <button type="button" onClick="{{u.pick}}" aria-pressed="{{u.selected}}" style="{{u.style}}">
+              <span style="flex:none;width:20px;height:20px;border-radius:50%;box-sizing:border-box;{{u.dot}}"></span>
+              <span style="flex:1;min-width:0">
+                <span style="display:block;font-weight:600;font-size:15px;color:#1b2038">{{u.nama}}</span>
+                <span style="display:block;font-size:13px;color:#5b6280">{{u.info}}</span>
+              </span>
+              <sc-if value="{{u.butuhToken}}" hint-placeholder-val="{{ true }}">
+                <span style="flex:none;font-size:12px;font-weight:600;color:#8a5200;background:#fff1d6;border-radius:999px;padding:4px 10px">Perlu token</span>
+              </sc-if>
+            </button>
+          </sc-for>
+        </fieldset>
+
+        <sc-if value="{{perluToken}}" hint-placeholder-val="{{ true }}">
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <label for="token" style="font-size:14px;font-weight:600">Token ujian</label>
+            <input id="token" type="text" autocapitalize="characters" placeholder="Dari pengawas ruangan" style="height:48px;border:1px solid #cfd5e6;border-radius:12px;padding:0 14px;font:inherit;font-size:16px;letter-spacing:0.12em;text-transform:uppercase;background:#fff;color:#1b2038;box-sizing:border-box;width:100%">
+            <span style="font-size:13px;color:#5b6280">Token dibagikan pengawas saat ujian dimulai.</span>
+          </div>
+        </sc-if>
+
+        <button type="submit" style="height:52px;border:0;border-radius:12px;background:#3b5bdb;color:#fff;font:inherit;font-weight:600;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px">
+          Mulai ujian
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </button>
+      </form>
+
+      <div style="display:flex;gap:12px;align-items:flex-start;background:#e9f7f2;border-radius:12px;padding:14px 16px">
+        <svg style="flex:none;margin-top:1px" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0b6e53" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 4 6v6c0 5 3.4 8.3 8 9 4.6-.7 8-4 8-9V6z"/><path d="m9 12 2 2 4-4"/></svg>
+        <span style="font-size:14px;line-height:1.5;color:#0b4f3c">Sudah pernah masuk? Login ulang akan melanjutkan ujian Anda. Perangkat lama otomatis keluar.</span>
+      </div>
+
+      <div style="display:flex;gap:20px;font-size:14px;border-top:1px solid #dfe3ee;padding-top:18px">
+        <a href="#">Masuk sebagai guru</a>
+        <a href="#">Masuk sebagai admin</a>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":820}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { picked: 1 }; }
+  renderVals() {
+    const list = [
+      { id: 1, nama: 'PAS Fiqih Semester Ganjil', info: 'Kelas VII-A · 90 menit', butuhToken: true },
+      { id: 2, nama: 'PAS Bahasa Arab', info: 'Kelas VII-A · 120 menit', butuhToken: true },
+      { id: 3, nama: 'Simulasi CBT Matematika', info: 'Kelas VII-A · 60 menit', butuhToken: false }
+    ];
+    const picked = this.state.picked;
+    const ujian = list.map((u) => {
+      const on = u.id === picked;
+      return {
+        ...u,
+        selected: on ? 'true' : 'false',
+        pick: () => this.setState({ picked: u.id }),
+        style: 'display:flex;align-items:center;gap:14px;text-align:left;font:inherit;cursor:pointer;min-height:64px;padding:12px 14px;border-radius:12px;box-sizing:border-box;width:100%;background:' + (on ? '#eef2ff' : '#fff') + ';border:' + (on ? '2px solid #3b5bdb' : '1px solid #cfd5e6'),
+        dot: on ? 'border:6px solid #3b5bdb;background:#fff' : 'border:2px solid #aab1c9;background:#fff'
+      };
+    });
+    const sel = list.find((u) => u.id === picked);
+    return { ujian, perluToken: !!(sel && sel.butuhToken), noSubmit: (e) => { if (e && e.preventDefault) e.preventDefault(); } };
+  }
+}
+</script>
+</body>
+</html>
