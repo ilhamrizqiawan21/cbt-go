@@ -114,7 +114,7 @@ func setupResetMockDB(t *testing.T) (*sql.DB, *mockResetDriver) {
 	drv := &mockResetDriver{
 		deletedQueries: make([]string, 0),
 	}
-	driverName := fmt.Sprintf("mock_reset_%d", time.Now().UnixNano())
+	driverName := namaDriverMock("mock_reset")
 	sql.Register(driverName, drv)
 
 	db, err := sql.Open(driverName, "")

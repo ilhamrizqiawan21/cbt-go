@@ -310,6 +310,13 @@ func HapusUjian(ctx context.Context, db *sql.DB, id int) error {
 	if db == nil {
 		return errors.New("database tidak tersedia")
 	}
+	// Baris soal ikut terhapus lewat cascade FK tanpa melewati soal.HapusSoal,
+	// jadi nama berkas gambarnya dicatat dulu agar tidak tertinggal yatim di disk.
+	gambar, err := soal.GambarUjian(ctx, db, id)
+	if err != nil {
+		return err
+	}
+
 	res, err := db.ExecContext(ctx, "DELETE FROM ujian WHERE id = ?", id)
 	if err != nil {
 		return fmt.Errorf("delete ujian: %w", err)
@@ -318,6 +325,7 @@ func HapusUjian(ctx context.Context, db *sql.DB, id int) error {
 	if err == nil && affected == 0 {
 		return ErrNotFound
 	}
+	soal.BersihkanGambarYatim(ctx, db, gambar)
 	return nil
 }
 

@@ -199,7 +199,7 @@ func setupEssayMockDB(t *testing.T) *sql.DB {
 	drv := &mockEssayDriver{
 		skorEssayMap: make(map[string]int),
 	}
-	driverName := fmt.Sprintf("mock_essay_%d", time.Now().UnixNano())
+	driverName := namaDriverMock("mock_essay")
 	sql.Register(driverName, drv)
 
 	db, err := sql.Open(driverName, "")

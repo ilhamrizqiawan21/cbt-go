@@ -47,7 +47,6 @@
         <div>
             <div class="d-flex align-items-center gap-2 flex-wrap">
                 <h3 class="page-title mb-0"><i class="bi bi-display text-primary me-2"></i>Monitor Realtime Ujian</h3>
-                <span id="ws-badge" class="badge bg-secondary">Menghubungkan…</span>
                 <span id="ws-badge" class="badge rounded-pill px-3 py-2" style="background:#12302f;color:#7fe0bf;font-weight:600;">Menghubungkan…</span>
             </div>
             <p class="text-muted mb-0 small">Online = aktif &lt; 45 detik terakhir. Data diperbarui otomatis.</p>
@@ -69,18 +68,6 @@
     <div class="alert alert-info text-center py-4"><i class="bi bi-info-circle fs-2 d-block mb-2"></i>Belum ada ujian. <a href="/admin/ujian" class="alert-link">Buat ujian</a> terlebih dahulu.</div>
     {{else}}
     <div class="row g-2 mb-3" id="kartu-stat">
-        <div class="col-6 col-md-4 col-xl-2"><div class="card stat-card border-0 shadow-sm p-3 text-center" data-filter="">
-            <div class="small text-muted fw-semibold text-uppercase">Total</div><div class="fs-3 fw-bold" id="stat-total_siswa">0</div></div></div>
-        <div class="col-6 col-md-4 col-xl-2"><div class="card stat-card border-0 shadow-sm p-3 text-center st-online" data-filter="online">
-            <div class="small fw-semibold text-uppercase">Online</div><div class="fs-3 fw-bold" id="stat-online">0</div></div></div>
-        <div class="col-6 col-md-4 col-xl-2"><div class="card stat-card border-0 shadow-sm p-3 text-center st-offline" data-filter="offline">
-            <div class="small fw-semibold text-uppercase">Offline</div><div class="fs-3 fw-bold" id="stat-offline">0</div></div></div>
-        <div class="col-6 col-md-4 col-xl-2"><div class="card stat-card border-0 shadow-sm p-3 text-center st-terkunci" data-filter="terkunci">
-            <div class="small fw-semibold text-uppercase">Terkunci</div><div class="fs-3 fw-bold" id="stat-terkunci">0</div></div></div>
-        <div class="col-6 col-md-4 col-xl-2"><div class="card stat-card border-0 shadow-sm p-3 text-center st-selesai" data-filter="selesai">
-            <div class="small fw-semibold text-uppercase">Selesai</div><div class="fs-3 fw-bold" id="stat-selesai">0</div></div></div>
-        <div class="col-6 col-md-4 col-xl-2"><div class="card stat-card border-0 shadow-sm p-3 text-center st-belum_masuk" data-filter="belum_masuk">
-            <div class="small fw-semibold text-uppercase">Belum masuk</div><div class="fs-3 fw-bold" id="stat-belum_masuk">0</div></div></div>
         <div class="col-6 col-md-4 col-xl-2"><div class="stat-card" data-filter="">
             <div class="stat-label">Total</div><div class="stat-num" style="color:#1b2038;" id="stat-total_siswa">0</div></div></div>
         <div class="col-6 col-md-4 col-xl-2"><div class="stat-card" data-filter="online">

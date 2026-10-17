@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -229,7 +230,7 @@ func (r *sliceRows) Next(dest []driver.Value) error {
 
 func TestSnapshot_500Siswa_TanpaNPlusOneQuery_QueryCounter(t *testing.T) {
 	drv := &mockDriver{totalSiswa: 500}
-	driverName := fmt.Sprintf("mock_counter_%d", time.Now().UnixNano())
+	driverName := namaDriverMock("mock_counter")
 	sql.Register(driverName, drv)
 
 	db, err := sql.Open(driverName, "")
@@ -605,7 +606,7 @@ func TestEndpointGetMonitor(t *testing.T) {
 
 func TestEndpointGetMonitor_UnitMock(t *testing.T) {
 	drv := &mockDriver{totalSiswa: 5}
-	driverName := fmt.Sprintf("mock_endpoint_%d", time.Now().UnixNano())
+	driverName := namaDriverMock("mock_endpoint")
 	sql.Register(driverName, drv)
 
 	db, err := sql.Open(driverName, "")
@@ -738,4 +739,15 @@ func TestSnapshot_410Siswa_DB(t *testing.T) {
 		t.Errorf("snapshot 410 siswa butuh %v, terlalu lambat", lama)
 	}
 	t.Logf("snapshot 410 siswa: %v", lama)
+}
+
+// mockDriverSeq menomori nama driver mock agar selalu unik dalam satu proses uji.
+// Sebelumnya nama dibentuk dari time.Now().UnixNano(); itu tidak aman karena di
+// Windows dua panggilan berurutan dapat mengembalikan nilai yang sama, sehingga
+// sql.Register panik dengan "Register called twice for driver ...".
+var mockDriverSeq atomic.Uint64
+
+// namaDriverMock mengembalikan nama driver unik dengan awalan yang diberikan.
+func namaDriverMock(prefix string) string {
+	return fmt.Sprintf("%s_%d", prefix, mockDriverSeq.Add(1))
 }

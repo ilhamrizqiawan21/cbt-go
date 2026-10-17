@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -11,6 +12,10 @@ import (
 // TestBackupRestoreScripts memverifikasi kelengkapan, hak eksekusi, dan perilaku CLI
 // dari scripts/backup.sh dan scripts/restore.sh sebagai padanan tests/backup_restore.test.js.
 func TestBackupRestoreScripts(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("skrip backup/restore adalah shell script untuk server Linux: Windows tidak punya bit izin eksekusi POSIX dan tidak dapat meng-exec berkas .sh secara langsung")
+	}
+
 	wd, err := os.Getwd()
 	if err != nil {
 		t.Fatalf("getwd: %v", err)

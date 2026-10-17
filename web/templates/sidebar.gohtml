@@ -1,0 +1,206 @@
+{{/*
+  Kerangka sidebar bersama panel admin & guru.
+
+  Gaya dan skrip sengaja diletakkan di partial ini (bukan di "app_head") agar
+  halaman tanpa sidebar — login, landing, halaman cetak — tidak ikut tergeser.
+
+  Tiga keadaan:
+    - desktop penuh  : sidebar 260px, label terlihat
+    - desktop rail   : body.app-rail, sidebar 72px, hanya ikon (disimpan di localStorage)
+    - mobile         : sidebar tersembunyi, dibuka sebagai drawer (body.app-sidebar-open)
+*/}}
+
+{{define "app_sidebar_style"}}
+<style>
+    :root {
+        --app-sidebar-w: 260px;
+        --app-sidebar-rail-w: 72px;
+        --app-topbar-h: 56px;
+    }
+
+    /* Dasar = layar kecil: sidebar berupa drawer di luar layar. */
+    body {
+        padding-top: var(--app-topbar-h);
+        transition: padding-left .18s ease;
+    }
+
+    .app-sidebar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        width: var(--app-sidebar-w);
+        z-index: 1045;
+        display: flex;
+        flex-direction: column;
+        overflow-x: hidden;
+        overflow-y: auto;
+        background: var(--app-sidebar-bg);
+        color: rgba(255, 255, 255, .75);
+        transform: translateX(-100%);
+        transition: width .18s ease, transform .18s ease;
+    }
+    body.app-sidebar-open .app-sidebar { transform: none; }
+
+    .app-sidebar-brand {
+        display: flex;
+        align-items: center;
+        gap: .6rem;
+        height: var(--app-topbar-h);
+        padding: 0 1rem;
+        color: #fff;
+        text-decoration: none;
+        white-space: nowrap;
+        flex: 0 0 auto;
+        border-bottom: 1px solid rgba(255, 255, 255, .1);
+    }
+    .app-sidebar-brand img { flex: 0 0 auto; }
+
+    .app-sidebar-nav {
+        list-style: none;
+        margin: 0;
+        padding: .75rem .6rem;
+        flex: 1 1 auto;
+    }
+    .app-sidebar-nav li { margin-bottom: .15rem; }
+
+    .app-nav-link {
+        display: flex;
+        align-items: center;
+        gap: .75rem;
+        padding: .55rem .75rem;
+        border-radius: .5rem;
+        color: rgba(255, 255, 255, .75);
+        text-decoration: none;
+        white-space: nowrap;
+    }
+    .app-nav-link:hover,
+    .app-nav-link:focus-visible { background: rgba(255, 255, 255, .1); color: #fff; }
+    .app-nav-link.active { background: rgba(255, 255, 255, .18); color: #fff; font-weight: 600; }
+    .app-nav-link > i:first-child { flex: 0 0 1.5rem; font-size: 1.05rem; text-align: center; }
+
+    .app-nav-group-caret { margin-left: auto; transition: transform .15s ease; }
+    .app-nav-link[aria-expanded="true"] .app-nav-group-caret { transform: rotate(180deg); }
+
+    .app-subnav { list-style: none; margin: .15rem 0 .15rem 1.6rem; padding: 0; }
+    .app-subnav .app-nav-link { padding: .4rem .75rem; font-size: .925rem; }
+
+    .app-sidebar-footer {
+        flex: 0 0 auto;
+        padding: .6rem;
+        border-top: 1px solid rgba(255, 255, 255, .1);
+    }
+
+    .app-topbar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: var(--app-topbar-h);
+        z-index: 1035;
+        display: flex;
+        align-items: center;
+        gap: .75rem;
+        padding: 0 1rem;
+        background: #fff;
+        border-bottom: 1px solid rgba(0, 0, 0, .08);
+        transition: left .18s ease;
+    }
+
+    .app-topbar-toggle {
+        border: 0;
+        background: transparent;
+        font-size: 1.35rem;
+        line-height: 1;
+        padding: .25rem .5rem;
+        border-radius: .4rem;
+        color: #334;
+    }
+    .app-topbar-toggle:hover { background: rgba(0, 0, 0, .06); }
+
+    .app-backdrop { display: none; }
+    body.app-sidebar-open .app-backdrop {
+        display: block;
+        position: fixed;
+        inset: 0;
+        z-index: 1040;
+        background: rgba(0, 0, 0, .45);
+    }
+
+    /*
+      Desktop: sidebar menetap di kiri dan konten digeser.
+      Seluruh aturan rail hanya di sini — di layar kecil "rail" tidak berlaku,
+      sehingga tidak perlu dibatalkan lagi dan tidak menimpa .collapse Bootstrap.
+    */
+    @media (min-width: 992px) {
+        body { padding-left: var(--app-sidebar-w); }
+        .app-sidebar { transform: none; }
+        .app-topbar { left: var(--app-sidebar-w); }
+        .app-backdrop,
+        body.app-sidebar-open .app-backdrop { display: none; }
+
+        body.app-rail { padding-left: var(--app-sidebar-rail-w); }
+        body.app-rail .app-sidebar { width: var(--app-sidebar-rail-w); }
+        body.app-rail .app-topbar { left: var(--app-sidebar-rail-w); }
+
+        body.app-rail .app-nav-label,
+        body.app-rail .app-nav-group-caret,
+        body.app-rail .app-sidebar-brand span,
+        body.app-rail .app-subnav { display: none; }
+        body.app-rail .app-nav-link { justify-content: center; gap: 0; padding-left: .5rem; padding-right: .5rem; }
+        body.app-rail .app-sidebar-brand { justify-content: center; padding: 0 .5rem; }
+    }
+
+    @media print {
+        .app-sidebar, .app-topbar, .app-backdrop { display: none !important; }
+        body, body.app-rail { padding-left: 0 !important; padding-top: 0 !important; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        body, .app-sidebar, .app-topbar { transition: none; }
+    }
+</style>
+{{end}}
+
+{{define "app_sidebar_script"}}
+<script>
+    (() => {
+        const body = document.body;
+        const KUNCI_RAIL = 'cbt.sidebar.rail';
+        const desktop = window.matchMedia('(min-width: 992px)');
+
+        // localStorage bisa dilarang (mode privat/kebijakan perangkat): jangan sampai menggagalkan menu.
+        try {
+            if (localStorage.getItem(KUNCI_RAIL) === '1') body.classList.add('app-rail');
+        } catch (e) { /* abaikan */ }
+
+        const toggle = document.getElementById('appSidebarToggle');
+        const backdrop = document.getElementById('appBackdrop');
+
+        if (toggle) {
+            toggle.addEventListener('click', () => {
+                if (desktop.matches) {
+                    body.classList.toggle('app-rail');
+                    try {
+                        localStorage.setItem(KUNCI_RAIL, body.classList.contains('app-rail') ? '1' : '0');
+                    } catch (e) { /* abaikan */ }
+                } else {
+                    body.classList.toggle('app-sidebar-open');
+                }
+            });
+        }
+
+        if (backdrop) {
+            backdrop.addEventListener('click', () => body.classList.remove('app-sidebar-open'));
+        }
+
+        // Esc menutup drawer di layar kecil.
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') body.classList.remove('app-sidebar-open');
+        });
+
+        // Berpindah ke desktop: pastikan drawer tidak tertinggal terbuka.
+        desktop.addEventListener('change', () => body.classList.remove('app-sidebar-open'));
+    })();
+</script>
+{{end}}

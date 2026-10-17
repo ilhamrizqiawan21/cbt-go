@@ -117,7 +117,7 @@ func (s *mockHasilStmt) QueryContext(ctx context.Context, args []driver.NamedVal
 func setupHasilMockDB(t *testing.T) *sql.DB {
 	t.Helper()
 	drv := &mockHasilDriver{}
-	driverName := fmt.Sprintf("mock_hasil_%d", time.Now().UnixNano())
+	driverName := namaDriverMock("mock_hasil")
 	sql.Register(driverName, drv)
 
 	db, err := sql.Open(driverName, "")

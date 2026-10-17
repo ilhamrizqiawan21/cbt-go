@@ -15,7 +15,6 @@ import (
 	"net/url"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/alexedwards/scs/v2"
 	"github.com/xuri/excelize/v2"
@@ -142,7 +141,7 @@ func (c *mockSiswaConn) QueryContext(ctx context.Context, query string, args []d
 func setupSiswaMockDB(t *testing.T) *sql.DB {
 	t.Helper()
 	drv := &mockSiswaDriver{}
-	driverName := fmt.Sprintf("mock_siswa_%d", time.Now().UnixNano())
+	driverName := namaDriverMock("mock_siswa")
 	sql.Register(driverName, drv)
 
 	db, err := sql.Open(driverName, "")

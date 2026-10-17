@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"sync/atomic"
 	"testing"
-	"time"
 
 	"cbt-go/internal/soal"
 )
@@ -174,7 +174,7 @@ func (c *mockSoalConn) QueryContext(ctx context.Context, query string, args []dr
 func setupSoalMockDB(t *testing.T) *sql.DB {
 	t.Helper()
 	drv := &mockSoalDriver{}
-	driverName := fmt.Sprintf("mock_soal_%d", time.Now().UnixNano())
+	driverName := namaDriverMock("mock_soal")
 	sql.Register(driverName, drv)
 
 	db, err := sql.Open(driverName, "")
@@ -282,4 +282,15 @@ func TestSoalCRUDDanBatch(t *testing.T) {
 
 func soalStringPtr(s string) *string {
 	return &s
+}
+
+// mockDriverSeq menomori nama driver mock agar selalu unik dalam satu proses uji.
+// Sebelumnya nama dibentuk dari time.Now().UnixNano(); itu tidak aman karena di
+// Windows dua panggilan berurutan dapat mengembalikan nilai yang sama, sehingga
+// sql.Register panik dengan "Register called twice for driver ...".
+var mockDriverSeq atomic.Uint64
+
+// namaDriverMock mengembalikan nama driver unik dengan awalan yang diberikan.
+func namaDriverMock(prefix string) string {
+	return fmt.Sprintf("%s_%d", prefix, mockDriverSeq.Add(1))
 }

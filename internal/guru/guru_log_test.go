@@ -116,7 +116,7 @@ func (s *mockGuruLogStmt) QueryContext(ctx context.Context, args []driver.NamedV
 func setupGuruLogMockDB(t *testing.T) *sql.DB {
 	t.Helper()
 	drv := &mockGuruLogDriver{}
-	driverName := fmt.Sprintf("mock_guru_log_%d", time.Now().UnixNano())
+	driverName := namaDriverMock("mock_guru_log")
 	sql.Register(driverName, drv)
 
 	db, err := sql.Open(driverName, "")

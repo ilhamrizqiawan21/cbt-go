@@ -1,75 +1,95 @@
+{{/*
+  Navigasi panel admin: sidebar yang bisa dibuka-tutup + topbar.
+  Nama partial tetap "admin_navbar" agar seluruh halaman admin tidak perlu diubah.
+  Kerangka, gaya, dan skripnya ada di sidebar.gohtml.
+*/}}
 {{define "admin_navbar"}}
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark sticky-top shadow-sm">
-    <div class="container-fluid px-3">
-        <a class="navbar-brand d-flex align-items-center gap-2" href="/admin/dashboard">
-            <img src="/images/logo-sekolah.png" alt="" width="30" height="30" class="d-inline-block">
-            <span class="fw-bold">CBT Admin</span>
-        </a>
-        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#adminNav" aria-controls="adminNav" aria-expanded="false" aria-label="Buka menu">
-            <span class="navbar-toggler-icon"></span>
-        </button>
+{{template "app_sidebar_style"}}
+<style>:root { --app-sidebar-bg: #101533; }</style>
 
-        <div class="collapse navbar-collapse" id="adminNav">
-            <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-                <li class="nav-item">
-                    <a class="nav-link {{if eq .ActiveMenu "dashboard"}}active fw-semibold{{end}}" href="/admin/dashboard">
-                        <i class="bi bi-speedometer2 me-1"></i> Dashboard
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link {{if eq .ActiveMenu "monitor"}}active fw-semibold{{end}}" href="/admin/monitor">
-                        <i class="bi bi-display me-1"></i> Monitor
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link {{if eq .ActiveMenu "ujian"}}active fw-semibold{{end}}" href="/admin/ujian">
-                        <i class="bi bi-card-checklist me-1"></i> Ujian
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link {{if eq .ActiveMenu "soal"}}active fw-semibold{{end}}" href="/admin/soal">
-                        <i class="bi bi-question-square me-1"></i> Bank Soal
-                    </a>
-                </li>
-                <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle {{if or (eq .ActiveMenu "siswa") (eq .ActiveMenu "guru") (eq .ActiveMenu "kelas") (eq .ActiveMenu "mapel") (eq .ActiveMenu "pengajaran")}}active fw-semibold{{end}}" href="#" id="masterDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                        <i class="bi bi-database me-1"></i> Data Master
-                    </a>
-                    <ul class="dropdown-menu dropdown-menu-dark shadow" aria-labelledby="masterDropdown">
-                        <li><a class="dropdown-item {{if eq .ActiveMenu "siswa"}}active{{end}}" href="/admin/siswa"><i class="bi bi-people me-2"></i>Siswa</a></li>
-                        <li><a class="dropdown-item {{if eq .ActiveMenu "guru"}}active{{end}}" href="/admin/guru"><i class="bi bi-person-badge me-2"></i>Guru</a></li>
-                        <li><hr class="dropdown-divider"></li>
-                        <li><a class="dropdown-item {{if eq .ActiveMenu "kelas"}}active{{end}}" href="/admin/kelas"><i class="bi bi-building me-2"></i>Kelas</a></li>
-                        <li><a class="dropdown-item {{if eq .ActiveMenu "mapel"}}active{{end}}" href="/admin/mapel"><i class="bi bi-journal-bookmark me-2"></i>Mata Pelajaran</a></li>
-                        <li><a class="dropdown-item {{if eq .ActiveMenu "pengajaran"}}active{{end}}" href="/admin/pengajaran"><i class="bi bi-link-45deg me-2"></i>Pengajaran</a></li>
-                    </ul>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link {{if eq .ActiveMenu "hasil"}}active fw-semibold{{end}}" href="/admin/hasil">
-                        <i class="bi bi-trophy me-1"></i> Hasil
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link {{if eq .ActiveMenu "analisis"}}active fw-semibold{{end}}" href="/admin/analisis">
-                        <i class="bi bi-bar-chart-line me-1"></i> Analisis
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link {{if eq .ActiveMenu "log"}}active fw-semibold{{end}}" href="/admin/log-kecurangan">
-                        <i class="bi bi-shield-exclamation me-1"></i> Log &amp; Reset
-                    </a>
-                </li>
+<aside class="app-sidebar" id="appSidebar">
+    <a class="app-sidebar-brand" href="/admin/dashboard">
+        <img src="/images/logo-sekolah.png" alt="" width="30" height="30">
+        <span class="fw-bold">CBT Admin</span>
+    </a>
+
+    <ul class="app-sidebar-nav">
+        <li>
+            <a class="app-nav-link {{if eq .ActiveMenu "dashboard"}}active{{end}}" href="/admin/dashboard" {{if eq .ActiveMenu "dashboard"}}aria-current="page"{{end}} title="Dashboard">
+                <i class="bi bi-speedometer2"></i><span class="app-nav-label">Dashboard</span>
+            </a>
+        </li>
+        <li>
+            <a class="app-nav-link {{if eq .ActiveMenu "monitor"}}active{{end}}" href="/admin/monitor" {{if eq .ActiveMenu "monitor"}}aria-current="page"{{end}} title="Monitor">
+                <i class="bi bi-display"></i><span class="app-nav-label">Monitor</span>
+            </a>
+        </li>
+        <li>
+            <a class="app-nav-link {{if eq .ActiveMenu "ujian"}}active{{end}}" href="/admin/ujian" {{if eq .ActiveMenu "ujian"}}aria-current="page"{{end}} title="Ujian">
+                <i class="bi bi-card-checklist"></i><span class="app-nav-label">Ujian</span>
+            </a>
+        </li>
+        <li>
+            <a class="app-nav-link {{if eq .ActiveMenu "soal"}}active{{end}}" href="/admin/soal" {{if eq .ActiveMenu "soal"}}aria-current="page"{{end}} title="Bank Soal">
+                <i class="bi bi-question-square"></i><span class="app-nav-label">Bank Soal</span>
+            </a>
+        </li>
+
+        {{$master := or (eq .ActiveMenu "siswa") (eq .ActiveMenu "guru") (eq .ActiveMenu "kelas") (eq .ActiveMenu "mapel") (eq .ActiveMenu "pengajaran")}}
+        <li>
+            {{/* Di mode rail submenu disembunyikan; ikon tetap menandai grup aktif. */}}
+            <a class="app-nav-link {{if $master}}active{{end}}" href="#menuMaster" data-bs-toggle="collapse" role="button"
+               aria-expanded="{{if $master}}true{{else}}false{{end}}" aria-controls="menuMaster" title="Data Master">
+                <i class="bi bi-database"></i><span class="app-nav-label">Data Master</span>
+                <i class="bi bi-chevron-down app-nav-group-caret"></i>
+            </a>
+            <ul class="app-subnav collapse {{if $master}}show{{end}}" id="menuMaster">
+                <li><a class="app-nav-link {{if eq .ActiveMenu "siswa"}}active{{end}}" href="/admin/siswa"><i class="bi bi-people"></i><span class="app-nav-label">Siswa</span></a></li>
+                <li><a class="app-nav-link {{if eq .ActiveMenu "guru"}}active{{end}}" href="/admin/guru"><i class="bi bi-person-badge"></i><span class="app-nav-label">Guru</span></a></li>
+                <li><a class="app-nav-link {{if eq .ActiveMenu "kelas"}}active{{end}}" href="/admin/kelas"><i class="bi bi-building"></i><span class="app-nav-label">Kelas</span></a></li>
+                <li><a class="app-nav-link {{if eq .ActiveMenu "mapel"}}active{{end}}" href="/admin/mapel"><i class="bi bi-journal-bookmark"></i><span class="app-nav-label">Mata Pelajaran</span></a></li>
+                <li><a class="app-nav-link {{if eq .ActiveMenu "pengajaran"}}active{{end}}" href="/admin/pengajaran"><i class="bi bi-link-45deg"></i><span class="app-nav-label">Pengajaran</span></a></li>
             </ul>
+        </li>
 
-            <div class="d-flex align-items-center gap-3">
-                <span class="navbar-text text-light small">
-                    <a href="/admin/akun" class="text-light text-decoration-none" title="Akun saya"><i class="bi bi-person-circle me-1"></i>{{if .Username}}{{.Username}}{{else}}Admin{{end}}</a>
-                </span>
-                <a href="/logout-admin" class="btn btn-outline-light btn-sm" data-confirm="Keluar dari panel admin?">
-                    <i class="bi bi-box-arrow-right me-1"></i> Keluar
-                </a>
-            </div>
-        </div>
+        <li>
+            <a class="app-nav-link {{if eq .ActiveMenu "hasil"}}active{{end}}" href="/admin/hasil" {{if eq .ActiveMenu "hasil"}}aria-current="page"{{end}} title="Hasil">
+                <i class="bi bi-trophy"></i><span class="app-nav-label">Hasil</span>
+            </a>
+        </li>
+        <li>
+            <a class="app-nav-link {{if eq .ActiveMenu "analisis"}}active{{end}}" href="/admin/analisis" {{if eq .ActiveMenu "analisis"}}aria-current="page"{{end}} title="Analisis">
+                <i class="bi bi-bar-chart-line"></i><span class="app-nav-label">Analisis</span>
+            </a>
+        </li>
+        <li>
+            <a class="app-nav-link {{if eq .ActiveMenu "log"}}active{{end}}" href="/admin/log-kecurangan" {{if eq .ActiveMenu "log"}}aria-current="page"{{end}} title="Log &amp; Reset">
+                <i class="bi bi-shield-exclamation"></i><span class="app-nav-label">Log &amp; Reset</span>
+            </a>
+        </li>
+    </ul>
+
+    <div class="app-sidebar-footer">
+        <a class="app-nav-link {{if eq .ActiveMenu "akun"}}active{{end}}" href="/admin/akun" title="Akun saya">
+            <i class="bi bi-person-circle"></i><span class="app-nav-label">{{if .Username}}{{.Username}}{{else}}Admin{{end}}</span>
+        </a>
+        <a class="app-nav-link" href="/logout-admin" data-confirm="Keluar dari panel admin?" title="Keluar">
+            <i class="bi bi-box-arrow-right"></i><span class="app-nav-label">Keluar</span>
+        </a>
     </div>
-</nav>
+</aside>
+
+<div class="app-backdrop" id="appBackdrop"></div>
+
+<header class="app-topbar">
+    <button class="app-topbar-toggle" type="button" id="appSidebarToggle" aria-controls="appSidebar" aria-label="Buka atau tutup menu">
+        <i class="bi bi-list"></i>
+    </button>
+    <span class="fw-semibold text-truncate">MTs. AL-IHSAN BATUJAJAR</span>
+    <a href="/logout-admin" class="btn btn-outline-secondary btn-sm ms-auto" data-confirm="Keluar dari panel admin?">
+        <i class="bi bi-box-arrow-right me-1"></i><span class="d-none d-sm-inline">Keluar</span>
+    </a>
+</header>
+
+{{template "app_sidebar_script"}}
 {{end}}

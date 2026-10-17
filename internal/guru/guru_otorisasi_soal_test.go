@@ -12,7 +12,6 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/alexedwards/scs/v2"
 
@@ -179,7 +178,7 @@ func (c *mockOtorisasiConn) QueryContext(ctx context.Context, query string, args
 func setupOtorisasiMockDB(t *testing.T) *sql.DB {
 	t.Helper()
 	drv := &mockOtorisasiDriver{}
-	driverName := fmt.Sprintf("mock_otorisasi_%d", time.Now().UnixNano())
+	driverName := namaDriverMock("mock_otorisasi")
 	sql.Register(driverName, drv)
 
 	db, err := sql.Open(driverName, "")

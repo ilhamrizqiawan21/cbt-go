@@ -355,6 +355,44 @@ func hapusGambarYatim(ctx context.Context, db *sql.DB, nama string) {
 	}
 }
 
+// GambarUjian mengembalikan nama berkas gambar seluruh soal pada satu ujian.
+// Dipakai sebelum menghapus ujian: baris soal ikut terhapus lewat cascade FK
+// tanpa melewati HapusSoal, sehingga nama berkasnya harus dicatat lebih dulu.
+func GambarUjian(ctx context.Context, db *sql.DB, ujianID int) ([]string, error) {
+	if db == nil {
+		return nil, errors.New("database tidak tersedia")
+	}
+	rows, err := db.QueryContext(ctx, "SELECT gambar FROM soal WHERE ujian_id = ? AND gambar IS NOT NULL", ujianID)
+	if err != nil {
+		return nil, fmt.Errorf("ambil gambar ujian: %w", err)
+	}
+	defer rows.Close()
+
+	var nama []string
+	for rows.Next() {
+		var g string
+		if err := rows.Scan(&g); err != nil {
+			return nil, fmt.Errorf("baca nama gambar: %w", err)
+		}
+		nama = append(nama, g)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterasi gambar ujian: %w", err)
+	}
+	return nama, nil
+}
+
+// BersihkanGambarYatim menghapus berkas pada daftar nama yang sudah tidak
+// dirujuk soal mana pun. Aman dipanggil dengan daftar kosong.
+func BersihkanGambarYatim(ctx context.Context, db *sql.DB, nama []string) {
+	if db == nil {
+		return
+	}
+	for _, n := range nama {
+		hapusGambarYatim(ctx, db, n)
+	}
+}
+
 // HapusSoal menghapus satu soal berdasarkan ID.
 func HapusSoal(ctx context.Context, db *sql.DB, id int) error {
 	if db == nil {

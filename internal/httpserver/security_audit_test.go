@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -157,7 +158,7 @@ func (c *auditMockConn) QueryContext(ctx context.Context, query string, args []d
 // TestAuditKeamanan_KunciJawabanTidakPernahBocor memverifikasi bahwa kunci jawaban
 // atau kata kunci jawaban_benar / is_benar tidak pernah dikirim ke respon klien siswa.
 func TestAuditKeamanan_KunciJawabanTidakPernahBocor(t *testing.T) {
-	driverName := fmt.Sprintf("mock_audit_%d", time.Now().UnixNano())
+	driverName := namaDriverMock("mock_audit")
 	sql.Register(driverName, &auditMockDriver{})
 	db, err := sql.Open(driverName, "")
 	if err != nil {
@@ -212,7 +213,7 @@ func TestAuditKeamanan_KunciJawabanTidakPernahBocor(t *testing.T) {
 
 // TestAuditKeamanan_OtorisasiRoleEndpoint memverifikasi proteksi akses berdasarkan peran.
 func TestAuditKeamanan_OtorisasiRoleEndpoint(t *testing.T) {
-	driverName := fmt.Sprintf("mock_audit_auth_%d", time.Now().UnixNano())
+	driverName := namaDriverMock("mock_audit_auth")
 	sql.Register(driverName, &auditMockDriver{})
 	db, err := sql.Open(driverName, "")
 	if err != nil {
@@ -393,6 +394,14 @@ func TestAuditKeamanan_SecurityHeaders(t *testing.T) {
 	if !strings.Contains(csp, "default-src 'self'") {
 		t.Errorf("Content-Security-Policy = %q tidak memuat 'default-src \\'self\\''", csp)
 	}
+
+	// G-019: seluruh aset disajikan lokal agar server tetap jalan tanpa internet.
+	// CSP tidak boleh menyisakan izin ke origin luar (mis. Google Fonts).
+	for _, origin := range []string{"https://", "http://", "//fonts."} {
+		if strings.Contains(csp, origin) {
+			t.Errorf("Content-Security-Policy = %q masih mengizinkan origin luar %q; aset wajib lokal (G-019)", csp, origin)
+		}
+	}
 }
 
 // TestAuditKeamanan_CSRF memverifikasi proteksi Cross-Origin Request pada method POST berbasis session.
@@ -463,4 +472,15 @@ func TestAuditKeamanan_UploadSizeLimit(t *testing.T) {
 	if rec.Code != http.StatusUnauthorized && rec.Code != http.StatusRequestEntityTooLarge {
 		t.Errorf("Payload upload raksasa harus ditolak (401 atau 413), dapat: %d", rec.Code)
 	}
+}
+
+// mockDriverSeq menomori nama driver mock agar selalu unik dalam satu proses uji.
+// Sebelumnya nama dibentuk dari time.Now().UnixNano(); itu tidak aman karena di
+// Windows dua panggilan berurutan dapat mengembalikan nilai yang sama, sehingga
+// sql.Register panik dengan "Register called twice for driver ...".
+var mockDriverSeq atomic.Uint64
+
+// namaDriverMock mengembalikan nama driver unik dengan awalan yang diberikan.
+func namaDriverMock(prefix string) string {
+	return fmt.Sprintf("%s_%d", prefix, mockDriverSeq.Add(1))
 }

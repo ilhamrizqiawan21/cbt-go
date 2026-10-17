@@ -80,6 +80,11 @@ func (c *mockUjianConn) QueryContext(ctx context.Context, query string, args []d
 	now := time.Now()
 	later := now.Add(2 * time.Hour)
 
+	// HapusUjian mengumpulkan nama gambar sebelum menghapus; ujian mock tak bergambar.
+	if strings.Contains(query, "SELECT gambar FROM soal WHERE ujian_id = ?") {
+		return &sliceRows{columns: []string{"gambar"}}, nil
+	}
+
 	if strings.Contains(query, "WHERE p.mapel_id = ?") {
 		// Mock kueri ujian by mapel
 		for _, a := range args {
@@ -166,7 +171,7 @@ func (c *mockUjianConn) QueryContext(ctx context.Context, query string, args []d
 func setupUjianMockDB(t *testing.T) *sql.DB {
 	t.Helper()
 	drv := &mockUjianDriver{}
-	driverName := fmt.Sprintf("mock_ujian_%d", time.Now().UnixNano())
+	driverName := namaDriverMock("mock_ujian")
 	sql.Register(driverName, drv)
 
 	db, err := sql.Open(driverName, "")

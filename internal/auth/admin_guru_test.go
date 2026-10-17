@@ -11,6 +11,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -133,7 +134,7 @@ func setupMockAuthDB(t *testing.T) (*sql.DB, *mockAuthDriver) {
 		adminPasswordHash: string(adminHash),
 		guruPasswordHash:  string(guruHash),
 	}
-	driverName := fmt.Sprintf("mock_auth_%d", time.Now().UnixNano())
+	driverName := namaDriverMock("mock_auth")
 	sql.Register(driverName, drv)
 
 	db, err := sql.Open(driverName, "")
@@ -492,4 +493,15 @@ func extractCookieToken(cookieHeader, cookieName string) string {
 		}
 	}
 	return ""
+}
+
+// mockDriverSeq menomori nama driver mock agar selalu unik dalam satu proses uji.
+// Sebelumnya nama dibentuk dari time.Now().UnixNano(); itu tidak aman karena di
+// Windows dua panggilan berurutan dapat mengembalikan nilai yang sama, sehingga
+// sql.Register panik dengan "Register called twice for driver ...".
+var mockDriverSeq atomic.Uint64
+
+// namaDriverMock mengembalikan nama driver unik dengan awalan yang diberikan.
+func namaDriverMock(prefix string) string {
+	return fmt.Sprintf("%s_%d", prefix, mockDriverSeq.Add(1))
 }

@@ -43,6 +43,7 @@ pnpm-debug.log*
 
 # Output pengujian UI
 tests/ui/out/
+.playwright-mcp/
 
 # Editor & IDE
 .vscode/

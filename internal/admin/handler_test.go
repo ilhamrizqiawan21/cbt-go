@@ -12,8 +12,8 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"strings"
+	"sync/atomic"
 	"testing"
-	"time"
 
 	"github.com/alexedwards/scs/v2"
 
@@ -152,7 +152,7 @@ func (c *mockMasterConn) QueryContext(ctx context.Context, query string, args []
 func setupMasterMockDB(t *testing.T) *sql.DB {
 	t.Helper()
 	drv := &mockMasterDriver{}
-	driverName := fmt.Sprintf("mock_master_%d", time.Now().UnixNano())
+	driverName := namaDriverMock("mock_master")
 	sql.Register(driverName, drv)
 
 	db, err := sql.Open(driverName, "")
@@ -249,4 +249,15 @@ func TestAdminHandlers_CRUD(t *testing.T) {
 	if !strings.Contains(w.Body.String(), "nama kelas sudah ada") {
 		t.Errorf("pesan duplikat kelas tidak sesuai: %s", w.Body.String())
 	}
+}
+
+// mockDriverSeq menomori nama driver mock agar selalu unik dalam satu proses uji.
+// Sebelumnya nama dibentuk dari time.Now().UnixNano(); itu tidak aman karena di
+// Windows dua panggilan berurutan dapat mengembalikan nilai yang sama, sehingga
+// sql.Register panik dengan "Register called twice for driver ...".
+var mockDriverSeq atomic.Uint64
+
+// namaDriverMock mengembalikan nama driver unik dengan awalan yang diberikan.
+func namaDriverMock(prefix string) string {
+	return fmt.Sprintf("%s_%d", prefix, mockDriverSeq.Add(1))
 }
